@@ -96,13 +96,7 @@ pub fn tag_request(cfg: &Config, rinfo: &RequestInfo) -> Tags {
     tags.insert(&format!("ip:{}", rinfo.rinfo.geoip.ipstr));
     tags.insert(&format!(
         "geo:{}",
-        rinfo
-            .rinfo
-            .geoip
-            .country_name
-            .as_ref()
-            .map(|s| s.as_str())
-            .unwrap_or_else(|| "nil")
+        rinfo.rinfo.geoip.country_name.as_deref().unwrap_or("nil")
     ));
     tags.insert(&format!(
         "asn:{}",

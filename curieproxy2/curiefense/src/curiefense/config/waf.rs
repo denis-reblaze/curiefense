@@ -4,9 +4,9 @@ use crate::curiefense::config::raw::{
 use hyperscan::prelude::{Builder, CompileFlags, Pattern, Patterns, VectoredDatabase};
 use hyperscan::Vectored;
 use regex::Regex;
+use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
-use serde::Serialize;
 
 #[derive(Debug, Clone)]
 pub struct Section<A> {

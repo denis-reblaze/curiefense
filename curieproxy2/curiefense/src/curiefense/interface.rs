@@ -55,8 +55,7 @@ pub struct Action {
     pub atype: ActionType,
     pub ban: bool,
     pub status: u32,
-    pub headers: HashMap<String, String>,
-    pub initiator: String,
+    pub headers: Option<HashMap<String, String>>,
     pub reason: serde_json::value::Value,
     pub content: String,
 }
@@ -74,11 +73,7 @@ impl std::default::Default for Action {
             atype: ActionType::Block,
             ban: false,
             status: 403,
-            headers: [("x-curiefense".to_string(), "response".to_string())]
-                .iter()
-                .cloned()
-                .collect(),
-            initiator: "undefined".to_string(),
+            headers: None,
             reason: serde_json::value::Value::Null,
             content: "curiefense - request denied".to_string(),
         }

@@ -48,30 +48,68 @@ impl WAFBlock {
         let reason = match self {
             WAFBlock::Policies(ids) => ids
                 .first()
-                .and_then(|e| e.ids.first().map(|sig| {
-                    json!({
-                        "section": e.matched.section,
-                        "name": e.matched.name,
-                        "value": e.matched.value,
-                        "initiator": "waf",
-                        "sig_category": sig.category,
-                        "sig_subcategory": sig.subcategory,
-                        "sig_operand": sig.operand,
-                        "sig_id": sig.id,
-                        "sig_severity": sig.severity,
-                        "sig_msg": sig.msg,
+                .and_then(|e| {
+                    e.ids.first().map(|sig| {
+                        json!({
+                            "section": e.matched.section,
+                            "name": e.matched.name,
+                            "value": e.matched.value,
+                            "initiator": "waf",
+                            "sig_category": sig.category,
+                            "sig_subcategory": sig.subcategory,
+                            "sig_operand": sig.operand,
+                            "sig_id": sig.id,
+                            "sig_severity": sig.severity,
+                            "sig_msg": sig.msg,
+                        })
                     })
-                }))
+                })
                 .unwrap_or(Value::Null),
-            _ => json!("TODO")
+            WAFBlock::TooManyEntries(idx) => json!({
+                "section": idx,
+                "value": {
+                    "msg": "Too many entries"
+                }
+            }),
+            WAFBlock::EntryTooLarge(idx, nm) => json!({
+                "section": idx,
+                "name": nm,
+                "value": {
+                    "msg": "Entry too large"
+                }
+            }),
+            WAFBlock::SQLi(wmatch, fp) => json!({
+                "section": wmatch.section,
+                "name": wmatch.name,
+                "value": wmatch.value,
+                "value": {
+                    "msg": "SQLi",
+                    "fingerprint": fp
+                }
+            }),
+            WAFBlock::XSS(wmatch) => json!({
+                "section": wmatch.section,
+                "name": wmatch.name,
+                "value": wmatch.value,
+                "value": {
+                    "msg": "XSS"
+                }
+            }),
+            WAFBlock::Mismatch(wmatch) => json!({
+                "section": wmatch.section,
+                "name": wmatch.name,
+                "value": wmatch.value,
+                "value": {
+                    "msg": "Mismatch"
+                }
+            }),
         };
 
         Action {
             atype: ActionType::Block,
             ban: false,
             status: 403,
-            headers: HashMap::new(),
-            initiator: "WAF".to_string(),
+            headers: None,
             reason,
             content: "Access denied".to_string(),
         }

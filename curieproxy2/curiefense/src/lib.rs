@@ -2,14 +2,13 @@ extern crate mlua;
 
 use lazy_static::lazy_static;
 use mlua::prelude::*;
-use serde::Serialize;
-use serde_json::{to_value, Value};
+use serde_json::json;
 use std::collections::HashMap;
 use std::sync::RwLock;
 
 mod curiefense;
 
-use curiefense::acl::{check_acl, ACLResult};
+use curiefense::acl::{check_acl, ACLDecision, ACLResult};
 use curiefense::config::hostmap::{HostMap, UrlMap};
 use curiefense::config::waf::WAFSignatures;
 use curiefense::config::Config;
@@ -83,10 +82,7 @@ impl InspectionResult {
 impl mlua::UserData for InspectionResult {
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
         methods.add_method("pass", |_, this: &InspectionResult, _: ()| {
-            Ok(match this.0 {
-                Decision::Pass => true,
-                _ => false,
-            })
+            Ok(matches!(this.0, Decision::Pass))
         });
         methods.add_method("atype", |_, this: &InspectionResult, _: ()| {
             this.in_action(|a| format!("{:?}", a.atype))
@@ -99,9 +95,6 @@ impl mlua::UserData for InspectionResult {
         });
         methods.add_method("headers", |_, this: &InspectionResult, _: ()| {
             this.in_action(|a| a.headers.clone())
-        });
-        methods.add_method("initiator", |_, this: &InspectionResult, _: ()| {
-            this.in_action(|a| a.initiator.clone())
         });
         methods.add_method("reason", |_, this: &InspectionResult, _: ()| {
             this.in_action(|a| a.reason.to_string())
@@ -129,22 +122,22 @@ fn inspect(
 
     let res = inspect_generic("/config/current/config", str_ip, metaheaders);
     println!("Inspection result: {:?}", res);
-    match res {
-        Ok(a) => Ok(Some(InspectionResult(a))),
-        Err(_) => Ok(None),
-    }
+    Ok(res.ok().map(InspectionResult))
 }
 
-fn acl_block<T: Serialize>(reason: T) -> Decision {
-    return Decision::Action(Action {
-        atype: ActionType::Block,
+fn acl_block(blocking: bool, code: i32, tags: &[String]) -> Decision {
+    Decision::Action(Action {
+        atype: if blocking {
+            ActionType::Block
+        } else {
+            ActionType::Monitor
+        },
         ban: false,
         status: 403,
-        headers: HashMap::new(),
-        initiator: "ACL".to_string(),
-        reason: to_value(reason).unwrap_or(Value::Null),
+        headers: None,
+        reason: json!({"action": code, "initiator": "acl", "reason": tags }),
         content: "access denied".to_string(),
-    });
+    })
 }
 
 /// generic entry point
@@ -188,18 +181,26 @@ fn inspect_generic(
             if dec.allowed {
                 return Ok(Decision::Pass);
             } else {
-                return Ok(acl_block("TODO"));
+                return Ok(acl_block(urlmap.acl_active, 0, &dec.tags));
             }
         }
-        ACLResult::Match(mbot, mhuman) => {
-            // todo, handle turing test, bot/human priority
-            let result = mbot.or(mhuman);
-            if let Some(r) = result {
-                if !r.allowed && urlmap.acl_active {
-                    return Ok(acl_block("TODO"));
-                }
-            }
-        }
+        // human blocked, always block, even if it is a bot
+        ACLResult::Match(
+            _,
+            Some(ACLDecision {
+                allowed: false,
+                tags,
+            }),
+        ) => return Ok(acl_block(urlmap.acl_active, 5, &tags)),
+        // robot blocked, should be challenged, just block for now
+        ACLResult::Match(
+            Some(ACLDecision {
+                allowed: false,
+                tags,
+            }),
+            _,
+        ) => return Ok(acl_block(urlmap.acl_active, 3, &tags)),
+        _ => (),
     }
     let waf_result = waf_check(&reqinfo, &urlmap.waf_profile, HSDB.read()?);
     println!("WAFRESULTS: {:?}", waf_result);
