@@ -4,7 +4,7 @@ use std::net::IpAddr;
 
 use crate::curiefense::config::utils::{RequestSelector, RequestSelectorCondition};
 use crate::curiefense::interface::Tags;
-use crate::curiefense::maxmind::{get_asn, get_country};
+use crate::curiefense::maxmind::{get_asn, get_city, get_country};
 
 /// extract client IP from request headers, and amount of "trusted hops"
 pub fn ip_from_headers(headers: &HashMap<String, String>, hops: usize) -> String {
@@ -118,8 +118,10 @@ pub struct QueryInfo {
 pub struct GeoIp {
     pub ipstr: String,
     pub ip: Option<IpAddr>,
-    pub country: Option<String>,
+    pub country: Option<maxminddb::geoip2::Country>,
+    pub city: Option<maxminddb::geoip2::City>,
     pub asn: Option<maxminddb::geoip2::Asn>,
+    pub country_name: Option<String>,
 }
 
 #[derive(Debug)]
@@ -149,12 +151,25 @@ pub fn map_request(ipstr: String, rawheaders: HashMap<String, String>) -> Reques
     // this will panic if path is not set
     // however, it must be set by envoy
     let ip = ipstr.parse().ok();
-
+    let country = ip.and_then(get_country);
+    fn get_country_x(c: &maxminddb::geoip2::Country) -> Option<String> {
+        Some(
+            c.country
+                .as_ref()?
+                .names
+                .as_ref()?
+                .get("en")?
+                .to_lowercase(),
+        )
+    }
+    let country_name = country.as_ref().and_then(get_country_x);
     let geoip = GeoIp {
         ipstr,
         ip,
-        country: ip.and_then(get_country),
+        city: ip.and_then(get_city),
         asn: ip.and_then(get_asn),
+        country,
+        country_name,
     };
 
     let qinfo = map_args(&meta.path);
@@ -266,7 +281,7 @@ fn selector<'a>(reqinfo: &'a RequestInfo, sel: &RequestSelector) -> Option<Selec
         RequestSelector::Path => Some(&reqinfo.rinfo.qinfo.qpath).map(Selected::Str),
         RequestSelector::Query => Some(&reqinfo.rinfo.qinfo.query).map(Selected::Str),
         RequestSelector::Method => Some(&reqinfo.rinfo.meta.method).map(Selected::Str),
-        RequestSelector::Country => reqinfo.rinfo.geoip.country.as_ref().map(Selected::Str),
+        RequestSelector::Country => reqinfo.rinfo.geoip.country_name.as_ref().map(Selected::Str),
         RequestSelector::Asn => reqinfo
             .rinfo
             .geoip

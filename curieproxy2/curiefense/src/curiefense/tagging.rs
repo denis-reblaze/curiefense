@@ -57,9 +57,9 @@ fn check_entry(rinfo: &RequestInfo, sub: &ProfilingEntry) -> bool {
         ProfilingEntryE::Country(cty) => rinfo
             .rinfo
             .geoip
-            .country
+            .country_name
             .as_ref()
-            .map(|ccty| check_single(cty, ccty))
+            .map(|ccty| check_single(cty, ccty.as_ref()))
             .unwrap_or(false),
         ProfilingEntryE::Method(mtd) => check_single(mtd, &rinfo.rinfo.meta.method),
         ProfilingEntryE::Header(hdr) => check_pair(hdr, &rinfo.headers),
@@ -99,10 +99,10 @@ pub fn tag_request(cfg: &Config, rinfo: &RequestInfo) -> Tags {
         rinfo
             .rinfo
             .geoip
-            .country
+            .country_name
             .as_ref()
-            .map(|s| s.as_ref())
-            .unwrap_or("nil")
+            .map(|s| s.as_str())
+            .unwrap_or_else(|| "nil")
     ));
     tags.insert(&format!(
         "asn:{}",
