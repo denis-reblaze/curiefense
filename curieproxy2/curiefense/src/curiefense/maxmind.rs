@@ -45,14 +45,3 @@ pub fn get_asn(_addr: IpAddr) -> Option<Asn> {
 pub fn get_city(_addr: IpAddr) -> Option<City> {
     None
 }
-
-pub fn country_name(c: &Country) -> Option<String> {
-    Some(
-        c.country
-            .as_ref()?
-            .names
-            .as_ref()?
-            .get("en")?
-            .to_lowercase(),
-    )
-}

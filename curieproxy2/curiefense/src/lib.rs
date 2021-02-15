@@ -2,6 +2,8 @@ extern crate mlua;
 
 use lazy_static::lazy_static;
 use mlua::prelude::*;
+use serde::Serialize;
+use serde_json::{to_value, Value};
 use std::collections::HashMap;
 use std::sync::RwLock;
 
@@ -102,7 +104,7 @@ impl mlua::UserData for InspectionResult {
             this.in_action(|a| a.initiator.clone())
         });
         methods.add_method("reason", |_, this: &InspectionResult, _: ()| {
-            this.in_action(|a| a.reason.clone())
+            this.in_action(|a| a.reason.to_string())
         });
         methods.add_method("content", |_, this: &InspectionResult, _: ()| {
             this.in_action(|a| a.content.clone())
@@ -133,15 +135,15 @@ fn inspect(
     }
 }
 
-fn acl_block(tags: Vec<String>, reason: &str) -> Decision {
+fn acl_block<T: Serialize>(reason: T) -> Decision {
     return Decision::Action(Action {
         atype: ActionType::Block,
         ban: false,
-        status: 503,
+        status: 403,
         headers: HashMap::new(),
         initiator: "ACL".to_string(),
-        reason: reason.to_string(),
-        content: format!("{:?}", tags),
+        reason: to_value(reason).unwrap_or(Value::Null),
+        content: "access denied".to_string(),
     });
 }
 
@@ -186,7 +188,7 @@ fn inspect_generic(
             if dec.allowed {
                 return Ok(Decision::Pass);
             } else {
-                return Ok(acl_block(dec.tags, "bypass"));
+                return Ok(acl_block("TODO"));
             }
         }
         ACLResult::Match(mbot, mhuman) => {
@@ -194,7 +196,7 @@ fn inspect_generic(
             let result = mbot.or(mhuman);
             if let Some(r) = result {
                 if !r.allowed && urlmap.acl_active {
-                    return Ok(acl_block(r.tags, "TODO, human or bot"));
+                    return Ok(acl_block("TODO"));
                 }
             }
         }

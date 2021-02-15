@@ -1,7 +1,9 @@
 use hyperscan::Matching;
 use libinjection::{sqli, xss};
+use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 
+use crate::curiefense::config::raw::WAFSignature;
 use crate::curiefense::config::waf::{
     Section, SectionIdx, WAFEntryMatch, WAFProfile, WAFSection, WAFSignatures,
 };
@@ -28,7 +30,7 @@ impl WAFMatched {
 #[derive(Debug, Clone)]
 pub struct WAFMatch {
     pub matched: WAFMatched,
-    pub ids: Vec<u32>,
+    pub ids: Vec<WAFSignature>,
 }
 
 #[derive(Debug, Clone)]
@@ -43,13 +45,34 @@ pub enum WAFBlock {
 
 impl WAFBlock {
     pub fn to_action(&self) -> Action {
+        let reason = match self {
+            WAFBlock::Policies(ids) => ids
+                .first()
+                .and_then(|e| e.ids.first().map(|sig| {
+                    json!({
+                        "section": e.matched.section,
+                        "name": e.matched.name,
+                        "value": e.matched.value,
+                        "initiator": "waf",
+                        "sig_category": sig.category,
+                        "sig_subcategory": sig.subcategory,
+                        "sig_operand": sig.operand,
+                        "sig_id": sig.id,
+                        "sig_severity": sig.severity,
+                        "sig_msg": sig.msg,
+                    })
+                }))
+                .unwrap_or(Value::Null),
+            _ => json!("TODO")
+        };
+
         Action {
             atype: ActionType::Block,
             ban: false,
-            status: 503,
+            status: 403,
             headers: HashMap::new(),
             initiator: "WAF".to_string(),
-            reason: "denied".to_string(),
+            reason,
             content: "Access denied".to_string(),
         }
     }
@@ -251,14 +274,14 @@ fn hyperscan(
             // TODO this is really ugly, the string hashmap should be converted into a numeric id, or it should be a string in the first place?
             match sigs.ids.get(id as usize) {
                 None => println!("INVALID INDEX ??? {}", id),
-                Some(real_id) => {
+                Some(sig) => {
                     if exclusions
                         .get(sid)
                         .get(&name)
-                        .map(|ex| ex.contains(&format!("{}", real_id)))
+                        .map(|ex| ex.contains(&sig.id))
                         != Some(true)
                     {
-                        ids.push(*real_id);
+                        ids.push(sig.clone());
                     }
                 }
             }

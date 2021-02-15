@@ -6,6 +6,7 @@ use hyperscan::Vectored;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
+use serde::Serialize;
 
 #[derive(Debug, Clone)]
 pub struct Section<A> {
@@ -38,7 +39,8 @@ pub struct WAFEntryMatch {
     pub exclusions: HashSet<String>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Copy)]
+#[derive(Debug, Clone, Eq, Serialize, PartialEq, Copy)]
+#[serde(rename_all = "snake_case")]
 pub enum SectionIdx {
     Headers,
     Cookies,
@@ -78,7 +80,7 @@ where
 
 pub struct WAFSignatures {
     pub db: VectoredDatabase,
-    pub ids: Vec<u32>,
+    pub ids: Vec<WAFSignature>,
 }
 
 fn mk_entry_match(em: RawWAFEntryMatch) -> anyhow::Result<(String, WAFEntryMatch)> {
@@ -157,20 +159,18 @@ impl WAFProfile {
     }
 }
 
-fn convert_signature(entry: WAFSignature) -> anyhow::Result<Pattern> {
+fn convert_signature(entry: &WAFSignature) -> anyhow::Result<Pattern> {
     Ok(Pattern::with_flags(
-        entry.operand,
+        &entry.operand,
         CompileFlags::MULTILINE | CompileFlags::DOTALL | CompileFlags::CASELESS,
     )?)
 }
 
 pub fn resolve_signatures(raws: Vec<WAFSignature>) -> anyhow::Result<WAFSignatures> {
-    let ids: Result<Vec<u32>, std::num::ParseIntError> =
-        raws.iter().map(|e| e.id.parse()).collect();
-    let patterns: anyhow::Result<Vec<Pattern>> = raws.into_iter().map(convert_signature).collect();
+    let patterns: anyhow::Result<Vec<Pattern>> = raws.iter().map(convert_signature).collect();
     let ptrns: Patterns = Patterns::from_iter(patterns?);
     Ok(WAFSignatures {
         db: ptrns.build::<Vectored>()?,
-        ids: ids?,
+        ids: raws,
     })
 }
