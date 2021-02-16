@@ -32,9 +32,8 @@ fn get_ban_key(key: &str) -> String {
 
 fn is_banned(cnx: &mut redis::Connection, key: &str) -> bool {
     let ban_key = get_ban_key(&key);
-    let q: redis::RedisResult<Option<String>> = redis::cmd("GET").arg(&ban_key).query(cnx);
-    println!("BAN redis[{}] = {:?}", ban_key, q);
-    q.is_ok()
+    let q: redis::RedisResult<Option<u32>> = redis::cmd("GET").arg(&ban_key).query(cnx);
+    q.unwrap_or(None).is_some()
 }
 
 fn limit_react(cnx: &mut redis::Connection, limit: &Limit, key: String) -> Decision {
@@ -75,6 +74,8 @@ fn redis_check_limit(
     };
     let current = mcurrent.unwrap_or(0);
     let expire = mexpire.unwrap_or(-1);
+
+    println!("key={} limit={} ttl={} current={} expire={}", key, limit, ttl, current, expire);
 
     if expire < 0 {
         let _: () = redis::cmd("EXPIRE").arg(key).arg(ttl).query(cnx)?;

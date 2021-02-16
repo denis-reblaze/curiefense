@@ -112,6 +112,7 @@ impl WAFBlock {
             headers: None,
             reason,
             content: "Access denied".to_string(),
+            extra_tags: None, // TODO, add matching rules tags
         }
     }
 }

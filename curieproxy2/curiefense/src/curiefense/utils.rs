@@ -42,22 +42,20 @@ pub fn map_headers(
         }
         cookie.split("; ").map(to_kv).collect()
     }
-
-    // This whole process seems wasteful, can I traverse rawheaders once and perform all the required transformations in the same step?
-    let (attrsv, headersv): (Vec<(String, String)>, Vec<(String, String)>) = rawheaders
-        .into_iter()
-        .map(|(k, v)| (k.to_lowercase(), v))
-        .partition(|(k, _)| k.starts_with(':'));
-    let headers: HashMap<String, String> = headersv.into_iter().collect();
-    let attrs: HashMap<String, String> = attrsv
-        .into_iter()
-        .map(|(k, v)| (k.strip_prefix(':').unwrap().to_string(), v))
-        .collect();
-
-    let cookies = headers
-        .get("cookie")
-        .map(|s| cookie_map(s))
-        .unwrap_or_default();
+    let mut cookies = HashMap::<String, String>::new();
+    let mut headers = HashMap::<String, String>::new();
+    let mut attrs = HashMap::<String, String>::new();
+    for (k, v) in rawheaders {
+        let lk = k.to_lowercase();
+        if k == "cookie" {
+            cookies = cookie_map(&v);
+        } else {
+            match &lk.strip_prefix(':') {
+                None => { headers.insert(lk, v) ; },
+                Some(ak) => { attrs.insert(ak.to_string(), v) ; },
+            }
+        }
+    }
 
     let meta = EnvoyMeta {
         authority: attrs.get("authority").unwrap().clone(),

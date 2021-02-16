@@ -12,7 +12,9 @@ use curiefense::acl::{check_acl, ACLDecision, ACLResult};
 use curiefense::config::hostmap::{HostMap, UrlMap};
 use curiefense::config::waf::WAFSignatures;
 use curiefense::config::Config;
-use curiefense::interface::{Action, ActionType, Decision};
+use curiefense::interface::{
+    challenge_phase01, challenge_phase02, Action, ActionType, Decision, Grasshopper,
+};
 use curiefense::limit::limit_check;
 use curiefense::tagging::tag_request;
 use curiefense::utils::{ip_from_headers, map_request, RequestInfo};
@@ -105,14 +107,50 @@ impl mlua::UserData for InspectionResult {
     }
 }
 
+struct Luagrasshopper<'t>(LuaTable<'t>);
+
+impl Grasshopper for Luagrasshopper<'_> {
+    fn js_app(&self) -> Option<String> {
+        self.0
+            .get("js_app")
+            .and_then(|f: LuaFunction| f.call(()))
+            .ok()
+    }
+    fn js_bio(&self) -> Option<String> {
+        self.0
+            .get("js_bio")
+            .and_then(|f: LuaFunction| f.call(()))
+            .ok()
+    }
+    fn parse_rbzid(&self, rbzid: &str, seed: &str) -> Option<bool> {
+        self.0
+            .get("parse_rbzid")
+            .and_then(|f: LuaFunction| f.call((rbzid, seed)))
+            .ok()
+    }
+    fn gen_new_seed(&self, seed: &str) -> Option<String> {
+        self.0
+            .get("gen_new_seed")
+            .and_then(|f: LuaFunction| f.call(seed))
+            .ok()
+    }
+    fn verify_workproof(&self, workproof: &str, seed: &str) -> Option<String> {
+        self.0
+            .get("verify_workproof")
+            .and_then(|f: LuaFunction| f.call((workproof, seed)))
+            .ok()
+    }
+}
+
 /// Lua/envoy entry point
 fn inspect(
     lua: &Lua,
-    args: (HashMap<String, String>, HashMap<String, LuaValue>),
+    args: (HashMap<String, String>, HashMap<String, LuaValue>, LuaTable),
 ) -> LuaResult<Option<InspectionResult>> {
     println!("ARGS: {:?}", args);
 
-    let (metaheaders, metadata) = args;
+    let (metaheaders, metadata, lua_grasshopper) = args;
+    let grasshopper = Luagrasshopper(lua_grasshopper);
 
     let hops: usize = metadata
         .get("xff_trusted_hops")
@@ -120,7 +158,7 @@ fn inspect(
         .unwrap_or(1);
     let str_ip = ip_from_headers(&metaheaders, hops);
 
-    let res = inspect_generic("/config/current/config", str_ip, metaheaders);
+    let res = inspect_generic(grasshopper, "/config/current/config", str_ip, metaheaders);
     println!("Inspection result: {:?}", res);
     Ok(res.ok().map(InspectionResult))
 }
@@ -137,12 +175,25 @@ fn acl_block(blocking: bool, code: i32, tags: &[String]) -> Decision {
         headers: None,
         reason: json!({"action": code, "initiator": "acl", "reason": tags }),
         content: "access denied".to_string(),
+        extra_tags: None,
     })
+}
+
+fn challenge_verified<GH: Grasshopper>(gh: &GH, reqinfo: &RequestInfo) -> bool {
+    if let Some(rbzid) = reqinfo.cookies.get("rbzid") {
+        if let Some(ua) = reqinfo.headers.get("user-agent") {
+            return gh
+                .parse_rbzid(&rbzid.replace('-', "="), ua)
+                .unwrap_or(false);
+        }
+    }
+    false
 }
 
 /// generic entry point
 /// this is not that generic, as we expect :path and :authority to be in metaheaders
-fn inspect_generic(
+fn inspect_generic<GH: Grasshopper>(
+    gh: GH,
     configpath: &str,
     ip_str: String,
     metaheaders: HashMap<String, String>,
@@ -153,6 +204,16 @@ fn inspect_generic(
         None => return Ok(Decision::Pass),
         Some(x) => x,
     };
+
+    if let Some(dec) = reqinfo
+        .rinfo
+        .qinfo
+        .uri
+        .as_ref()
+        .and_then(|uri| challenge_phase02(&gh, uri, &reqinfo.headers))
+    {
+        return Ok(dec);
+    }
 
     let mut tags = tag_request(&cfg, &reqinfo);
     tags.insert(&format!("urlmap:{}", nm));
@@ -199,7 +260,14 @@ fn inspect_generic(
                 tags,
             }),
             _,
-        ) => return Ok(acl_block(urlmap.acl_active, 3, &tags)),
+        ) => {
+            if !challenge_verified(&gh, &reqinfo) {
+                return Ok(match reqinfo.headers.get("user-agent") {
+                    None => acl_block(urlmap.acl_active, 3, &tags),
+                    Some(ua) => challenge_phase01(&gh, ua, tags),
+                });
+            }
+        }
         _ => (),
     }
     let waf_result = waf_check(&reqinfo, &urlmap.waf_profile, HSDB.read()?);
