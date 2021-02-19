@@ -283,18 +283,21 @@ function check(waf_profile, request_map)
     -- request_map.handle:logDebug(string.format("HCA Keys %s", json_encode(hca_keys)))
     -- request_map.handle:logDebug(string.format("HCA Values %s", json_encode(hca_values)))
 
-    local matches = globals.WAFHScanDB:scan(hca_values, globals.WAFHScanScratch)
+    if globals.WAFHScanDB then
+        local matches = globals.WAFHScanDB:scan(hca_values, globals.WAFHScanScratch)
 
-    if not matches then
-        return WAFPass, "waf-passed"
-    end
+        if not matches then
+            return WAFPass, "waf-passed"
+        end
 
-    -- deep dive for exclusions
-    if type(matches) == "table" and #matches > 0 then
-        return waf_section_match(matches, request_map, hca_keys, exclude_sigs)
-    else
-        return WAFPass, "waf-passed"
+        -- deep dive for exclusions
+        if type(matches) == "table" and #matches > 0 then
+            return waf_section_match(matches, request_map, hca_keys, exclude_sigs)
+        else
+            return WAFPass, "waf-passed"
+        end
     end
+    return WAFPass, "waf-passed (regex faile compilation)"
 end
 
 function detect_sqli(input)

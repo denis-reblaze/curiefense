@@ -244,3 +244,57 @@ function inspect(handle)
     handle:logDebug(string.format("timeline %s",cjson.encode(timeline)))
 
 end
+
+function inspect0(handle)
+    handle:logDebug("curiefense")
+end
+
+function inspect1(handle)
+    local request_map = map_request(handle)
+    log_request(request_map)
+end
+
+function inspect2(handle)
+    local request_map = map_request(handle)
+    local waf_profile_id    = "__default__"
+    local waf_profile       = globals.WAFProfiles[waf_profile_id]
+    local hca_values = {}
+
+    for section in ipairs({"headers", "cookies", "args"}) do
+        for _, value in pairs(request_map[section]) do
+            table.insert(hca_values, value)
+        end
+    end
+
+    local matches = globals.WAFHScanDB:scan(hca_values, globals.WAFHScanScratch)
+
+    if matches then
+        handle:logInfo("WAF BLOCK")
+    end
+
+    log_request(request_map)
+end
+
+function inspect3(handle)
+    local request_map = map_request(handle)
+    local waf_profile_id    = "__default__"
+    local waf_profile       = globals.WAFProfiles[waf_profile_id]
+    local hca_values = {}
+
+    for section in ipairs({"headers", "cookies", "args"}) do
+        for _, value in pairs(request_map[section]) do
+            table.insert(hca_values, value)
+        end
+    end
+
+    if globals.WAFHScanDB then
+        local matches = globals.WAFHScanDB:scan(hca_values, globals.WAFHScanScratch)
+
+        if matches then
+            handle:logInfo("WAF BLOCK")
+        end
+    end
+
+    log_request(request_map)
+end
+
