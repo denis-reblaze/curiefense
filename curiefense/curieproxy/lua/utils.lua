@@ -222,8 +222,8 @@ function map_request(handle)
 
     map.attrs.session_sequence_key = string.format(
         "%s%s%s",
-        map.headers.host or map.attrs.authority,
         map.attrs.method,
+        map.headers.host or map.attrs.authority,
         map.attrs.path
     )
 

@@ -102,13 +102,15 @@ function load_and_reconstruct_flow(handle, path)
     local json_map = direct_load(handle, path)
 
     for _, entry in ipairs(json_map) do
-        entry.sequence_keys = {}
-        for _, sequence_entry in ipairs(entry.sequence) do
-            local entry_key = string.format("%s%s%s", sequence_entry.headers.host, sequence_entry.method, sequence_entry.uri)
-            sequence_entry["key"] = entry_key
-            entry.sequence_keys[entry_key] = 1
+        if entry.active then
+            entry.sequence_keys = {}
+            for _, sequence_entry in ipairs(entry.sequence) do
+                local entry_key = string.format("%s%s%s", sequence_entry.method, sequence_entry.headers.host, sequence_entry.uri)
+                sequence_entry["key"] = entry_key
+                entry.sequence_keys[entry_key] = 1
+            end
+            table.insert(store, entry)
         end
-        table.insert(store, entry)
     end
 
     return store
