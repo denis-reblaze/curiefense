@@ -59,6 +59,8 @@ function request_match_sequence_entry(flow, session_sequence_key, request_map)
     local handle = request_map.handle
 
     for _, entry in ipairs(flow) do
+        handle:logDebug(string.format("flowcontrol entry -- %s", json_encode(entry)))
+        handle:logDebug(string.format("flowcontrol entry.key %s, session_sequence_key %s", entry.key, session_sequence_key))
         if entry.key == session_sequence_key then
             flow_entry = entry
             handle:logDebug("flowcontrol request_match_sequence_entry FOUND ENTRY")
