@@ -106,7 +106,7 @@ function load_and_reconstruct_flow(handle, path)
         for _, sequence_entry in ipairs(entry.sequence) do
             local entry_key = string.format("%s%s%s", sequence_entry.headers.host, sequence_entry.method, sequence_entry.uri)
             sequence_entry["key"] = entry_key
-            table.insert(entry.sequence_keys, entry_key)
+            entry.sequence_keys[entry_key] = 1
         end
         table.insert(store, entry)
     end
