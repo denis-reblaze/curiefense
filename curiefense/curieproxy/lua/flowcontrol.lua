@@ -16,7 +16,8 @@ local list_push_ttl = redisutils.list_push_ttl
 
 local build_key   = redisutils.build_key
 
-function validate_flow(session_sequence_key, sequence, redis_key, request_map)
+function validate_flow(session_sequence_key, flow, redis_key, request_map)
+    local sequence = flow.sequence
     local seq_len = #sequence
     local handle = request_map.handle
     local last_entry = sequence[seq_len]
@@ -41,7 +42,7 @@ function validate_flow(session_sequence_key, sequence, redis_key, request_map)
             handle:logDebug(string.format("flowcontrol seq_entry.key %s idx %s", seq_entry.key, idx))
             if idx-1 == listlen then
                 handle:logDebug(string.format("flowcontrol pushing to redis %s %s", redis_key, session_sequence_key))
-                list_push_ttl(redis_key, session_sequence_key, sequence.ttl)
+                list_push_ttl(redis_key, session_sequence_key, flow.ttl)
             end
         end
     end
@@ -69,7 +70,7 @@ function check(request_map)
                     handle:logDebug(string.format("flowcontrol should_include? %s", should_include))
                     if should_include then
                         local redis_key = build_key(request_map, flow.key, flow.id, flow.name)
-                        validate_flow(session_sequence_key, flow.sequence, redis_key, request_map)
+                        validate_flow(session_sequence_key, flow, redis_key, request_map)
                     end
                 end
             end
