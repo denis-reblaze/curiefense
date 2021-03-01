@@ -30,8 +30,10 @@ function validate_flow(session_sequence_key, flow, redis_key, request_map)
 
     if session_sequence_key == last_entry.key then
         if listlen == seq_len or (listlen + 1 == seq_len) then
+            handle:logDebug(string.format('flowcontrol listlen == seq_len or (listlen + 1 == seq_len) RETURNING TRUE'))
             return true
         else
+            handle:logDebug(string.format('flowcontrol listlen == seq_len or (listlen + 1 == seq_len) RETURNING FALSE'))
             return false
         end
     end
