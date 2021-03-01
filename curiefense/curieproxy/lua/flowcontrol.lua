@@ -56,9 +56,12 @@ function request_match_sequence_entry(flow, session_sequence_key, request_map)
     local sections = { "headers", "cookies", "args" }
     local flow_entry = nil
 
+    local handle = request_map.handle
+
     for _, entry in ipairs(flow) do
         if entry.key == session_sequence_key then
             flow_entry = entry
+            handle:logDebug("flowcontrol request_match_sequence_entry FOUND ENTRY")
             break
         end
     end
@@ -67,12 +70,19 @@ function request_match_sequence_entry(flow, session_sequence_key, request_map)
         for _, section in ipairs(sections) do
             local flow_entry_section = flow_entry[section]
             for name, value in pairs(flow_entry_section) do
-                if not request_map[section][name] then
-                    return false
-                end
-                local request_map_value = request_map[section][name]
-                if not re_match(request_map_value, value) then
-                    return false
+                handle:logDebug(string.format("flowcontrol request_match_sequence_entry section %s name %s value %s",
+                    section, name, value))
+                if section == 'headers' and name == 'host' then
+                    handle:logDebug("flowcontrol request_match_sequence_entry SKIP HOST HEADER")
+                else
+                    if not request_map[section][name] then
+                        return false
+                    end
+                    local request_map_value = request_map[section][name]
+                    handle:logDebug(string.format("flowcontrol request_match_sequence_entry COMPARE %s with %s", request_map_value, value))
+                    if not re_match(request_map_value, value) then
+                        return false
+                    end
                 end
             end
         end
