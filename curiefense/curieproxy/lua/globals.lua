@@ -249,7 +249,7 @@ function maybe_reload(handle)
     if lfs.attributes("/config/current").change > last_reload_time then
         last_reload_time = curtime
         ProfilingLists  = lrt(handle, "/config/current/config/json/profiling-lists.json")
-        FlowControl     = lrf(handle,  "/config/current/config/json/flow-control.json")
+        -- FlowControl     = lrf(handle, "/config/current/config/json/flow-control.json")
         LimitRules      = lr(handle,  "/config/current/config/json/limits.json")
         ACLProfiles     = lra(handle, "/config/current/config/json/acl-profiles.json")
         WAFProfiles     = lrw(handle, "/config/current/config/json/waf-profiles.json")

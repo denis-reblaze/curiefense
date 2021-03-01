@@ -18,6 +18,7 @@ local init          = globals.init
 
 local waf_check         = waf.check
 local acl_check         = acl.check
+local acl_check_bot     = acl.check_bot
 local limit_check       = limit.check
 local flowcontrol_check = flowcontrol.check
 
