@@ -5,6 +5,7 @@ local waf           = require "lua.waf"
 local globals       = require "lua.globals"
 local utils         = require "lua.utils"
 local tagprofiler   = require "lua.tagprofiler"
+local flowcontrol   = require "lua.flowcontrol"
 local restysha1     = require "lua.resty.sha1"
 local limit         = require "lua.limit"
 local accesslog     = require "lua.accesslog"
@@ -15,9 +16,10 @@ local cjson       = require "cjson"
 
 local init          = globals.init
 
-local acl_check     = acl.check
-local acl_check_bot = acl.check_bot
-local waf_check     = waf.check
+local waf_check         = waf.check
+local acl_check         = acl.check
+local limit_check       = limit.check
+local flowcontrol_check = flowcontrol.check
 
 local ACLNoMatch    = globals.ACLNoMatch
 local ACLForceDeny  = globals.ACLForceDeny
@@ -39,7 +41,6 @@ local custom_response  = utils.custom_response
 local tag_lists     = tagprofiler.tag_lists
 
 local log_request   = accesslog.log_request
-local limit_check   = limit.check
 
 local challenge_verified = challenge.verified
 local challenge_phase01 = challenge.phase01
@@ -47,12 +48,10 @@ local challenge_phase02 = challenge.phase02
 
 local sfmt = string.format
 
-function match_urlmap(request_map)
+function match_urlmap(host, url, request_map)
     local default_map = nil
     local selected_map = nil
     local matched_path = "/"
-    local url = request_map.attrs.path
-    local host = request_map.headers.host or request_map.attrs.authority
     local handle = request_map.handle
 
     for _, profile in pairs(globals.URLMap) do
@@ -108,7 +107,6 @@ function map_tags(request_map, urlmap_name, urlmapentry_name, acl_id, acl_name, 
 
     tag_request(request_map, {
         "all",
-        "curieaccesslog",
         globals.ContainerID,
         acl_id,
         acl_name,
@@ -117,8 +115,8 @@ function map_tags(request_map, urlmap_name, urlmapentry_name, acl_id, acl_name, 
         urlmap_name,
         urlmapentry_name,
         sfmt("ip:%s", request_map.attrs.ip),
-        sfmt("geo:%s", request_map.geo.country.name),
-        sfmt("asn:%s", request_map.geo.asn)
+        sfmt("geo:%s", request_map.attrs.country),
+        sfmt("asn:%s", request_map.attrs.asn)
     })
 
 end
@@ -147,7 +145,7 @@ function inspect(handle)
 
     -- unified the following 3 into a single operaiton
     addentry(timeline, "3 match_urlmap")
-    local urlmap_entry, url_map = match_urlmap(request_map)
+    local urlmap_entry, url_map = match_urlmap(host, url, request_map)
 
     addentry(timeline, "4 profiles assignment")
     local acl_active        = urlmap_entry["acl_active"]
@@ -167,7 +165,10 @@ function inspect(handle)
         sfmt("wafname:%s", waf_profile.name)
     )
 
-    addentry(timeline, "6 session_profiling")
+    addentry(timeline, "6a flowcontrol")
+    flowcontrol_check(request_map)
+
+    addentry(timeline, "6b session_profiling")
     -- session profiling
     tag_lists(request_map)
 
@@ -186,11 +187,9 @@ function inspect(handle)
     -- acl
     addentry(timeline, "8 acl_check")
     local acl_code, acl_result = acl_check(acl_profile, request_map, acl_active)
-    local acl_bot_code, acl_bot_result = acl_check_bot(acl_profile, request_map, acl_active)
 
     if acl_result then
         -- handle:logDebug(sfmt("001 ACL REASON: %s", acl_result.reason))
-        -- handle:logDebug(sfmt("001b request_map.attrs: %s", cjson.encode(request_map.attrs) ))
         addentry(timeline, "8b acl_check/tag_request")
         tag_request(request_map, sfmt("acltag:%s" , acl_result.reason))
     end
@@ -206,31 +205,33 @@ function inspect(handle)
     addentry(timeline, "9b challenge_verified/tag_request")
     tag_request(request_map, is_human and "human" or "bot")
 
-    if acl_code ~= ACLBypass then
-        if acl_bot_code == ACLDenyBot and not is_human then
-            -- handle:logDebug("002 ACL DENY BOT MATCHED!")
+    if acl_code == ACLDenyBot then
+        -- handle:logDebug("002 ACL DENY BOT MATCHED!")
+
+        if not is_human then
             addentry(timeline, "9c challenge_verified/challenge_phase01")
             -- handle:logDebug("003 ACL DENY BOT MATCHED! << let's do some challenge >>")
             challenge_phase01(handle, request_map, "1")
+        end
+    end
 
-        else
-            -- ACLAllow / ACLAllowBot/ ACLNoMatch
-            -- move to WAF
-            addentry(timeline, "10 waf_check")
-            local waf_code, waf_result = waf_check(waf_profile, request_map)
-            -- blocked results returns as table
-            if type(waf_result) == "table" then
-                addentry(timeline, "10b waf_check/tag_request")
-                tag_request(request_map, sfmt("wafsig:%s", waf_result.sig_id))
+    if acl_code ~= ACLBypass then
+        -- ACLAllow / ACLAllowBot/ ACLNoMatch
+        -- move to WAF
+        addentry(timeline, "10 waf_check")
+        local waf_code, waf_result = waf_check(waf_profile, request_map)
+        -- blocked results returns as table
+        if type(waf_result) == "table" then
+            addentry(timeline, "10b waf_check/tag_request")
+            tag_request(request_map, sfmt("wafsig:%s", waf_result.sig_id))
 
-                if waf_code == WAFBlock then
-                    addentry(timeline, "10c waf_check/deny_request")
-                    local action_params = {
-                        ["reason"] = waf_result,
-                        ["block_mode"] = waf_active
-                    }
-                    custom_response(request_map, action_params)
-                end
+            if waf_code == WAFBlock then
+                addentry(timeline, "10c waf_check/deny_request")
+                local action_params = {
+                    ["reason"] = waf_result,
+                    ["block_mode"] = waf_active
+                }
+                custom_response(request_map, action_params)
             end
         end
     end
@@ -240,6 +241,6 @@ function inspect(handle)
     addentry(timeline, "11 log_request")
     log_request(request_map)
     addentry(timeline, "12 done")
-    -- handle:logDebug(string.format("timeline %s",cjson.encode(timeline)))
+    handle:logDebug(string.format("timeline %s",cjson.encode(timeline)))
 
 end

@@ -25,6 +25,7 @@ WAFHScanDB      = nil
 WAFHScanScratch = nil
 ProfilingLists  = nil
 LimitRules      = nil
+FlowControl     = nil
 
 
 MaxMindCountry  = nil
@@ -90,6 +91,24 @@ function load_and_reconstruct(handle, path)
     for _, entry in ipairs(json_map) do
         -- -- handle:logDebug(string.format("loading %s from %s", entry.id, path))
         store[entry.id] = entry
+    end
+
+    return store
+end
+
+function load_and_reconstruct_flow(handle, path)
+    -- -- handle:logInfo(string.format("loading %s", path))
+    local store = {}
+    local json_map = direct_load(handle, path)
+
+    for _, entry in ipairs(json_map) do
+        entry.sequence_keys = {}
+        for _, sequenece_entry in ipairs(entry.sequenece) do
+            local entry_key = string.format("%s%s%s", sequenece_entry.headers.host, sequenece_entry.method, sequenece_entry.uri)
+            sequenece_entry["key"] = entry_key
+            table.insert(entry.sequence_keys, entry_key)
+        end
+        table.insert(store, entry)
     end
 
     return store
@@ -191,6 +210,7 @@ local dl  = direct_load
 local lr  = load_and_reconstruct
 local lra = load_and_reconstruct_acl
 local lrw = load_and_reconstruct_waf
+local lrf = load_and_reconstruct_flow
 local lrt = load_and_reconstruct_taglist
 
 function reload(handle)
@@ -229,6 +249,7 @@ function maybe_reload(handle)
     if lfs.attributes("/config/current").change > last_reload_time then
         last_reload_time = curtime
         ProfilingLists  = lrt(handle, "/config/current/config/json/profiling-lists.json")
+        FlowControl     = lrf(handle,  "/config/current/config/json/flow-control.json")
         LimitRules      = lr(handle,  "/config/current/config/json/limits.json")
         ACLProfiles     = lra(handle, "/config/current/config/json/acl-profiles.json")
         WAFProfiles     = lrw(handle, "/config/current/config/json/waf-profiles.json")

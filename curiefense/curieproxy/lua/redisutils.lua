@@ -26,6 +26,30 @@ function list_push(key, value)
     return redis_connection():lpush(key, value)
 end
 
+function list_push_ttl(key, value, ttl)
+
+    local result = redis_conn:pipeline(
+        function(pipe)
+            pipe:lpush(key, value)
+            pipe:ttl(key)
+        end
+    )
+
+    if type(result) == "table" then
+        local expire = result[2]
+
+        if "userdata: NULL" == tostring(expire) then
+            expire = -1
+        else
+            expire = tonumber(expire)
+        end
+
+        if expire < 0 then
+            local value, err = redis_conn:expire(key, ttl)
+        end
+    end
+end
+
 function set_length(key)
     local redis_conn = redis_connection()
     return redis_conn:scard(key)
@@ -69,7 +93,7 @@ function check_simple(request_map, redis_conn, key, threshold, ttl)
     -- handle:logDebug(string.format("limit check_simple -- type(%s), [%s]", type(result), result))
     if type(result) == "table" then
         current = result[1]
-        expire = result[2]
+        local expire = result[2]
 
         -- handle:logDebug(string.format("limit check_simple -- current (%s), expire[%s]", current, expire))
 
@@ -86,7 +110,7 @@ function check_simple(request_map, redis_conn, key, threshold, ttl)
         end
 
         if expire < 0 then
-            value, err = redis_conn:expire(key, ttl)
+            local value, err = redis_conn:expire(key, ttl)
         end
 
         if current ~= nil and current > threshold then
@@ -116,7 +140,7 @@ function check_set(request_map, redis_conn, key, threshold, set_value, ttl)
 
     if type(result) == "table" then
         current = result[2]
-        expire = result[3]
+        local expire = result[3]
 
         if "userdata: NULL" == tostring(current) then
             current = 0
@@ -131,7 +155,7 @@ function check_set(request_map, redis_conn, key, threshold, set_value, ttl)
         end
 
         if expire < 0 then
-            value, err = redis_conn:expire(key, ttl)
+            local value, err = redis_conn:expire(key, ttl)
         end
 
         if current ~= nil and current > threshold then

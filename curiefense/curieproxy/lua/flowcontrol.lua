@@ -10,8 +10,8 @@ local buildkey      = sessionutils.buildkey
 local match_tags    = sessionutils.match_tags
 
 
-local list_length = redisutils.list_length
-local list_push   = redisutils.list_push
+local list_length   = redisutils.list_length
+local list_push_ttl = redisutils.list_push_ttl
 
 
 local build_key   = redisutils.build_key
@@ -38,9 +38,10 @@ function validate_flow(session_sequence_key, sequence, redis_key, request_map)
     for idx=seq_len-1, 1, -1 do
         local seq_entry = sequence[idx]
         if seq_entry.key == session_sequence_key then
+            handle:logDebug(string.format("flowcontrol seq_entry.key %s idx %s", seq_entry.key, idx))
             if idx-1 == listlen then
-                handle:logDebug(string.format("pushing to redis %s %s", redis_key, session_sequence_key))
-                list_push(redis_key, session_sequence_key)
+                handle:logDebug(string.format("flowcontrol pushing to redis %s %s", redis_key, session_sequence_key))
+                list_push_ttl(redis_key, session_sequence_key, sequence.ttl)
             end
         end
     end
@@ -62,10 +63,10 @@ function check(request_map)
             -- this request within a given element of the sequence
             if flow.sequence_keys[session_sequence_key] then
                 local should_exclude = match_tags(flow.exclude, request_map)
-                handle:logDebug(string.format("should_exclude? %s", should_exclude))
+                handle:logDebug(string.format("flowcontrol should_exclude? %s", should_exclude))
                 if not should_exclude then
                     local should_include = (#flow.include == 0) or match_tags(flow.include, request_map)
-                    handle:logDebug(string.format("should_include? %s", should_include))
+                    handle:logDebug(string.format("flowcontrol should_include? %s", should_include))
                     if should_include then
                         local redis_key = build_key(request_map, flow.key, flow.id, flow.name)
                         validate_flow(session_sequence_key, flow.sequence, redis_key, request_map)
