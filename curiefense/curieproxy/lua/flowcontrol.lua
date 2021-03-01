@@ -57,6 +57,7 @@ function request_match_sequence_entry(flow, session_sequence_key, request_map)
     local sections = { "headers", "cookies", "args" }
     local sequence_entry = nil
 
+
     handle:logDebug(string.format("flowcontrol request_match_sequence_entry flow %s", json_encode(flow)))
     handle:logDebug(string.format("flowcontrol request_match_sequence_entry session_sequence_key %s", session_sequence_key))
 
@@ -117,17 +118,20 @@ function check(request_map)
                         handle:logDebug(string.format("flowcontrol should_include? %s", should_include))
                         if should_include then
                             local redis_key = build_key(request_map, flow.key, flow.id, flow.name)
-                            return validate_flow(session_sequence_key, flow, redis_key, request_map)
+                            local valid = validate_flow(session_sequence_key, flow, redis_key, request_map)
+                            if not valid then
+                                return flow.action
+                            end
                         end
                     end
                 else
                     handle:logDebug('flowcontrol not matching HCA -- skip')
-                    return true
+                    return false
                 end
             end
         end
     end
-    return true
+    return false
 end
 
 --[[

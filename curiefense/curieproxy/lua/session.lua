@@ -167,7 +167,22 @@ function inspect(handle)
     )
 
     addentry(timeline, "6a flowcontrol")
-    flowcontrol_check(request_map)
+
+    local action = flowcontrol_check(request_map)
+
+    if action then
+        if action.type == "default" then
+            action = {
+                ["type"] = "default",
+                ["params"] = {
+                    ["status"] = "503",
+                    ["block_mode"] = true
+                }
+            }
+        end
+
+        custom_response(request_map, action.params)
+    end
 
     addentry(timeline, "6b session_profiling")
     -- session profiling
