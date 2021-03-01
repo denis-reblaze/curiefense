@@ -1,20 +1,20 @@
 module(..., package.seeall)
 
-local globals       = require ("lua.globals")
-local redisutils    = require ("lua.redisutils")
-local sessionutils  = require ("lua.sessionutils")
+local globals       = require "lua.globals"
+local utils         = require "lua.utils"
+local redisutils    = require "lua.redisutils"
+local sessionutils  = require "lua.sessionutils"
 local cjson         = require "cjson"
 
 local json_encode   = cjson.encode
 local buildkey      = sessionutils.buildkey
 local match_tags    = sessionutils.match_tags
 
-
 local list_length   = redisutils.list_length
 local list_push_ttl = redisutils.list_push_ttl
 
-
-local build_key   = redisutils.build_key
+local build_key     = redisutils.build_key
+local re_match      = utils.re_match
 
 function validate_flow(session_sequence_key, flow, redis_key, request_map)
     local sequence = flow.sequence
@@ -52,6 +52,33 @@ function validate_flow(session_sequence_key, flow, redis_key, request_map)
     return true
 end
 
+function request_match_sequence_entry(flow, session_sequence_key, request_map)
+    local sections = { "headers", "cookies", "args" }
+    local flow_entry = nil
+
+    for _, entry in ipairs(flow) do
+        if entry.key == session_sequence_key then
+            flow_entry = entry
+            break
+        end
+    end
+
+    if flow_entry then
+        for _, section in ipairs(sections) do
+            local flow_entry_section = flow_entry[section]
+            for name, value in pairs(flow_entry_section) do
+                if not request_map[section][name] then
+                    return false
+                end
+                local request_map_value = request_map[section][name]
+                if not re_match(request_map_value, value) then
+                    return false
+                end
+            end
+        end
+    end
+end
+
 function check(request_map)
     local handle = request_map.handle
 
@@ -65,27 +92,31 @@ function check(request_map)
         for _, flow in ipairs(flow_control_db) do
             -- this request within a given element of the sequence
             if flow.sequence_keys[session_sequence_key] then
-                local should_exclude = match_tags(flow.exclude, request_map)
-                handle:logDebug(string.format("flowcontrol should_exclude? %s", should_exclude))
-                if not should_exclude then
-                    local should_include = (#flow.include == 0) or match_tags(flow.include, request_map)
-                    handle:logDebug(string.format("flowcontrol should_include? %s", should_include))
-                    if should_include then
-                        local redis_key = build_key(request_map, flow.key, flow.id, flow.name)
-                        validate_flow(session_sequence_key, flow, redis_key, request_map)
+                if request_match_sequence_entry(flow, session_sequence_key, request_map) then
+                    local should_exclude = match_tags(flow.exclude, request_map)
+                    handle:logDebug(string.format("flowcontrol should_exclude? %s", should_exclude))
+                    if not should_exclude then
+                        local should_include = (#flow.include == 0) or match_tags(flow.include, request_map)
+                        handle:logDebug(string.format("flowcontrol should_include? %s", should_include))
+                        if should_include then
+                            local redis_key = build_key(request_map, flow.key, flow.id, flow.name)
+                            return validate_flow(session_sequence_key, flow, redis_key, request_map)
+                        end
                     end
+                else
+                    handle:logDebug('flowcontrol not matching HCA -- skip')
+                    return true
                 end
             end
         end
     end
+    return true
 end
 
 --[[
 
 TO DO
 
-key exists?
-key expiration
 other peripheral matching
 reaction
 
