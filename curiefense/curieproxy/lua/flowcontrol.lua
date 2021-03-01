@@ -87,6 +87,7 @@ function request_match_sequence_entry(flow, session_sequence_key, request_map)
             end
         end
     end
+    return true
 end
 
 function check(request_map)
