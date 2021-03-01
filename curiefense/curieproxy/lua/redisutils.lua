@@ -27,6 +27,7 @@ function list_push(key, value)
 end
 
 function list_push_ttl(key, value, ttl)
+    local redis_conn = redis_connection()
 
     local result = redis_conn:pipeline(
         function(pipe)
