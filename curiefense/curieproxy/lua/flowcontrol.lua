@@ -53,6 +53,10 @@ function validate_flow(session_sequence_key, flow, redis_key, request_map)
 end
 
 function request_match_sequence_entry(flow, session_sequence_key, request_map)
+
+    handle:logDebug(string.format("flowcontrol request_match_sequence_entry flow %s", json_encode(flow)))
+    handle:logDebug(string.format("flowcontrol request_match_sequence_entry session_sequence_key %s", session_sequence_key))
+
     local sections = { "headers", "cookies", "args" }
     local sequence_entry = nil
 
