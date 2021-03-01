@@ -103,9 +103,9 @@ function load_and_reconstruct_flow(handle, path)
 
     for _, entry in ipairs(json_map) do
         entry.sequence_keys = {}
-        for _, sequenece_entry in ipairs(entry.sequenece) do
-            local entry_key = string.format("%s%s%s", sequenece_entry.headers.host, sequenece_entry.method, sequenece_entry.uri)
-            sequenece_entry["key"] = entry_key
+        for _, sequence_entry in ipairs(entry.sequence) do
+            local entry_key = string.format("%s%s%s", sequence_entry.headers.host, sequence_entry.method, sequence_entry.uri)
+            sequence_entry["key"] = entry_key
             table.insert(entry.sequence_keys, entry_key)
         end
         table.insert(store, entry)
@@ -249,7 +249,7 @@ function maybe_reload(handle)
     if lfs.attributes("/config/current").change > last_reload_time then
         last_reload_time = curtime
         ProfilingLists  = lrt(handle, "/config/current/config/json/profiling-lists.json")
-        -- FlowControl     = lrf(handle, "/config/current/config/json/flow-control.json")
+        FlowControl     = lrf(handle, "/config/current/config/json/flow-control.json")
         LimitRules      = lr(handle,  "/config/current/config/json/limits.json")
         ACLProfiles     = lra(handle, "/config/current/config/json/acl-profiles.json")
         WAFProfiles     = lrw(handle, "/config/current/config/json/waf-profiles.json")
