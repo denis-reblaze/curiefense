@@ -228,6 +228,7 @@ function tag_lists(request_map)
       tag_request(request_map, list.tags)
       if list.action and list.action ~= 'monitor' then
         custom_response(request_map, list.action)
+      end
     end
   end
 end
