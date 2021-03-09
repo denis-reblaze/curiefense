@@ -157,10 +157,12 @@ function map_ip(headers, metadata, map)
 
     local city, country, iso, asn, company = unpack(ipinfo(client_addr, map.handle))
 
-    map.geo.city = {}
-    map.geo.country = {}
-    map.geo.location = {}
-    map.geo.continent = {}
+    map.geo = {
+        city      = {},
+        country   = {},
+        location  = {},
+        continent = {}
+    }
 
     if city then
         map.geo.city.name = (city.city and city.city.names.en) or "-"

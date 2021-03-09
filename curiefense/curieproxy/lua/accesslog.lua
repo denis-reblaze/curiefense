@@ -13,11 +13,11 @@ function log_request(request_map)
   -- handle is userData which is not serilizable
   local request_handle = request_map.handle
   local entries = {
-  	["geo"] 	= "geo",
-  	["headers"] = "headers",
-  	["cookies"] = "cookies",
-  	["args"] 	= "arguments",
-  	["attrs"] 	= "attributes"
+    ["geo"]   = "geo",
+    ["headers"] = "headers",
+    ["cookies"] = "cookies",
+    ["args"]  = "arguments",
+    ["attrs"]   = "attributes"
   }
 
   local log_table = {}
@@ -37,7 +37,7 @@ function log_request(request_map)
       tagnames[n] = name
     end
 
-  	log_table.tags = tagnames
+    log_table.tags = tagnames
     log_table.attributes.tags = nil
   end
 
