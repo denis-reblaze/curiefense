@@ -2,6 +2,7 @@ pub mod acl;
 pub mod config;
 pub mod interface;
 pub mod limit;
+pub mod lua;
 pub mod maxmind;
 pub mod tagging;
 pub mod utils;

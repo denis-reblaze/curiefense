@@ -5,11 +5,13 @@ pub mod raw;
 pub mod utils;
 pub mod waf;
 
+use lazy_static::lazy_static;
 use anyhow::Context;
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::SystemTime;
+use std::sync::RwLock;
 
 use hostmap::{HostMap, UrlMap};
 use limit::{limit_order, Limit};
@@ -17,6 +19,29 @@ use profiling::ProfilingSection;
 use raw::{ACLProfile, RawHostMap, RawLimit, RawProfilingSection, RawUrlMap, RawWAFProfile};
 use utils::Matching;
 use waf::{resolve_signatures, WAFProfile, WAFSignatures};
+
+lazy_static! {
+    static ref CONFIG: RwLock<Config> = RwLock::new(Config::empty());
+    pub static ref HSDB: RwLock<Option<WAFSignatures>> = RwLock::new(None);
+}
+
+pub fn get_config(basepath: &str) -> Result<Config, Box<dyn std::error::Error>> {
+    // cloned to release the lock - this might be horribly expensive though
+    // TODO: somehow work with a reference to that data
+    let mconfig = { CONFIG.read()?.clone() };
+    let config = match mconfig.reload(basepath)? {
+        None => mconfig,
+        Some((newconfig, hsdb)) => {
+            let mut w = CONFIG.write()?;
+            println!("Updating configuration!");
+            *w = newconfig.clone();
+            let mut dbw = HSDB.write()?;
+            *dbw = Some(hsdb);
+            newconfig
+        }
+    };
+    Result::Ok(config)
+}
 
 #[derive(Debug, Clone)]
 pub struct Config {

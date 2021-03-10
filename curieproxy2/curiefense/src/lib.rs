@@ -1,17 +1,15 @@
 extern crate mlua;
 
-use lazy_static::lazy_static;
 use mlua::prelude::*;
 use serde_json::json;
 use std::collections::HashMap;
-use std::sync::RwLock;
 
 mod curiefense;
 
 use curiefense::acl::{check_acl, ACLDecision, ACLResult};
 use curiefense::config::hostmap::{HostMap, UrlMap};
-use curiefense::config::waf::WAFSignatures;
-use curiefense::config::Config;
+use curiefense::config::{Config, HSDB, get_config};
+use curiefense::lua::{InspectionResult, Luagrasshopper};
 use curiefense::interface::{
     challenge_phase01, challenge_phase02, Action, ActionType, Decision, Grasshopper,
 };
@@ -19,29 +17,6 @@ use curiefense::limit::limit_check;
 use curiefense::tagging::tag_request;
 use curiefense::utils::{ip_from_headers, map_request, RequestInfo};
 use curiefense::waf::waf_check;
-
-lazy_static! {
-    static ref CONFIG: RwLock<Config> = RwLock::new(Config::empty());
-    static ref HSDB: RwLock<Option<WAFSignatures>> = RwLock::new(None);
-}
-
-fn get_config(basepath: &str) -> Result<Config, Box<dyn std::error::Error>> {
-    // cloned to release the lock - this might be horribly expensive though
-    // TODO: somehow work with a reference to that data
-    let mconfig = { CONFIG.read()?.clone() };
-    let config = match mconfig.reload(basepath)? {
-        None => mconfig,
-        Some((newconfig, hsdb)) => {
-            let mut w = CONFIG.write()?;
-            println!("Updating configuration!");
-            *w = newconfig.clone();
-            let mut dbw = HSDB.write()?;
-            *dbw = Some(hsdb);
-            newconfig
-        }
-    };
-    Result::Ok(config)
-}
 
 /// finds the urlmap matching a given request, based on the configuration
 /// there are cases where default values do not exist (even though the UI should prevent that)
@@ -65,81 +40,6 @@ fn match_urlmap<'a>(ri: &RequestInfo, cfg: &'a Config) -> Option<(String, &'a Ur
         .map(|m| &m.inner)
         .or_else(|| hostmap.default.as_ref())?;
     Some((hostmap.name.clone(), urlmap))
-}
-
-struct InspectionResult(Decision);
-
-impl InspectionResult {
-    fn in_action<F, A>(&self, f: F) -> LuaResult<Option<A>>
-    where
-        F: Fn(&Action) -> A,
-    {
-        Ok(match &self.0 {
-            Decision::Pass => None,
-            Decision::Action(a) => Some(f(a)),
-        })
-    }
-}
-
-impl mlua::UserData for InspectionResult {
-    fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_method("pass", |_, this: &InspectionResult, _: ()| {
-            Ok(matches!(this.0, Decision::Pass))
-        });
-        methods.add_method("atype", |_, this: &InspectionResult, _: ()| {
-            this.in_action(|a| format!("{:?}", a.atype))
-        });
-        methods.add_method("ban", |_, this: &InspectionResult, _: ()| {
-            this.in_action(|a| a.ban)
-        });
-        methods.add_method("status", |_, this: &InspectionResult, _: ()| {
-            this.in_action(|a| a.status)
-        });
-        methods.add_method("headers", |_, this: &InspectionResult, _: ()| {
-            this.in_action(|a| a.headers.clone())
-        });
-        methods.add_method("reason", |_, this: &InspectionResult, _: ()| {
-            this.in_action(|a| a.reason.to_string())
-        });
-        methods.add_method("content", |_, this: &InspectionResult, _: ()| {
-            this.in_action(|a| a.content.clone())
-        });
-    }
-}
-
-struct Luagrasshopper<'t>(LuaTable<'t>);
-
-impl Grasshopper for Luagrasshopper<'_> {
-    fn js_app(&self) -> Option<String> {
-        self.0
-            .get("js_app")
-            .and_then(|f: LuaFunction| f.call(()))
-            .ok()
-    }
-    fn js_bio(&self) -> Option<String> {
-        self.0
-            .get("js_bio")
-            .and_then(|f: LuaFunction| f.call(()))
-            .ok()
-    }
-    fn parse_rbzid(&self, rbzid: &str, seed: &str) -> Option<bool> {
-        self.0
-            .get("parse_rbzid")
-            .and_then(|f: LuaFunction| f.call((rbzid, seed)))
-            .ok()
-    }
-    fn gen_new_seed(&self, seed: &str) -> Option<String> {
-        self.0
-            .get("gen_new_seed")
-            .and_then(|f: LuaFunction| f.call(seed))
-            .ok()
-    }
-    fn verify_workproof(&self, workproof: &str, seed: &str) -> Option<String> {
-        self.0
-            .get("verify_workproof")
-            .and_then(|f: LuaFunction| f.call((workproof, seed)))
-            .ok()
-    }
 }
 
 /// Lua/envoy entry point
