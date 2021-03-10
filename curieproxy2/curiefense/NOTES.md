@@ -23,7 +23,30 @@ local native      = require "curiedefense"
 local cjson       = require "cjson"
 local grasshopper = require "grasshopper"
 
-function inspect(handle)
+function native_map_request(handle)
+    local map = utils.new_request_map()
+
+    local headerm = {}
+    for k, v in pairs(handle:headers()) do
+        headerm[k] = v
+    end
+    local metam = {}
+    for k, v in pairs(handle:metadata()) do
+        metam[k] = v
+    end
+    local n_map = native.map_request(headerm, metam)
+
+    map.handle = handle
+    map.headers = n_map:headers()
+    map.cookies = n_map:cookies()
+    map.args = n_map:args()
+    map.attrs = n_map:attrs()
+    map.attrs.tags = {}
+
+    return map
+end
+
+function native_inspect(handle)
 
     local headerm = {}
     for k, v in pairs(handle:headers()) do

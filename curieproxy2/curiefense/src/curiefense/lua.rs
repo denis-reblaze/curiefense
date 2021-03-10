@@ -1,7 +1,11 @@
 /// lua interfaces
-use crate::Grasshopper;
-use mlua::prelude::{LuaTable, LuaResult, LuaFunction};
+use std::collections::HashMap;
+use std::net::IpAddr;
+
 use crate::curiefense::interface::{Action, Decision};
+use crate::curiefense::utils::RequestInfo;
+use crate::Grasshopper;
+use mlua::prelude::{LuaFunction, LuaResult, LuaTable, LuaValue, ToLua};
 
 pub struct InspectionResult(pub Decision);
 
@@ -75,5 +79,60 @@ impl Grasshopper for Luagrasshopper<'_> {
             .get("verify_workproof")
             .and_then(|f: LuaFunction| f.call((workproof, seed)))
             .ok()
+    }
+}
+
+/// a newtype that allows converting into the Lua "map" type
+pub struct LuaRequestInfo(pub RequestInfo);
+
+impl mlua::UserData for LuaRequestInfo {
+    fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_method("headers", |_, this: &LuaRequestInfo, _: ()| {
+            Ok(this.0.headers.clone())
+        });
+        methods.add_method("cookies", |_, this: &LuaRequestInfo, _: ()| {
+            Ok(this.0.cookies.clone())
+        });
+        methods.add_method("args", |_, this: &LuaRequestInfo, _: ()| {
+            Ok(this.0.rinfo.qinfo.args.clone())
+        });
+        methods.add_method("attrs", |lua, this: &LuaRequestInfo, _: ()| {
+            let mo: LuaResult<HashMap<String, LuaValue>> = this
+                .0
+                .rinfo
+                .meta
+                .extra
+                .iter()
+                .map(|(k, v)| v.clone().to_lua(lua).map(|lv| (k.clone(), lv)))
+                .collect();
+            let mut o = mo?;
+            if let Some(uri) = this.0.rinfo.qinfo.uri.as_ref() {
+                o.insert("uri".to_string(), uri.clone().to_lua(lua)?);
+            }
+            o.insert(
+                "path".to_string(),
+                this.0.rinfo.qinfo.qpath.clone().to_lua(lua)?,
+            );
+            o.insert(
+                "query".to_string(),
+                this.0.rinfo.qinfo.query.clone().to_lua(lua)?,
+            );
+
+            if let Some(ip) = this.0.rinfo.geoip.ip.as_ref() {
+                o.insert("ip".to_string(), format!("{}", ip).to_lua(lua)?);
+                o.insert("remote_addr".to_string(), format!("{}", ip).to_lua(lua)?);
+                if let IpAddr::V4(ipv4) = ip {
+                    o.insert(
+                        "ipnum".to_string(),
+                        ipv4.octets()
+                            .iter()
+                            .fold(0, |acc, x| acc * 256 + *x as u32)
+                            .to_lua(lua)?,
+                    );
+                }
+            }
+
+            Ok(o)
+        });
     }
 }

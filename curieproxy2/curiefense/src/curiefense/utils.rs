@@ -51,16 +51,21 @@ pub fn map_headers(
             cookies = cookie_map(&v);
         } else {
             match &lk.strip_prefix(':') {
-                None => { headers.insert(lk, v) ; },
-                Some(ak) => { attrs.insert(ak.to_string(), v) ; },
+                None => {
+                    headers.insert(lk, v);
+                }
+                Some(ak) => {
+                    attrs.insert(ak.to_string(), v);
+                }
             }
         }
     }
 
     let meta = EnvoyMeta {
-        authority: attrs.get("authority").unwrap().clone(),
+        authority: attrs.get("authority").map(|a| a.clone()),
         method: attrs.get("method").unwrap().clone(),
         path: attrs.get("path").unwrap().clone(),
+        extra: attrs,
     };
     (cookies, headers, meta)
 }
@@ -124,9 +129,12 @@ pub struct GeoIp {
 
 #[derive(Debug)]
 pub struct EnvoyMeta {
-    pub authority: String,
+    pub authority: Option<String>,
     pub method: String,
     pub path: String,
+    /// this field only exists for lua gradual lua interop
+    /// TODO: remove when complete
+    pub extra: HashMap<String, String>,
 }
 
 #[derive(Debug)]
@@ -134,6 +142,7 @@ pub struct RInfo {
     pub meta: EnvoyMeta,
     pub geoip: GeoIp,
     pub qinfo: QueryInfo,
+    pub host: String,
 }
 
 #[derive(Debug)]
@@ -172,9 +181,19 @@ pub fn map_request(ipstr: String, rawheaders: HashMap<String, String>) -> Reques
 
     let qinfo = map_args(&meta.path);
 
+    let host = match meta.authority.as_ref().or(headers.get("host")) {
+        Some(a) => a.clone(),
+        None => "unknown".to_string(),
+    };
+
     // TODO : parse body
 
-    let rinfo = RInfo { meta, geoip, qinfo };
+    let rinfo = RInfo {
+        meta,
+        geoip,
+        qinfo,
+        host,
+    };
 
     RequestInfo {
         cookies,

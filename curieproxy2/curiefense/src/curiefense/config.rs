@@ -5,13 +5,13 @@ pub mod raw;
 pub mod utils;
 pub mod waf;
 
-use lazy_static::lazy_static;
 use anyhow::Context;
+use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::time::SystemTime;
 use std::sync::RwLock;
+use std::time::SystemTime;
 
 use hostmap::{HostMap, UrlMap};
 use limit::{limit_order, Limit};

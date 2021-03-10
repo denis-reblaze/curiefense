@@ -74,7 +74,10 @@ fn redis_check_limit(
     let current = mcurrent.unwrap_or(0);
     let expire = mexpire.unwrap_or(-1);
 
-    println!("key={} limit={} ttl={} current={} expire={}", key, limit, ttl, current, expire);
+    println!(
+        "key={} limit={} ttl={} current={} expire={}",
+        key, limit, ttl, current, expire
+    );
 
     if expire < 0 {
         let _: () = redis::cmd("EXPIRE").arg(key).arg(ttl).query(cnx)?;

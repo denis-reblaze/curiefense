@@ -68,7 +68,7 @@ impl Limit {
                 include: resolve_selectors(rawlimit.include)
                     .with_context(|| "when resolving the include entry")?,
                 pairwith,
-                key
+                key,
             },
         ))
     }

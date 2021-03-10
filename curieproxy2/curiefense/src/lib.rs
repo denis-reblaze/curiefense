@@ -8,12 +8,12 @@ mod curiefense;
 
 use curiefense::acl::{check_acl, ACLDecision, ACLResult};
 use curiefense::config::hostmap::{HostMap, UrlMap};
-use curiefense::config::{Config, HSDB, get_config};
-use curiefense::lua::{InspectionResult, Luagrasshopper};
+use curiefense::config::{get_config, Config, HSDB};
 use curiefense::interface::{
     challenge_phase01, challenge_phase02, Action, ActionType, Decision, Grasshopper,
 };
 use curiefense::limit::limit_check;
+use curiefense::lua::{InspectionResult, LuaRequestInfo, Luagrasshopper};
 use curiefense::tagging::tag_request;
 use curiefense::utils::{ip_from_headers, map_request, RequestInfo};
 use curiefense::waf::waf_check;
@@ -29,7 +29,7 @@ fn match_urlmap<'a>(ri: &RequestInfo, cfg: &'a Config) -> Option<(String, &'a Ur
     let hostmap: &HostMap = cfg
         .urlmaps
         .iter()
-        .find(|e| e.matcher.is_match(&ri.rinfo.meta.authority))
+        .find(|e| e.matcher.is_match(&ri.rinfo.host))
         .map(|m| &m.inner)
         .or_else(|| cfg.default.as_ref())?;
     // find the first matching urlmap, or use the default, if it exists
@@ -45,12 +45,16 @@ fn match_urlmap<'a>(ri: &RequestInfo, cfg: &'a Config) -> Option<(String, &'a Ur
 /// Lua/envoy entry point
 fn inspect(
     lua: &Lua,
-    args: (HashMap<String, String>, HashMap<String, LuaValue>, LuaTable),
+    args: (
+        HashMap<String, String>,
+        HashMap<String, LuaValue>,
+        Option<LuaTable>,
+    ),
 ) -> LuaResult<Option<InspectionResult>> {
     println!("ARGS: {:?}", args);
 
     let (metaheaders, metadata, lua_grasshopper) = args;
-    let grasshopper = Luagrasshopper(lua_grasshopper);
+    let grasshopper = lua_grasshopper.map(Luagrasshopper);
 
     let hops: usize = metadata
         .get("xff_trusted_hops")
@@ -61,6 +65,23 @@ fn inspect(
     let res = inspect_generic(grasshopper, "/config/current/config", str_ip, metaheaders);
     println!("Inspection result: {:?}", res);
     Ok(res.ok().map(InspectionResult))
+}
+
+fn lua_map_request(
+    lua: &Lua,
+    args: (HashMap<String, String>, HashMap<String, LuaValue>),
+) -> LuaResult<LuaRequestInfo> {
+    let (metaheaders, metadata) = args;
+
+    let hops: usize = metadata
+        .get("xff_trusted_hops")
+        .and_then(|v| FromLua::from_lua(v.clone(), lua).ok())
+        .unwrap_or(1);
+    let str_ip = ip_from_headers(&metaheaders, hops);
+
+    let rinfo = map_request(str_ip, metaheaders);
+
+    Ok(LuaRequestInfo(rinfo))
 }
 
 fn acl_block(blocking: bool, code: i32, tags: &[String]) -> Decision {
@@ -93,7 +114,7 @@ fn challenge_verified<GH: Grasshopper>(gh: &GH, reqinfo: &RequestInfo) -> bool {
 /// generic entry point
 /// this is not that generic, as we expect :path and :authority to be in metaheaders
 fn inspect_generic<GH: Grasshopper>(
-    gh: GH,
+    mgh: Option<GH>,
     configpath: &str,
     ip_str: String,
     metaheaders: HashMap<String, String>,
@@ -105,13 +126,14 @@ fn inspect_generic<GH: Grasshopper>(
         Some(x) => x,
     };
 
-    if let Some(dec) = reqinfo
-        .rinfo
-        .qinfo
-        .uri
-        .as_ref()
-        .and_then(|uri| challenge_phase02(&gh, uri, &reqinfo.headers))
-    {
+    if let Some(dec) = mgh.as_ref().and_then(|gh| {
+        reqinfo
+            .rinfo
+            .qinfo
+            .uri
+            .as_ref()
+            .and_then(|uri| challenge_phase02(gh, uri, &reqinfo.headers))
+    }) {
         return Ok(dec);
     }
 
@@ -161,11 +183,14 @@ fn inspect_generic<GH: Grasshopper>(
             }),
             _,
         ) => {
-            if !challenge_verified(&gh, &reqinfo) {
-                return Ok(match reqinfo.headers.get("user-agent") {
-                    None => acl_block(urlmap.acl_active, 3, &tags),
-                    Some(ua) => challenge_phase01(&gh, ua, tags),
-                });
+            // if grasshopper is available, run these tests
+            if let Some(gh) = mgh {
+                if !challenge_verified(&gh, &reqinfo) {
+                    return Ok(match reqinfo.headers.get("user-agent") {
+                        None => acl_block(urlmap.acl_active, 3, &tags),
+                        Some(ua) => challenge_phase01(&gh, ua, tags),
+                    });
+                }
             }
         }
         _ => (),
@@ -183,6 +208,7 @@ fn inspect_generic<GH: Grasshopper>(
 fn curiedefense(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
     exports.set("inspect", lua.create_function(inspect)?)?;
+    exports.set("map_request", lua.create_function(lua_map_request)?)?;
     Ok(exports)
 }
 
