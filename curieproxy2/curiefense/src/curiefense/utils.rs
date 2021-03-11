@@ -152,11 +152,7 @@ pub struct RequestInfo {
     pub rinfo: RInfo,
 }
 
-pub fn map_request(ipstr: String, rawheaders: HashMap<String, String>) -> RequestInfo {
-    let (cookies, headers, meta) = map_headers(rawheaders);
-
-    // this will panic if path is not set
-    // however, it must be set by envoy
+pub fn find_geoip(ipstr: String) -> GeoIp {
     let ip = ipstr.parse().ok();
     let country = ip.and_then(get_country);
     fn get_country_x(c: &maxminddb::geoip2::Country) -> Option<String> {
@@ -170,15 +166,19 @@ pub fn map_request(ipstr: String, rawheaders: HashMap<String, String>) -> Reques
         )
     }
     let country_name = country.as_ref().and_then(get_country_x);
-    let geoip = GeoIp {
+    GeoIp {
         ipstr,
         ip,
         city: ip.and_then(get_city),
         asn: ip.and_then(get_asn),
         country,
         country_name,
-    };
+    }
+}
 
+pub fn map_request(ipstr: String, rawheaders: HashMap<String, String>) -> RequestInfo {
+    let (cookies, headers, meta) = map_headers(rawheaders);
+    let geoip = find_geoip(ipstr);
     let qinfo = map_args(&meta.path);
 
     let host = match meta.authority.as_ref().or_else(|| headers.get("host")) {

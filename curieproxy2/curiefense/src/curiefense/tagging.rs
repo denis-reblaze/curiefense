@@ -83,6 +83,7 @@ fn check_subsection(rinfo: &RequestInfo, sub: &ProfilingSSection) -> bool {
 pub fn tag_request(cfg: &Config, rinfo: &RequestInfo) -> Tags {
     let mut tags = Tags::new();
     tags.insert("all");
+    tags.insert("curieaccesslog");
     for psection in &cfg.profiling {
         if check_relation(
             rinfo,
@@ -93,25 +94,29 @@ pub fn tag_request(cfg: &Config, rinfo: &RequestInfo) -> Tags {
             tags.extend(psection.tags.clone());
         }
     }
-    tags.insert(&format!("ip:{}", rinfo.rinfo.geoip.ipstr));
-    tags.insert(&format!(
-        "geo:{}",
-        rinfo.rinfo.geoip.country_name.as_deref().unwrap_or("nil")
-    ));
-    tags.insert(&format!(
-        "asn:{}",
-        rinfo
-            .rinfo
-            .geoip
-            .asn
-            .as_ref()
-            .and_then(|g| g.autonomous_system_number)
-            .map(|an| format!("{}", an))
-            .unwrap_or_else(|| "nil".to_string())
-    ));
+    tags.insert_qualified("ip", &rinfo.rinfo.geoip.ipstr);
+    tags.insert_qualified(
+        "geo",
+        rinfo.rinfo.geoip.country_name.as_deref().unwrap_or("nil"),
+    );
+    match rinfo
+        .rinfo
+        .geoip
+        .asn
+        .as_ref()
+        .and_then(|g| g.autonomous_system_number)
+    {
+        None => {
+            tags.insert_qualified("asn", "nil");
+        }
+        Some(asn) => {
+            let sasn = format!("{}", asn);
+            tags.insert_qualified("asn", &sasn);
+        }
+    }
 
     if let Some(container_name) = &cfg.container_name {
-        tags.insert(&format!("container:{}", container_name));
+        tags.insert_qualified("container", container_name);
     }
     tags
 }

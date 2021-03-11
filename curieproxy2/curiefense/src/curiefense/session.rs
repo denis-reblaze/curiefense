@@ -7,7 +7,8 @@ use uuid::Uuid;
 
 use crate::curiefense::config::{get_config_default_path, CONFIG};
 use crate::curiefense::interface::Tags;
-use crate::curiefense::utils::{EnvoyMeta, GeoIp, QueryInfo, RInfo};
+use crate::curiefense::tagging::tag_request;
+use crate::curiefense::utils::{find_geoip, EnvoyMeta, QueryInfo, RInfo};
 use crate::{match_urlmap, Config, RequestInfo, UrlMap};
 
 // Session stuff, the key is the session id
@@ -47,15 +48,9 @@ impl JRequestMap {
             .cloned()
             .or_else(|| self.attrs.authority.clone())
             .unwrap_or_else(|| "unknown".to_string());
-        let parsed_ip = self.attrs.ip.parse().ok();
-        let geoip = GeoIp {
-            ipstr: self.attrs.ip,
-            ip: parsed_ip,
-            country: None,
-            city: None,
-            asn: None,
-            country_name: None,
-        };
+
+        // TODO, get geoip data from the encoded request, not from the ip
+        let geoip = find_geoip(self.attrs.ip);
         let meta = EnvoyMeta {
             authority: self.attrs.authority,
             method: self.attrs.method,
@@ -119,6 +114,8 @@ pub fn session_serialize_request_map(session_id: &str) -> anyhow::Result<serde_j
 
     // get the tags
     let tags = with_tags(uuid, |tgs| Ok(tgs.clone()))?;
+    let tags_map: HashMap<String, u32> =
+        tags.as_hash_ref().iter().map(|k| (k.clone(), 1)).collect();
 
     // update the tags
     let attrs = raw
@@ -127,17 +124,15 @@ pub fn session_serialize_request_map(session_id: &str) -> anyhow::Result<serde_j
     let attrs_o = attrs
         .as_object_mut()
         .ok_or_else(|| anyhow::anyhow!("Attrs was not an object"))?;
-    attrs_o.insert("tags".to_string(), serde_json::to_value(tags)?);
+    attrs_o.insert("tags".to_string(), serde_json::to_value(tags_map)?);
 
     Ok(raw)
 }
 
 /// initializes a session from a json-encoded request map
 pub fn session_init(encoded_request_map: &str) -> anyhow::Result<String> {
-    let jvalue: serde_json::Value =
-        serde_json::from_str(encoded_request_map)?;
-    let jmap: JRequestMap =
-        serde_json::from_value(jvalue.clone())?;
+    let jvalue: serde_json::Value = serde_json::from_str(encoded_request_map)?;
+    let jmap: JRequestMap = serde_json::from_value(jvalue.clone())?;
     let (rinfo, tags) = jmap.into_request_info();
 
     let uuid = Uuid::new_v4();
@@ -166,7 +161,7 @@ pub struct SessionUrlMap {
     pub acl_active: bool,
     pub waf_active: bool,
     pub limit_ids: Vec<String>,
-    pub urlmap: String
+    pub urlmap: String,
 }
 
 /// returns a RawUrlMap object (minus the match field), and updates the internal structure for the url map
@@ -186,11 +181,12 @@ pub fn session_match_urlmap(session_id: &str) -> anyhow::Result<SessionUrlMap> {
         })
     })?;
     with_tags_mut(uuid, |tags| {
-        tags.insert(&format!("urlmap:{}", hostmap_name.clone()));
-        tags.insert(&format!("urlmap-entry:{}", urlmap.name));
-        tags.insert(&format!("aclid:{}", urlmap.acl_profile.id));
-        tags.insert(&format!("aclname:{}", urlmap.acl_profile.name));
-        tags.insert(&format!("wafid:{}", urlmap.waf_profile.name));
+        tags.insert_qualified("urlmap", &hostmap_name);
+        tags.insert_qualified("urlmap-entry", &urlmap.name);
+        tags.insert_qualified("aclid", &urlmap.acl_profile.id);
+        tags.insert_qualified("aclname", &urlmap.acl_profile.name);
+        tags.insert_qualified("wafid", &urlmap.waf_profile.id);
+        tags.insert_qualified("wafname", &urlmap.waf_profile.name);
         Ok(())
     })?;
     let raw_urlmap = SessionUrlMap {
@@ -200,9 +196,17 @@ pub fn session_match_urlmap(session_id: &str) -> anyhow::Result<SessionUrlMap> {
         acl_active: urlmap.acl_active,
         waf_active: urlmap.waf_active,
         limit_ids: urlmap.limits.into_iter().map(|l| l.id).collect(),
-        urlmap: hostmap_name
+        urlmap: hostmap_name,
     };
     Ok(raw_urlmap)
+}
+
+pub fn session_tag_request(session_id: &str) -> anyhow::Result<()> {
+    let uuid: Uuid = session_id.parse()?;
+
+    let new_tags =
+        with_config(|cfg| with_request_info(uuid, |rinfo| Ok(tag_request(&cfg, &rinfo))))?;
+    with_tags_mut(uuid, |tgs| Ok(tgs.extend(new_tags)))
 }
 
 // HELPERS

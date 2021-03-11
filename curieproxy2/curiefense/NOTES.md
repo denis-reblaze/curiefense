@@ -108,8 +108,9 @@ It has the same format as a configuration *urlmap entry*, except:
 
 ## Sample code, parallel Rust/Lua execution
 
-```lua
+### Initialization
 
+```lua
 function encode_request_map(request_map)
     local s_request_map = {
         headers = request_map.headers,
@@ -135,7 +136,11 @@ function inspect(handle)
 
     -- initialize rust session
     local session_uuid = native.rust_session_init(encode_request_map(request_map))
+```
 
+### `match_urlmap`
+
+```lua
     -- ****** lua *******
     local urlmap_entry, url_map = match_urlmap(request_map)
     local acl_active        = urlmap_entry["acl_active"]
@@ -163,13 +168,25 @@ function inspect(handle)
     local waf_profile       = globals.WAFProfiles[waf_profile_id]
     -- no need to add tags here, it is done in rust_session_match_urlmap
 
+```
+
+### Tagging
+
+```lua
+    -- ****** lua *******
+    tag_lists(request_map)
+
+    -- ****** rust *******
+    native.rust_session_tag_request(session_uuid)
+```
+### Cleanup
+
+```lua
     -- retrieve the rust request map
     local rust_request_map = native.rust_session_serialize_request_map(session_uuid)
     handle:logInfo(string.format("rust: %s", rust_request_map))
 
     -- clean session
     native.rust_session_clean(session_uuid)
-
-    -- ...
 end
 ```

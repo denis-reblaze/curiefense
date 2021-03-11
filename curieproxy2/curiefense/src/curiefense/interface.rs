@@ -35,6 +35,13 @@ impl Tags {
         self.0.insert(tagify(value))
     }
 
+    pub fn insert_qualified(&mut self, id: &str, value: &str) -> bool {
+        let mut to_insert = id.to_string();
+        to_insert.push(':');
+        to_insert += &tagify(value);
+        self.0.insert(to_insert)
+    }
+
     pub fn extend(&mut self, other: Self) {
         self.0.extend(other.0)
     }

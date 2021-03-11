@@ -116,11 +116,11 @@ fn inspect_generic<GH: Grasshopper>(
     }
 
     let mut tags = tag_request(&cfg, &reqinfo);
-    tags.insert(&format!("urlmap:{}", nm));
-    tags.insert(&format!("urlmap-entry:{}", urlmap.name));
-    tags.insert(&format!("aclid:{}", urlmap.acl_profile.id));
-    tags.insert(&format!("aclname:{}", urlmap.acl_profile.name));
-    tags.insert(&format!("wafid:{}", urlmap.waf_profile.name));
+    tags.insert_qualified("urlmap", &nm);
+    tags.insert_qualified("urlmap-entry", &urlmap.name);
+    tags.insert_qualified("aclid", &urlmap.acl_profile.id);
+    tags.insert_qualified("aclname", &urlmap.acl_profile.name);
+    tags.insert_qualified("wafid", &urlmap.waf_profile.name);
 
     // TODO challenge
 
@@ -229,6 +229,12 @@ fn curiedefense(lua: &Lua) -> LuaResult<LuaTable> {
         "rust_session_match_urlmap",
         lua.create_function(|_: &Lua, session_id: String| {
             wrap_session_json(session::session_match_urlmap(&session_id))
+        })?,
+    )?;
+    exports.set(
+        "rust_session_tag_request",
+        lua.create_function(|_: &Lua, session_id: String| {
+            wrap_session_json(session::session_tag_request(&session_id))
         })?,
     )?;
 
