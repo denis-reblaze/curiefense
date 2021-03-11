@@ -18,6 +18,7 @@ pub struct Section<A> {
 // TODO: undefined data structures
 #[derive(Debug, Clone)]
 pub struct WAFProfile {
+    pub id: String,
     pub name: String,
     pub ignore_alphanum: bool,
     pub sections: Section<WAFSection>,
@@ -132,8 +133,9 @@ fn mk_section(
 
 fn convert_entry(entry: RawWAFProfile) -> anyhow::Result<(String, WAFProfile)> {
     Ok((
-        entry.id,
+        entry.id.clone(),
         WAFProfile {
+            id: entry.id,
             name: entry.name,
             ignore_alphanum: entry.ignore_alphanum,
             sections: Section {

@@ -24,6 +24,7 @@ anyhow = "1.0"
 redis = "0.19"
 md5 = "0.7"
 libinjection = "0.2"
+uuid = { version = "0.8", features = ["serde", "v4"] }
 
 [dependencies.hyperscan]
 version = "0.2"

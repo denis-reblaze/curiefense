@@ -62,7 +62,7 @@ pub fn map_headers(
     }
 
     let meta = EnvoyMeta {
-        authority: attrs.get("authority").map(|a| a.clone()),
+        authority: attrs.get("authority").cloned(),
         method: attrs.get("method").unwrap().clone(),
         path: attrs.get("path").unwrap().clone(),
         extra: attrs,
@@ -105,7 +105,7 @@ fn map_args(path: &str) -> QueryInfo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// data extracted from the query string
 pub struct QueryInfo {
     /// the "path" portion of the raw query path
@@ -117,7 +117,7 @@ pub struct QueryInfo {
     pub args: HashMap<String, String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GeoIp {
     pub ipstr: String,
     pub ip: Option<IpAddr>,
@@ -127,7 +127,7 @@ pub struct GeoIp {
     pub country_name: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct EnvoyMeta {
     pub authority: Option<String>,
     pub method: String,
@@ -137,7 +137,7 @@ pub struct EnvoyMeta {
     pub extra: HashMap<String, String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RInfo {
     pub meta: EnvoyMeta,
     pub geoip: GeoIp,
@@ -145,7 +145,7 @@ pub struct RInfo {
     pub host: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RequestInfo {
     pub cookies: HashMap<String, String>,
     pub headers: HashMap<String, String>,
@@ -181,7 +181,7 @@ pub fn map_request(ipstr: String, rawheaders: HashMap<String, String>) -> Reques
 
     let qinfo = map_args(&meta.path);
 
-    let host = match meta.authority.as_ref().or(headers.get("host")) {
+    let host = match meta.authority.as_ref().or_else(|| headers.get("host")) {
         Some(a) => a.clone(),
         None => "unknown".to_string(),
     };

@@ -21,7 +21,7 @@ use utils::Matching;
 use waf::{resolve_signatures, WAFProfile, WAFSignatures};
 
 lazy_static! {
-    static ref CONFIG: RwLock<Config> = RwLock::new(Config::empty());
+    pub static ref CONFIG: RwLock<Config> = RwLock::new(Config::empty());
     pub static ref HSDB: RwLock<Option<WAFSignatures>> = RwLock::new(None);
 }
 
@@ -41,6 +41,10 @@ pub fn get_config(basepath: &str) -> Result<Config, Box<dyn std::error::Error>> 
         }
     };
     Result::Ok(config)
+}
+
+pub fn get_config_default_path() -> Result<Config, Box<dyn std::error::Error>> {
+    get_config("/config/current/config")
 }
 
 #[derive(Debug, Clone)]

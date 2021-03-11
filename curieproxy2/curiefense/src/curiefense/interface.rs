@@ -1,9 +1,10 @@
 use crate::curiefense::config::raw::{RawAction, RawActionType};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 /// this file contains all the data type that are used when interfacing with a proxy
 use std::collections::{HashMap, HashSet};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Decision {
     Pass,
     /// pass because the Hostmap/Urlmap lacked a default entry
@@ -11,7 +12,7 @@ pub enum Decision {
 }
 
 /// a newtype representing tags, to make sure they are tagified when inserted
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tags(HashSet<String>);
 
 fn tagify(tag: &str) -> String {
@@ -51,7 +52,7 @@ impl Tags {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Action {
     pub atype: ActionType,
     pub ban: bool,
@@ -62,7 +63,8 @@ pub struct Action {
     pub extra_tags: Option<HashSet<String>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ActionType {
     Monitor,
     Block,

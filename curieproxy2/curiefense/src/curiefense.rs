@@ -4,6 +4,8 @@ pub mod interface;
 pub mod limit;
 pub mod lua;
 pub mod maxmind;
+pub mod session;
 pub mod tagging;
+pub mod urlmap;
 pub mod utils;
 pub mod waf;

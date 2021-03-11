@@ -14,33 +14,11 @@ use curiefense::interface::{
 };
 use curiefense::limit::limit_check;
 use curiefense::lua::{InspectionResult, LuaRequestInfo, Luagrasshopper};
+use curiefense::session;
 use curiefense::tagging::tag_request;
+use curiefense::urlmap::match_urlmap;
 use curiefense::utils::{ip_from_headers, map_request, RequestInfo};
 use curiefense::waf::waf_check;
-
-/// finds the urlmap matching a given request, based on the configuration
-/// there are cases where default values do not exist (even though the UI should prevent that)
-///
-/// note that the url is matched using the url-decoded path!
-///
-/// returns the matching url map, along with the id of the selected host map
-fn match_urlmap<'a>(ri: &RequestInfo, cfg: &'a Config) -> Option<(String, &'a UrlMap)> {
-    // find the first matching hostmap, or use the default, if it exists
-    let hostmap: &HostMap = cfg
-        .urlmaps
-        .iter()
-        .find(|e| e.matcher.is_match(&ri.rinfo.host))
-        .map(|m| &m.inner)
-        .or_else(|| cfg.default.as_ref())?;
-    // find the first matching urlmap, or use the default, if it exists
-    let urlmap: &UrlMap = hostmap
-        .entries
-        .iter()
-        .find(|e| e.matcher.is_match(&ri.rinfo.qinfo.qpath))
-        .map(|m| &m.inner)
-        .or_else(|| hostmap.default.as_ref())?;
-    Some((hostmap.name.clone(), urlmap))
-}
 
 /// Lua/envoy entry point
 fn inspect(
@@ -204,11 +182,56 @@ fn inspect_generic<GH: Grasshopper>(
     })
 }
 
+fn wrap_session<R>(v: anyhow::Result<R>) -> LuaResult<Option<R>> {
+    match v {
+        Ok(x) => Ok(Some(x)),
+        Err(rr) => {
+            println!("ERROR: {}", rr);
+            Ok(None)
+        }
+    }
+}
+
+fn wrap_session_json<R: serde::Serialize>(v: anyhow::Result<R>) -> LuaResult<Option<String>> {
+    wrap_session(v.and_then(|r| serde_json::to_string(&r).map_err(|rr| anyhow::anyhow!("{}", rr))))
+}
+
 #[mlua::lua_module]
 fn curiedefense(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
     exports.set("inspect", lua.create_function(inspect)?)?;
     exports.set("map_request", lua.create_function(lua_map_request)?)?;
+
+    // session functions
+    exports.set(
+        "rust_init_config",
+        lua.create_function(|_: &Lua, _: ()| wrap_session(session::init_config()))?,
+    )?;
+    exports.set(
+        "rust_session_init",
+        lua.create_function(|_: &Lua, encoded_request_map: String| {
+            wrap_session(session::session_init(&encoded_request_map))
+        })?,
+    )?;
+    exports.set(
+        "rust_session_clean",
+        lua.create_function(|_: &Lua, session_id: String| {
+            wrap_session(session::clean_session(&session_id).map(|()| true))
+        })?,
+    )?;
+    exports.set(
+        "rust_session_serialize_request_map",
+        lua.create_function(|_: &Lua, session_id: String| {
+            wrap_session_json(session::session_serialize_request_map(&session_id))
+        })?,
+    )?;
+    exports.set(
+        "rust_session_match_urlmap",
+        lua.create_function(|_: &Lua, session_id: String| {
+            wrap_session_json(session::session_match_urlmap(&session_id))
+        })?,
+    )?;
+
     Ok(exports)
 }
 

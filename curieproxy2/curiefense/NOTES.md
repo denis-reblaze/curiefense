@@ -56,224 +56,120 @@ function native_inspect(handle)
 end
 ```
 
-# JSON API
+# Session API
 
-If not specified here, the referenced data structures are to be looked up in the JSON schema repositories.
-If the input is malformed, the functions return an object with the following property:
+The session API can be used for fine grained control over the matching process.
 
- * `error`: `string`, representing the error
+## Functions
 
-When called from LUA, all arguments must be passed as JSON-encoded strings, and all output is returned as a JSON-encoded string.
+All functions return an empty result on failure (`nil` with Lua).
 
-## `match_urlmap`
+Most functions need other functions to be called before being available:
 
-### Arguments
+ * the `rust_init_config` **MUST** be called before any other function is called
+ * the `rust_session_init` must be called before any function taking a `session_id` as an argument
+ * once the `rust_session_clean` function is called, the corresponding `session_id` is invalidated and will not work anymore
+ * the `rust_session_match_urlmap` must be called before most matching functions, as described in the following documentation
 
- * `config_path`: `string`, path to the configuration directory
- * `request_map`: `RequestMap`
+### `rust_init_config`
 
-### Output
+Called without arguments.
 
-On success, returns an object with the following properties:
+Returns `true` on success.
 
- * `hostmapid`: `string`, representing the id of the matched "host map"
- * `urlmap`: `object`, with the following properties:
+### `rust_session_init`
 
-   * `name`: `string`
-   * `acl_active`: `bool`
-   * `waf_active`: `bool`
-   * `acl_profile`: `string`, id of the selected acl profile
-   * `waf_profile`: `string`, id of the selected waf profile
-   * `limits`: `list` of `string`, ids of the rate limiting to enforce
+Takes a single argument : JSON-encoded string representing the *request_map*.
 
-On failure, returns `null`.
+Returns a string, representing a *session id*.
 
-### Notes
+### `rust_session_match_urlmap`
 
-This function can fail when:
+Takes a single argument: the *session id*.
 
- * The configuration is malformed. Note that the whole configuration is parsed, which means that, for example, a problem in the WAF profiles will cause this function to fail.
- * No host map matched, and no default was provided.
- * No url map matched, and no default was provided.
-
-
-## `tag_request`
-
-### Arguments
-
- * `request_map`: `RequestMap`
-
-### Output
-
-A list of `string`, representing the tags.
-
-### Notes
-
-This function can't fail.
-
-Note that the urlmap-related tags are not added by this function.
-
-## `limit_checks`
-
-### Arguments
-
- * `request_map`: `RequestMap`
- * `limits`: list of `Limit`
- * `tags`: list of `string`
-
-### Output
-
-An object with the following entries:
-
- * `decision`: `Decision`
- * `tags`: list of `string`, the updated list of tags
-
-### Note
-
-While this function cannot fail, it might fail to mark requests as having exceeded limits (for example, when the Redis server is down).
-
-## `check_acl`
-
-### Arguments
-
- * `tags`: list of `string`
- * `profile`: `ACLProfile`
-
-### Output
-
-Returns either a "bypass" or "matches" object, with the following configuration:
-
-#### Bypass
-
-An object, with the following entry:
-
- * `bypass`: `ACLDecision`
-
-#### Matches
-
-An object with the following entries:
-
- * `human`, `ACLDecision` or `null`
- * `bot`, `ACLDecision` or `null`
-
-#### ACLDecision
-
-An object with the following entries:
-
- * `allowed`: `bool`, as its name implies, the request is allowed when set to `true`, and denied when set to `false`
- * `tags`: list of `string`, the tags that were matched when reaching this decision
-
-### Note
-
-This function can't fail.
-
-The output represents the result of an ACL check.
-It either returns a "bypass" result (force deny, or bypass), or a pair of results, depending on whether the matched client is a "human" or a "bot".
-
-## `waf_check`
-
-### Arguments
-
- * `request_map`: `RequestMap`
- * `profile`: `ACLProfile`
-
-### Output
-
-Returns a `Decision`
-
-### Note
-
-This function can't fail.
-
-# Schemas
-
-## `RequestMap`
-
-Note that this specification is only a subset of what the Lua `request_map` structure contains.
+Returns a JSON-encoded object, that looks like:
 
 ```json
 {
-  "$schema": "http://json-schema.org/draft-06/schema#",
-  "$ref": "#/definitions/RequestMap",
-  "definitions": {
-    "RequestMap": {
-      "type": "object",
-      "additionalProperties": true,
-      "properties": {
-        "headers": {
-          "$ref": "#/definitions/StrMap",
-          "$comment": "Request headers, except the Cookies header"
-        },
-        "cookies": {
-          "$ref": "#/definitions/StrMap",
-          "$comment": "Request cookies"
-        },
-        "params": {
-          "$ref": "#/definitions/StrMap",
-          "$comment": "URL parameters"
-        },
-        "attrs": {
-          "$ref": "#/definitions/Attrs",
-          "$comment": "Various request attributes"
-        }
-      },
-      "required": [
-        "headers",
-        "params",
-        "cookies",
-        "attrs"
-      ],
-      "title": "RequestMap"
-    },
-    "StrMap": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "string"
-      }
-    },
-    "Attrs": {
-      "type": "object",
-      "additionalProperties": true,
-      "properties": {
-        "path": {
-          "type": "string",
-          "$comment": "the path part of the URL"
-        },
-        "method": {
-          "type": "string",
-          "$comment": "the HTTP method"
-        },
-        "ip": {
-          "type": "string",
-          "$comment": "source IP address, canonical string representation"
-        },
-        "query": {
-          "type": "string",
-          "$comment": "the query part of the URL"
-        },
-        "authority": {
-          "type": "string",
-          "$comment": "optional field (HTTP >=2)"
-        },
-        "uri": {
-          "type": "string",
-          "$comment": "the url decoded URI (might contain arbitrary binary data)"
-        },
-        "asn": {
-          "type": "integer",
-          "$comment": "ASN number"
-        }
-      },
-      "required": [
-        "ip",
-        "method",
-        "path",
-        "query",
-        "remote_addr",
-        "uri"
-      ],
-      "title": "Attrs"
-    }
-  }
+   "acl_profile" : "34511ea458ac",
+   "acl_active" : true,
+   "urlmap" : "default entry",
+   "name" : "admin path",
+   "waf_profile" : "__default__",
+   "limit_ids" : [],
+   "waf_active" : true
 }
+```
+
+It has the same format as a configuration *urlmap entry*, except:
+
+ * there is no `match` field
+ * the `urlmap` field contains the name of the matched *urlmap*
+
+## Sample code, parallel Rust/Lua execution
+
+```lua
+
+function encode_request_map(request_map)
+    local s_request_map = {
+        headers = request_map.headers,
+        cookies = request_map.cookies,
+        params = request_map.params,
+        attrs = request_map.attrs,
+        args = request_map.args,
+    }
+
+    return cjson.encode(s_request_map)
+
+end
+
+function inspect(handle)
+    init(handle)
+    native.rust_init_config()
+
+    local request_map = map_request(handle)
+    local url = request_map.attrs.path
+    local host = request_map.headers.host or request_map.attrs.authority
+
+    local encoded = encode_request_map(request_map)
+
+    -- initialize rust session
+    local session_uuid = native.rust_session_init(encode_request_map(request_map))
+
+    -- ****** lua *******
+    local urlmap_entry, url_map = match_urlmap(request_map)
+    local acl_active        = urlmap_entry["acl_active"]
+    local waf_active        = urlmap_entry["waf_active"]
+    local acl_profile_id    = urlmap_entry["acl_profile"]
+    local waf_profile_id    = urlmap_entry["waf_profile"]
+    local acl_profile       = globals.ACLProfiles[acl_profile_id]
+    local waf_profile       = globals.WAFProfiles[waf_profile_id]
+    map_tags(request_map,
+        sfmt('urlmap:%s', url_map.name),
+        sfmt('urlmap-entry:%s', urlmap_entry.name),
+        sfmt("aclid:%s", acl_profile_id),
+        sfmt("aclname:%s", acl_profile.name),
+        sfmt("wafid:%s", waf_profile_id),
+        sfmt("wafname:%s", waf_profile.name)
+    )
+
+    -- ****** rust *******
+    local urlmap_entry = native.rust_session_match_urlmap(session_uuid)
+    local acl_active        = urlmap_entry["acl_active"]
+    local waf_active        = urlmap_entry["waf_active"]
+    local acl_profile_id    = urlmap_entry["acl_profile"]
+    local waf_profile_id    = urlmap_entry["waf_profile"]
+    local acl_profile       = globals.ACLProfiles[acl_profile_id]
+    local waf_profile       = globals.WAFProfiles[waf_profile_id]
+    -- no need to add tags here, it is done in rust_session_match_urlmap
+
+    -- retrieve the rust request map
+    local rust_request_map = native.rust_session_serialize_request_map(session_uuid)
+    handle:logInfo(string.format("rust: %s", rust_request_map))
+
+    -- clean session
+    native.rust_session_clean(session_uuid)
+
+    -- ...
+end
 ```
