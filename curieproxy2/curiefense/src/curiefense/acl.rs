@@ -1,15 +1,16 @@
 use crate::curiefense::config::raw::ACLProfile;
 use crate::curiefense::interface::Tags;
 
+use serde::Serialize;
 use std::collections::HashSet;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct ACLDecision {
     pub allowed: bool,
     pub tags: Vec<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum ACLResult {
     /// bypass found
     Bypass(ACLDecision),

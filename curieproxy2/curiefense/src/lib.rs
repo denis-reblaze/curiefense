@@ -204,37 +204,49 @@ fn curiefense(lua: &Lua) -> LuaResult<LuaTable> {
 
     // session functions
     exports.set(
-        "rust_init_config",
+        "init_config",
         lua.create_function(|_: &Lua, _: ()| wrap_session(session::init_config()))?,
     )?;
     exports.set(
-        "rust_session_init",
+        "session_init",
         lua.create_function(|_: &Lua, encoded_request_map: String| {
             wrap_session(session::session_init(&encoded_request_map))
         })?,
     )?;
     exports.set(
-        "rust_session_clean",
+        "session_clean",
         lua.create_function(|_: &Lua, session_id: String| {
             wrap_session(session::clean_session(&session_id).map(|()| true))
         })?,
     )?;
     exports.set(
-        "rust_session_serialize_request_map",
+        "session_serialize_request_map",
         lua.create_function(|_: &Lua, session_id: String| {
             wrap_session_json(session::session_serialize_request_map(&session_id))
         })?,
     )?;
     exports.set(
-        "rust_session_match_urlmap",
+        "session_match_urlmap",
         lua.create_function(|_: &Lua, session_id: String| {
             wrap_session_json(session::session_match_urlmap(&session_id))
         })?,
     )?;
     exports.set(
-        "rust_session_tag_request",
+        "session_tag_request",
         lua.create_function(|_: &Lua, session_id: String| {
             wrap_session_json(session::session_tag_request(&session_id))
+        })?,
+    )?;
+    exports.set(
+        "session_limit_check",
+        lua.create_function(|_: &Lua, session_id: String| {
+            wrap_session_json(session::session_limit_check(&session_id))
+        })?,
+    )?;
+    exports.set(
+        "session_acl_check",
+        lua.create_function(|_: &Lua, session_id: String| {
+            wrap_session_json(session::session_acl_check(&session_id))
         })?,
     )?;
 

@@ -5,11 +5,13 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 use uuid::Uuid;
 
+use crate::curiefense::acl::{check_acl, ACLResult};
 use crate::curiefense::config::{get_config_default_path, CONFIG};
 use crate::curiefense::interface::Tags;
+use crate::curiefense::limit::limit_check;
 use crate::curiefense::tagging::tag_request;
 use crate::curiefense::utils::{find_geoip, EnvoyMeta, QueryInfo, RInfo};
-use crate::{match_urlmap, Config, RequestInfo, UrlMap};
+use crate::{match_urlmap, Config, Decision, RequestInfo, UrlMap};
 
 // Session stuff, the key is the session id
 lazy_static! {
@@ -208,6 +210,28 @@ pub fn session_tag_request(session_id: &str) -> anyhow::Result<bool> {
         with_config(|cfg| with_request_info(uuid, |rinfo| Ok(tag_request(&cfg, &rinfo))))?;
     with_tags_mut(uuid, |tgs| Ok(tgs.extend(new_tags)))?;
     Ok(true)
+}
+
+pub fn session_limit_check(session_id: &str) -> anyhow::Result<Decision> {
+    let uuid: Uuid = session_id.parse()?;
+
+    // copy limits, without keeping a read lock
+    let limits = with_urlmap(uuid, |urlmap| Ok(urlmap.limits.clone()))?;
+
+    with_request_info(uuid, |rinfo| {
+        with_tags_mut(uuid, |mut tags| {
+            let dec = limit_check(&rinfo, &limits, &mut tags);
+            Ok(dec)
+        })
+    })
+}
+
+pub fn session_acl_check(session_id: &str) -> anyhow::Result<ACLResult> {
+    let uuid: Uuid = session_id.parse()?;
+
+    with_urlmap(uuid, |urlmap| {
+        with_tags(uuid, |tags| Ok(check_acl(tags, &urlmap.acl_profile)))
+    })
 }
 
 // HELPERS
