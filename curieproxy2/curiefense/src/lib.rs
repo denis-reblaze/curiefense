@@ -197,7 +197,7 @@ fn wrap_session_json<R: serde::Serialize>(v: anyhow::Result<R>) -> LuaResult<Opt
 }
 
 #[mlua::lua_module]
-fn curiedefense(lua: &Lua) -> LuaResult<LuaTable> {
+fn curiefense(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
     exports.set("inspect", lua.create_function(inspect)?)?;
     exports.set("map_request", lua.create_function(lua_map_request)?)?;

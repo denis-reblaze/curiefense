@@ -201,12 +201,13 @@ pub fn session_match_urlmap(session_id: &str) -> anyhow::Result<SessionUrlMap> {
     Ok(raw_urlmap)
 }
 
-pub fn session_tag_request(session_id: &str) -> anyhow::Result<()> {
+pub fn session_tag_request(session_id: &str) -> anyhow::Result<bool> {
     let uuid: Uuid = session_id.parse()?;
 
     let new_tags =
         with_config(|cfg| with_request_info(uuid, |rinfo| Ok(tag_request(&cfg, &rinfo))))?;
-    with_tags_mut(uuid, |tgs| Ok(tgs.extend(new_tags)))
+    with_tags_mut(uuid, |tgs| Ok(tgs.extend(new_tags)))?;
+    Ok(true)
 }
 
 // HELPERS
