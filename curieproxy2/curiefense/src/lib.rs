@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 mod curiefense;
 
-use curiefense::acl::{check_acl, ACLDecision, ACLResult};
+use curiefense::acl::{check_acl, ACLDecision, ACLResult, BotHuman};
 use curiefense::config::hostmap::{HostMap, UrlMap};
 use curiefense::config::{get_config, Config, HSDB};
 use curiefense::interface::{
@@ -146,21 +146,21 @@ fn inspect_generic<GH: Grasshopper>(
             }
         }
         // human blocked, always block, even if it is a bot
-        ACLResult::Match(
-            _,
-            Some(ACLDecision {
+        ACLResult::Match(BotHuman {
+            bot: _,
+            human: Some(ACLDecision {
                 allowed: false,
                 tags,
             }),
-        ) => return Ok(acl_block(urlmap.acl_active, 5, &tags)),
+        }) => return Ok(acl_block(urlmap.acl_active, 5, &tags)),
         // robot blocked, should be challenged, just block for now
-        ACLResult::Match(
-            Some(ACLDecision {
+        ACLResult::Match(BotHuman {
+            bot: Some(ACLDecision {
                 allowed: false,
                 tags,
             }),
-            _,
-        ) => {
+            human: _,
+        }) => {
             // if grasshopper is available, run these tests
             if let Some(gh) = mgh {
                 if !challenge_verified(&gh, &reqinfo) {

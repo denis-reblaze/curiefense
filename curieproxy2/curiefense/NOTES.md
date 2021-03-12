@@ -71,19 +71,31 @@ Most functions need other functions to be called before being available:
  * once the `rust_session_clean` function is called, the corresponding `session_id` is invalidated and will not work anymore
  * the `rust_session_match_urlmap` must be called before most matching functions, as described in the following documentation
 
-### `rust_init_config`
+### `init_config`
 
 Called without arguments.
 
 Returns `true` on success.
 
-### `rust_session_init`
+### `session_init`
 
 Takes a single argument : JSON-encoded string representing the *request_map*.
 
 Returns a string, representing a *session id*.
 
-### `rust_session_match_urlmap`
+### `session_clean`
+
+Takes a single argument: the *session id*, and doesn't return anything.
+
+There must be a single call to `session_clean` for each call to `session_init` in order to prevent memory leaks.
+
+### `session_serialize_request_map`
+
+Takes a single argument: the *session id*.
+
+Returns a JSON-encoded object, which is identical to the object sent to `session_init`, except for the list of tags which could have been updated as a result of calling any of the other functions.
+
+### `session_match_urlmap`
 
 Takes a single argument: the *session id*.
 
@@ -106,87 +118,116 @@ It has the same format as a configuration *urlmap entry*, except:
  * there is no `match` field
  * the `urlmap` field contains the name of the matched *urlmap*
 
+This function updates the tags with the urlmap specific tags.
+
+### `session_tag_request`
+
+Takes a single argument: the *session id*.
+
+Returns `true` on success.
+
+### `session_limit_check`
+
+**`session_match_urlmap` must have been called before using this function!**
+
+Takes a single argument: the *session id*.
+
+Returns a decision (see below).
+
+### `session_acl_check`
+
+**`session_match_urlmap` must have been called before using this function!**
+
+Takes a single argument: the *session id*.
+
+On success, returns a JSON encoded object, having a single key:
+
+ * if the key is `Bypass`, it represents a force deny/bypass decision
+ * if the key is `Match`, it represents the decisions for humans and bots
+
+In all cases, the matching tags are collected. Examples:
+
+```json
+{"Match":{"human":null,"bot":null}}
+```
+
+No match has been found (results in filtering proceeding to WAF checks).
+
+```json
+{"Match":{"human":{"tags":["foo"],"allowed":true},"bot":{"tags":["bar"],"allowed":false}}}
+```
+Humans are allowed, bots are denied (results in humans being accepted, and bots being challenged).
+
+```json
+{"Match":{"human":{"tags":["yyy"],"allowed":false},"bot":null}}
+```
+
+Humans are denied, bots are not matched (results in a deny).
+
+```json
+{"Bypass":{"tags":["xxx"],"allowed":true}}
+```
+
+Bypass (results in the request being allowed).
+
+```json
+{"Bypass":{"tags":["xxx"],"allowed":false}}
+```
+
+Force deny (results in the request being dropped).
+
+### `session_waf_check`
+
+**`session_match_urlmap` must have been called before using this function!**
+
+Takes a single argument: the *session id*.
+
+Returns a decision (see below).
+
+### The decision data structure
+
+The decision is a json encoded value, with can be of the following form:
+
+ * The string `"Pass"`, meaning the request is allowed at this stage,
+ * An object with a single key, `Action`, and a single value representing the action to be taken.
+
+Example, when actions needs to be taken:
+
+```json
+{
+   "Action" : {
+      "atype" : "block",
+      "ban" : false,
+      "reason" : {
+         "sig_subcategory" : "generic",
+         "section" : "args",
+         "initiator" : "waf",
+         "sig_operand" : "/adxmlrpc.php",
+         "sig_id" : "100062",
+         "sig_msg" : "RFI/LFI/OSCI",
+         "sig_category" : "generic",
+         "name" : "lol",
+         "sig_severity" : 5,
+         "value" : "lalalala/adxmlrpc.phpB"
+      },
+      "status" : 403,
+      "headers" : null,
+      "content" : "Access denied",
+      "extra_tags" : null
+   }
+}
+```
+
+The fields have the following meaning:
+
+ * `atype`: type of the action, can be `block`, `monitor`, or `alter_headers` ;
+ * `ban`, a boolean, indicating whether banning had been performed ;
+ * `reason`, an arbitrary value, for logging purposes,
+ * `status`, http status of the response ;
+ * `headers`, an optional object with strings values, for headers to be appended to the request before passing it upstream ;
+ * `content`, body content of the response,
+ * `extra_tags`, undefined (might be removed in the future).
+
 ## Sample code, parallel Rust/Lua execution
 
-### Initialization
-
-```lua
-function encode_request_map(request_map)
-    local s_request_map = {
-        headers = request_map.headers,
-        cookies = request_map.cookies,
-        params = request_map.params,
-        attrs = request_map.attrs,
-        args = request_map.args,
-    }
-
-    return cjson.encode(s_request_map)
-
-end
-
-function inspect(handle)
-    init(handle)
-    native.rust_init_config()
-
-    local request_map = map_request(handle)
-    local url = request_map.attrs.path
-    local host = request_map.headers.host or request_map.attrs.authority
-
-    local encoded = encode_request_map(request_map)
-
-    -- initialize rust session
-    local session_uuid = native.rust_session_init(encode_request_map(request_map))
-```
-
-### `match_urlmap`
-
-```lua
-    -- ****** lua *******
-    local urlmap_entry, url_map = match_urlmap(request_map)
-    local acl_active        = urlmap_entry["acl_active"]
-    local waf_active        = urlmap_entry["waf_active"]
-    local acl_profile_id    = urlmap_entry["acl_profile"]
-    local waf_profile_id    = urlmap_entry["waf_profile"]
-    local acl_profile       = globals.ACLProfiles[acl_profile_id]
-    local waf_profile       = globals.WAFProfiles[waf_profile_id]
-    map_tags(request_map,
-        sfmt('urlmap:%s', url_map.name),
-        sfmt('urlmap-entry:%s', urlmap_entry.name),
-        sfmt("aclid:%s", acl_profile_id),
-        sfmt("aclname:%s", acl_profile.name),
-        sfmt("wafid:%s", waf_profile_id),
-        sfmt("wafname:%s", waf_profile.name)
-    )
-
-    -- ****** rust *******
-    local urlmap_entry = native.rust_session_match_urlmap(session_uuid)
-    local acl_active        = urlmap_entry["acl_active"]
-    local waf_active        = urlmap_entry["waf_active"]
-    local acl_profile_id    = urlmap_entry["acl_profile"]
-    local waf_profile_id    = urlmap_entry["waf_profile"]
-    local acl_profile       = globals.ACLProfiles[acl_profile_id]
-    local waf_profile       = globals.WAFProfiles[waf_profile_id]
-    -- no need to add tags here, it is done in rust_session_match_urlmap
-
-```
-
-### Tagging
-
-```lua
-    -- ****** lua *******
-    tag_lists(request_map)
-
-    -- ****** rust *******
-    native.rust_session_tag_request(session_uuid)
-```
-### Cleanup
-
-```lua
-    -- retrieve the rust request map
-    local rust_request_map = native.rust_session_serialize_request_map(session_uuid)
-    handle:logInfo(string.format("rust: %s", rust_request_map))
-
-    -- clean session
-    native.rust_session_clean(session_uuid)
-end
-```
+Sample code is now [in the repo](https://github.com/curiefense/curiefense/blob/wasm_test/curiefense/curieproxy/lua/session.lua).

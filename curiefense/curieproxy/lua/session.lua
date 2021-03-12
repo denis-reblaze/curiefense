@@ -337,6 +337,10 @@ function inspect(handle)
         handle:logErr("rust.session_acl_check failed")
     end
 
+    if session_uuid then
+        handle:logInfo(rust.session_serialize_request_map(session_uuid))
+    end
+
     compare_tags("acl_check", session_uuid, request_map)
 
     -- if not internal_url(url) then
