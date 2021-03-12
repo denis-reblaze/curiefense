@@ -249,6 +249,12 @@ fn curiefense(lua: &Lua) -> LuaResult<LuaTable> {
             wrap_session_json(session::session_acl_check(&session_id))
         })?,
     )?;
+    exports.set(
+        "session_waf_check",
+        lua.create_function(|_: &Lua, session_id: String| {
+            wrap_session_json(session::session_waf_check(&session_id))
+        })?,
+    )?;
 
     Ok(exports)
 }

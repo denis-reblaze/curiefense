@@ -6,11 +6,12 @@ use std::sync::RwLock;
 use uuid::Uuid;
 
 use crate::curiefense::acl::{check_acl, ACLResult};
-use crate::curiefense::config::{get_config_default_path, CONFIG};
+use crate::curiefense::config::{get_config_default_path, CONFIG, HSDB};
 use crate::curiefense::interface::Tags;
 use crate::curiefense::limit::limit_check;
 use crate::curiefense::tagging::tag_request;
 use crate::curiefense::utils::{find_geoip, EnvoyMeta, QueryInfo, RInfo};
+use crate::curiefense::waf::waf_check;
 use crate::{match_urlmap, Config, Decision, RequestInfo, UrlMap};
 
 // Session stuff, the key is the session id
@@ -234,6 +235,20 @@ pub fn session_acl_check(session_id: &str) -> anyhow::Result<ACLResult> {
     })
 }
 
+pub fn session_waf_check(session_id: &str) -> anyhow::Result<Decision> {
+    let uuid: Uuid = session_id.parse()?;
+
+    let hsdb = HSDB.read().map_err(|rr| anyhow::anyhow!("{}", rr))?;
+
+    with_request_info(uuid, |rinfo| {
+        with_urlmap(uuid, |urlmap| {
+            Ok(match waf_check(rinfo, &urlmap.waf_profile, hsdb) {
+                Ok(()) => Decision::Pass,
+                Err(rr) => Decision::Action(rr.to_action()),
+            })
+        })
+    })
+}
 // HELPERS
 
 fn with_config<F, A>(f: F) -> anyhow::Result<A>

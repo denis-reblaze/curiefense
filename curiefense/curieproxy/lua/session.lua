@@ -321,6 +321,7 @@ function inspect(handle)
     -- currently, if limit_check triggers a response, the rust session will not be cleaned
     limit_check(request_map, urlmap_entry["limit_ids"], urlmap_entry["name"])
 
+    compare_tags("limit_check", session_uuid, request_map)
 
     local rust_acl_check = nil
     if session_uuid then
@@ -336,15 +337,15 @@ function inspect(handle)
         handle:logErr("rust.session_acl_check failed")
     end
 
-    if session_uuid then
-        rust.session_clean(session_uuid)
-    end
+    compare_tags("acl_check", session_uuid, request_map)
 
     -- if not internal_url(url) then
     -- acl
     addentry(timeline, "8 acl_check")
     local acl_code, acl_result = acl_check(acl_profile, request_map, acl_active)
     local acl_bot_code, acl_bot_result = acl_check_bot(acl_profile, request_map, acl_active)
+
+    -- TODO compare acl result with rust result
 
     if acl_result then
         handle:logDebug(sfmt("001 ACL REASON: %s", acl_result.reason))
@@ -355,6 +356,10 @@ function inspect(handle)
 
     if acl_code == ACLDeny or acl_code == ACLForceDeny then
         addentry(timeline, "8c acl_check/deny_request")
+        if session_uuid then
+            rust.session_clean(session_uuid)
+            session_uuid = nil
+        end
         custom_response(request_map, {[ "reason" ] = acl_result, ["block_mode"] = acl_active})
     end
 
@@ -372,6 +377,20 @@ function inspect(handle)
             challenge_phase01(handle, request_map, "1")
 
         else
+            local rust_waf_check = nil
+            if session_uuid then
+                local jwaf_result = rust.session_waf_check(session_uuid)
+                if jwaf_result then
+                    rust_waf_check = cjson.decode(jwaf_result)
+                end
+            end
+
+            if rust_waf_check then
+                handle:logInfo(sfmt("rust.session_waf_check %s", cjson.encode(rust_waf_check)))
+            else
+                handle:logErr("rust.session_waf_check failed")
+            end
+
             -- ACLAllow / ACLAllowBot/ ACLNoMatch
             -- move to WAF
             addentry(timeline, "10 waf_check")
@@ -387,12 +406,21 @@ function inspect(handle)
                         ["reason"] = waf_result,
                         ["block_mode"] = waf_active
                     }
+                    if session_uuid then
+                        rust.session_clean(session_uuid)
+                        session_uuid = nil
+                    end
                     custom_response(request_map, action_params)
                 end
             end
         end
     end
     -- end
+
+    if session_uuid then
+        rust.session_clean(session_uuid)
+        session_uuid = nil
+    end
 
     -- logging
     addentry(timeline, "11 log_request")
