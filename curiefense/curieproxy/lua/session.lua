@@ -206,7 +206,7 @@ function inspect(handle)
     init(handle)
 
     handle:logInfo("******* START ********")
-    rust_init = rust.init_config()
+    local rust_init = rust.init_config()
 
     -- handle:logDebug("inspection initiated")
     addentry(timeline, "1 map_request")
@@ -221,6 +221,8 @@ function inspect(handle)
     if rust_init then
         session_uuid = rust.session_init(encode_request_map(request_map))
         handle:logInfo(sfmt("rust uuid: %s", session_uuid))
+    else
+        handle:logErr("rust.init_config failed")
     end
 
     -- unified the following 3 into a single operaiton
