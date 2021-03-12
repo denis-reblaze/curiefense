@@ -23,7 +23,7 @@ fn tagify(tag: &str) -> String {
             '-'
         }
     }
-    tag.chars().map(filter_char).collect()
+    tag.to_lowercase().chars().map(filter_char).collect()
 }
 
 impl Tags {
