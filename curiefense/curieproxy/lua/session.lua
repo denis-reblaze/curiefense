@@ -206,7 +206,13 @@ function inspect(handle)
     init(handle)
 
     handle:logInfo("******* START ********")
-    local rust_init = rust.init_config()
+    local rust_init = false
+    local _, err = rust.init_config()
+    if err then
+        handle.logErr(sfmt("session.rust_init failed %s", err))
+    else
+        rust_init = true
+    end
 
     -- handle:logDebug("inspection initiated")
     addentry(timeline, "1 map_request")
@@ -219,8 +225,13 @@ function inspect(handle)
     -- rust alternative
     local session_uuid = nil
     if rust_init then
-        session_uuid = rust.session_init(encode_request_map(request_map))
-        handle:logInfo(sfmt("rust uuid: %s", session_uuid))
+        session_uuid, err = rust.session_init(encode_request_map(request_map))
+        if err then
+            handle.logErr(sfmt("session_init error %s", err))
+            session_uuid = nil
+        else
+            handle:logInfo(sfmt("rust uuid: %s", session_uuid))
+        end
     else
         handle:logErr("rust.init_config failed")
     end
@@ -250,16 +261,16 @@ function inspect(handle)
     -- rust alternative
     local rust_urlmap = nil
     if session_uuid then
-        local jrust_urlmap = rust.session_match_urlmap(session_uuid)
-        handle:logDebug(sfmt("rust urlmap: %s", jrust_urlmap))
-        if jrust_urlmap then
+        local jrust_urlmap, err = rust.session_match_urlmap(session_uuid)
+        if err then
+            handle:logErr(sfmt("urlmap failed %s", err))
+        else
+            handle:logDebug(sfmt("rust urlmap: %s", jrust_urlmap))
             rust_urlmap = cjson.decode(jrust_urlmap)
         end
     end
 
     if rust_urlmap then
-        handle:logInfo("******* XXXX ********")
-
         if rust_urlmap.urlmap ~= url_map.name then
             handle:logErr("failed check urlmap")
         end
@@ -287,9 +298,11 @@ function inspect(handle)
 
     local rust_request_map = nil
     if session_uuid then
-        local tagresult = rust.session_tag_request(session_uuid)
-        if not tagresult then
-            handle:logErr("rust.session_tag_request failed")
+        local tagresult, err = rust.session_tag_request(session_uuid)
+        if err then
+            handle:logErr(sfmt("rust.session_tag_request failed %s", err))
+        else
+            handle:logDebug("rust.session_tag_request OK")
         end
     end
 
@@ -298,7 +311,11 @@ function inspect(handle)
     if url:startswith("/7060ac19f50208cbb6b45328ef94140a612ee92387e015594234077b4d1e64f1/") then
         -- resources must be cleaned for every implicit "return"
         if session_uuid then
-            rust.session_clean(session_uuid)
+            local _, err = rust.session_clean(session_uuid)
+            if err then
+                handle:logErr(sfmt("rust.session_clean failed %s", err))
+            end
+
         end
         -- handle:logDebug("CHALLENGE PHASE02")
         challenge_phase02(handle, request_map)
@@ -306,16 +323,16 @@ function inspect(handle)
 
     local rust_limit_check = nil
     if session_uuid then
-        local jlimit_dec = rust.session_limit_check(session_uuid)
-        if jlimit_dec then
+        local jlimit_dec, err = rust.session_limit_check(session_uuid)
+        if err then
+            handle:logErr(sfmt("rust.session_limit_check failed %s", err))
+        else
             rust_limit_check = cjson.decode(jlimit_dec)
         end
     end
 
     if rust_limit_check then
         handle:logInfo(sfmt("rust.session_limit_check %s", cjson.encode(rust_limit_check)))
-    else
-        handle:logErr("rust.session_limit_check failed")
     end
 
     addentry(timeline, "7 limit_check")
@@ -327,20 +344,25 @@ function inspect(handle)
 
     local rust_acl_check = nil
     if session_uuid then
-        local jacl_check = rust.session_acl_check(session_uuid)
-        if jacl_check then
+        local jacl_check, err = rust.session_acl_check(session_uuid)
+        if err then
+            handle:logInfo(sfmt("rust.session_acl_check failed %s", err))
+        else
             rust_acl_check = cjson.decode(jacl_check)
         end
     end
 
     if rust_acl_check then
         handle:logInfo(sfmt("rust.session_acl_check %s", cjson.encode(rust_acl_check)))
-    else
-        handle:logErr("rust.session_acl_check failed")
     end
 
     if session_uuid then
-        handle:logInfo(rust.session_serialize_request_map(session_uuid))
+        local rmap, err = rust.session_serialize_request_map(session_uuid)
+        if err then
+            handle:logErr(sfmt("rust.session_serialize_request_map failed %s", err))
+        else
+            handle:logDebug(sfmt("rust.request_map %s", rmap))
+        end
     end
 
     compare_tags("acl_check", session_uuid, request_map)
@@ -385,8 +407,10 @@ function inspect(handle)
         else
             local rust_waf_check = nil
             if session_uuid then
-                local jwaf_result = rust.session_waf_check(session_uuid)
-                if jwaf_result then
+                local jwaf_result, err = rust.session_waf_check(session_uuid)
+                if err then
+                    handle:logErr(sfmt("rust.session_waf_check failed %s", err))
+                else
                     rust_waf_check = cjson.decode(jwaf_result)
                 end
             end
