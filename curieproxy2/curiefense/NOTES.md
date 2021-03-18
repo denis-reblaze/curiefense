@@ -62,7 +62,8 @@ The session API can be used for fine grained control over the matching process.
 
 ## Functions
 
-All functions return an empty result on failure (`nil` with Lua).
+All functions return pairs, where the first value is the function result (possibly `nil` for functions that don't return anything),
+and the second value is an error (`nil` when there were no errors).
 
 Most functions need other functions to be called before being available:
 
@@ -75,7 +76,7 @@ Most functions need other functions to be called before being available:
 
 Called without arguments.
 
-Returns `true` on success.
+Returns a value that can be discarded.
 
 ### `session_init`
 
@@ -85,7 +86,9 @@ Returns a string, representing a *session id*.
 
 ### `session_clean`
 
-Takes a single argument: the *session id*, and doesn't return anything.
+Takes a single argument: the *session id*.
+
+Returns a value that can be discarded.
 
 There must be a single call to `session_clean` for each call to `session_init` in order to prevent memory leaks.
 
@@ -124,7 +127,7 @@ This function updates the tags with the urlmap specific tags.
 
 Takes a single argument: the *session id*.
 
-Returns `true` on success.
+Returns a value that can be discarded.
 
 ### `session_limit_check`
 

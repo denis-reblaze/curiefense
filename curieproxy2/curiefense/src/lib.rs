@@ -148,17 +148,19 @@ fn inspect_generic<GH: Grasshopper>(
         // human blocked, always block, even if it is a bot
         ACLResult::Match(BotHuman {
             bot: _,
-            human: Some(ACLDecision {
-                allowed: false,
-                tags,
-            }),
+            human:
+                Some(ACLDecision {
+                    allowed: false,
+                    tags,
+                }),
         }) => return Ok(acl_block(urlmap.acl_active, 5, &tags)),
         // robot blocked, should be challenged, just block for now
         ACLResult::Match(BotHuman {
-            bot: Some(ACLDecision {
-                allowed: false,
-                tags,
-            }),
+            bot:
+                Some(ACLDecision {
+                    allowed: false,
+                    tags,
+                }),
             human: _,
         }) => {
             // if grasshopper is available, run these tests
@@ -182,17 +184,16 @@ fn inspect_generic<GH: Grasshopper>(
     })
 }
 
-fn wrap_session<R>(v: anyhow::Result<R>) -> LuaResult<Option<R>> {
+fn wrap_session<R>(v: anyhow::Result<R>) -> LuaResult<(Option<R>, Option<String>)> {
     match v {
-        Ok(x) => Ok(Some(x)),
-        Err(rr) => {
-            println!("ERROR: {}", rr);
-            Ok(None)
-        }
+        Ok(x) => Ok((Some(x), None)),
+        Err(rr) => Ok((None, Some(format!("{}", rr)))),
     }
 }
 
-fn wrap_session_json<R: serde::Serialize>(v: anyhow::Result<R>) -> LuaResult<Option<String>> {
+fn wrap_session_json<R: serde::Serialize>(
+    v: anyhow::Result<R>,
+) -> LuaResult<(Option<String>, Option<String>)> {
     wrap_session(v.and_then(|r| serde_json::to_string(&r).map_err(|rr| anyhow::anyhow!("{}", rr))))
 }
 

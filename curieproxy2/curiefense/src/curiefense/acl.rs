@@ -21,7 +21,7 @@ pub enum ACLResult {
 #[derive(Debug, Serialize)]
 pub struct BotHuman {
     pub bot: Option<ACLDecision>,
-    pub human: Option<ACLDecision>
+    pub human: Option<ACLDecision>,
 }
 
 pub fn check_acl(tags: &Tags, acl: &ACLProfile) -> ACLResult {
@@ -41,6 +41,9 @@ pub fn check_acl(tags: &Tags, acl: &ACLProfile) -> ACLResult {
                 subcheck(&acl.allow_bot, true).or_else(|| subcheck(&acl.deny_bot, false));
             let humanresult = subcheck(&acl.allow, true).or_else(|| subcheck(&acl.deny, false));
 
-            ACLResult::Match(BotHuman { bot: botresult, human: humanresult })
+            ACLResult::Match(BotHuman {
+                bot: botresult,
+                human: humanresult,
+            })
         })
 }
