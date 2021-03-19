@@ -290,14 +290,38 @@ fn curiefense(lua: &Lua) -> LuaResult<LuaTable> {
         })?,
     )?;
 
-    exports.set("new_ip_set", lua.create_function(curiefense::iptools::new_ip_set)?)?;
-    exports.set("new_sig_set", lua.create_function(curiefense::iptools::new_sig_set)?)?;
-    exports.set("new_geoipdb", lua.create_function(curiefense::iptools::new_geoipdb)?)?;
-    exports.set("modhash", lua.create_function(curiefense::iptools::modhash)?)?;
-    exports.set("iptonum", lua.create_function(curiefense::iptools::iptonum)?)?;
-    exports.set("decodeurl", lua.create_function(curiefense::iptools::decodeurl)?)?;
-    exports.set("encodeurl", lua.create_function(curiefense::iptools::encodeurl)?)?;
-    exports.set("test_regex", lua.create_function(curiefense::iptools::test_regex)?)?;
+    exports.set(
+        "new_ip_set",
+        lua.create_function(curiefense::iptools::new_ip_set)?,
+    )?;
+    exports.set(
+        "new_sig_set",
+        lua.create_function(curiefense::iptools::new_sig_set)?,
+    )?;
+    exports.set(
+        "new_geoipdb",
+        lua.create_function(curiefense::iptools::new_geoipdb)?,
+    )?;
+    exports.set(
+        "modhash",
+        lua.create_function(curiefense::iptools::modhash)?,
+    )?;
+    exports.set(
+        "iptonum",
+        lua.create_function(curiefense::iptools::iptonum)?,
+    )?;
+    exports.set(
+        "decodeurl",
+        lua.create_function(curiefense::iptools::decodeurl)?,
+    )?;
+    exports.set(
+        "encodeurl",
+        lua.create_function(curiefense::iptools::encodeurl)?,
+    )?;
+    exports.set(
+        "test_regex",
+        lua.create_function(curiefense::iptools::test_regex)?,
+    )?;
 
     Ok(exports)
 }

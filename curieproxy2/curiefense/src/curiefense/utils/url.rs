@@ -21,7 +21,7 @@ pub fn urldecode(input: &str) -> Vec<u8> {
                             out.push(b);
                             out.push(h);
                             out.push(l);
-                        },
+                        }
                         Some((hv, lv)) => {
                             out.push(hv * 16 + lv);
                         }
