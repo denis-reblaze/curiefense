@@ -35,7 +35,7 @@ local format = string.format
 local match = string.match
 local gmatch = string.gmatch
 
-local iptools       = require "iptools"
+local iptools       = require "curiefense"
 
 local urldecode     = iptools.decodeurl
 local urlencode     = iptools.encodeurl

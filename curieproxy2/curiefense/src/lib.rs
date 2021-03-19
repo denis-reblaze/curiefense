@@ -184,17 +184,48 @@ fn inspect_generic<GH: Grasshopper>(
     })
 }
 
-fn wrap_session<R>(v: anyhow::Result<R>) -> LuaResult<(Option<R>, Option<String>)> {
+/// wraps a result into a go-like pair
+fn lua_result<R>(v: anyhow::Result<R>) -> LuaResult<(Option<R>, Option<String>)> {
     match v {
         Ok(x) => Ok((Some(x), None)),
         Err(rr) => Ok((None, Some(format!("{}", rr)))),
     }
 }
 
-fn wrap_session_json<R: serde::Serialize>(
-    v: anyhow::Result<R>,
-) -> LuaResult<(Option<String>, Option<String>)> {
-    wrap_session(v.and_then(|r| serde_json::to_string(&r).map_err(|rr| anyhow::anyhow!("{}", rr))))
+/// runs the passed function, assuming the argument is a string
+fn with_str<F, R>(lua: &Lua, session_id: LuaValue, f: F) -> anyhow::Result<R>
+where
+    F: FnOnce(&str) -> anyhow::Result<R>,
+{
+    let decoded: String =
+        FromLua::from_lua(session_id, lua).map_err(|rr| anyhow::anyhow!("{}", rr))?;
+    f(&decoded)
+}
+
+/// runs the underlying string using function, catching mlua errors
+fn wrap_session<F, R>(
+    lua: &Lua,
+    session_id: LuaValue,
+    f: F,
+) -> LuaResult<(Option<R>, Option<String>)>
+where
+    F: FnOnce(&str) -> anyhow::Result<R>,
+{
+    lua_result(with_str(lua, session_id, f))
+}
+
+/// runs the underlying string using, json returning, function, catching mlua errors
+fn wrap_session_json<F, R: serde::Serialize>(
+    lua: &Lua,
+    session_id: LuaValue,
+    f: F,
+) -> LuaResult<(Option<String>, Option<String>)>
+where
+    F: FnOnce(&str) -> anyhow::Result<R>,
+{
+    lua_result(with_str(lua, session_id, |s| {
+        f(s).and_then(|r| serde_json::to_string(&r).map_err(|rr| anyhow::anyhow!("{}", rr)))
+    }))
 }
 
 #[mlua::lua_module]
@@ -206,56 +237,67 @@ fn curiefense(lua: &Lua) -> LuaResult<LuaTable> {
     // session functions
     exports.set(
         "init_config",
-        lua.create_function(|_: &Lua, _: ()| wrap_session(session::init_config()))?,
+        lua.create_function(|_: &Lua, _: ()| lua_result(session::init_config()))?,
     )?;
     exports.set(
         "session_init",
-        lua.create_function(|_: &Lua, encoded_request_map: String| {
-            wrap_session(session::session_init(&encoded_request_map))
+        lua.create_function(|lua: &Lua, encoded_request_map: LuaValue| {
+            wrap_session(lua, encoded_request_map, session::session_init)
         })?,
     )?;
     exports.set(
         "session_clean",
-        lua.create_function(|_: &Lua, session_id: String| {
-            wrap_session(session::clean_session(&session_id).map(|()| true))
+        lua.create_function(|lua: &Lua, session_id: LuaValue| {
+            wrap_session(lua, session_id, |s| {
+                session::clean_session(s).map(|()| true)
+            })
         })?,
     )?;
     exports.set(
         "session_serialize_request_map",
-        lua.create_function(|_: &Lua, session_id: String| {
-            wrap_session_json(session::session_serialize_request_map(&session_id))
+        lua.create_function(|lua: &Lua, session_id: LuaValue| {
+            wrap_session_json(lua, session_id, session::session_serialize_request_map)
         })?,
     )?;
     exports.set(
         "session_match_urlmap",
-        lua.create_function(|_: &Lua, session_id: String| {
-            wrap_session_json(session::session_match_urlmap(&session_id))
+        lua.create_function(|lua: &Lua, session_id: LuaValue| {
+            wrap_session_json(lua, session_id, session::session_match_urlmap)
         })?,
     )?;
     exports.set(
         "session_tag_request",
-        lua.create_function(|_: &Lua, session_id: String| {
-            wrap_session_json(session::session_tag_request(&session_id))
+        lua.create_function(|lua: &Lua, session_id: LuaValue| {
+            wrap_session_json(lua, session_id, session::session_tag_request)
         })?,
     )?;
     exports.set(
         "session_limit_check",
-        lua.create_function(|_: &Lua, session_id: String| {
-            wrap_session_json(session::session_limit_check(&session_id))
+        lua.create_function(|lua: &Lua, session_id: LuaValue| {
+            wrap_session_json(lua, session_id, session::session_limit_check)
         })?,
     )?;
     exports.set(
         "session_acl_check",
-        lua.create_function(|_: &Lua, session_id: String| {
-            wrap_session_json(session::session_acl_check(&session_id))
+        lua.create_function(|lua: &Lua, session_id: LuaValue| {
+            wrap_session_json(lua, session_id, session::session_acl_check)
         })?,
     )?;
     exports.set(
         "session_waf_check",
-        lua.create_function(|_: &Lua, session_id: String| {
-            wrap_session_json(session::session_waf_check(&session_id))
+        lua.create_function(|lua: &Lua, session_id: LuaValue| {
+            wrap_session_json(lua, session_id, session::session_waf_check)
         })?,
     )?;
+
+    exports.set("new_ip_set", lua.create_function(curiefense::iptools::new_ip_set)?)?;
+    exports.set("new_sig_set", lua.create_function(curiefense::iptools::new_sig_set)?)?;
+    exports.set("new_geoipdb", lua.create_function(curiefense::iptools::new_geoipdb)?)?;
+    exports.set("modhash", lua.create_function(curiefense::iptools::modhash)?)?;
+    exports.set("iptonum", lua.create_function(curiefense::iptools::iptonum)?)?;
+    exports.set("decodeurl", lua.create_function(curiefense::iptools::decodeurl)?)?;
+    exports.set("encodeurl", lua.create_function(curiefense::iptools::encodeurl)?)?;
+    exports.set("test_regex", lua.create_function(curiefense::iptools::test_regex)?)?;
 
     Ok(exports)
 }

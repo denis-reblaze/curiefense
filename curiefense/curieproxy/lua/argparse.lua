@@ -9,7 +9,7 @@ module(..., package.seeall)
 local cjson         = require "cjson"
 local json_safe     = require "cjson.safe"
 local utils         = require "lua.utils"
-local iptools       = require "iptools"
+local iptools       = require "curiefense"
 
 local find          = string.find
 local gsub          = string.gsub

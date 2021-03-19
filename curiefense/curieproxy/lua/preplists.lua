@@ -3,7 +3,7 @@ module(..., package.seeall)
 
 local utils       = require "lua.utils"
 
-local iptools     = require "iptools"
+local iptools     = require "curiefense"
 
 local cjson       = require "cjson"
 local json_safe   = require "cjson.safe"

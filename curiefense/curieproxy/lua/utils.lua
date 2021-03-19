@@ -8,7 +8,7 @@ local resty_md5 = require "resty.md5"
 local maxmind   = require "lua.maxmind"
 local globals   = require "lua.globals"
 local accesslog = require "lua.accesslog"
-local iptools   =  require "iptools"
+local iptools   =  require "curiefense"
 
 local find      = string.find
 local gsub      = string.gsub
@@ -28,8 +28,6 @@ local ipinfo    = maxmind.ipinfo
 local json_decode   = json_safe.decode
 local json_encode   = json_safe.encode
 local log_request   = accesslog.log_request
-
-local iptools       = require "iptools"
 
 local urldecode     = iptools.decodeurl
 local urlencode     = iptools.encodeurl

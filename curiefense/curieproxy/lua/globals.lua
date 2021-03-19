@@ -4,7 +4,7 @@ local cjson       = require "cjson"
 local json_safe   = require "cjson.safe"
 local socket      = require "socket"
 local lfs         = require "lfs"
-local iptools     = require "iptools"
+local iptools     = require "curiefense"
 local luahs       = require "luahs"
 local preplists   = require "lua.preplists"
 
