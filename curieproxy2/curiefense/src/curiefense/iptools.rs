@@ -354,8 +354,8 @@ pub fn iptonum(_: &Lua, ip: String) -> LuaResult<Option<String>> {
 
 //////////////// DECODE URL ////////////////
 
-pub fn decodeurl(_: &Lua, url: String) -> LuaResult<Option<String>> {
-    Ok(urlencoding::decode(&url).ok())
+pub fn decodeurl(_: &Lua, url: String) -> LuaResult<String> {
+    Ok(crate::curiefense::utils::url::urldecode_str(&url))
 }
 
 pub fn encodeurl(_: &Lua, url: String) -> LuaResult<String> {

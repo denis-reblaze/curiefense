@@ -2,6 +2,8 @@ use itertools::Itertools;
 use std::collections::HashMap;
 use std::net::IpAddr;
 
+pub mod url;
+
 use crate::curiefense::config::utils::{RequestSelector, RequestSelectorCondition};
 use crate::curiefense::interface::Tags;
 use crate::curiefense::maxmind::{get_asn, get_city, get_country};
@@ -72,13 +74,10 @@ pub fn map_headers(
 
 /// parses query parameters
 fn map_query(query: &str) -> HashMap<String, String> {
-    fn dec(s: &str) -> String {
-        urlencoding::decode(s).unwrap_or_else(|_| s.to_string())
-    };
     fn parse_kv(kv: &str) -> (String, String) {
         match kv.splitn(2, '=').collect_tuple() {
-            Some((k, v)) => (dec(k), dec(v)),
-            None => (dec(kv), String::new()),
+            Some((k, v)) => (url::urldecode_str(k), url::urldecode_str(v)),
+            None => (url::urldecode_str(kv), String::new()),
         }
     }
     query.split('&').map(parse_kv).collect()
