@@ -150,7 +150,12 @@ function encode_request_map(request_map)
 
 end
 
-
+function rust_session_clean( session_uuid )
+    if session_uuid then
+        curiefense.session_clean(session_uuid)
+        session_uuid = nil
+    end
+end
 
 -------[[[ rust copy/ paste ]]]
 
@@ -281,12 +286,16 @@ function inspect(handle)
                         ["reason"] = waf_result,
                         ["block_mode"] = waf_active
                     }
+
+                    rust_session_clean(session_uuid)
+
                     custom_response(request_map, action_params)
                 end
             end
         end
     end
 
+    rust_session_clean(session_uuid)
     -- logging
     log_request(request_map)
 
