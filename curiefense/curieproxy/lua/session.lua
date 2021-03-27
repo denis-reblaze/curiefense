@@ -5,20 +5,25 @@ local waf           = require "lua.waf"
 local globals       = require "lua.globals"
 local utils         = require "lua.utils"
 local tagprofiler   = require "lua.tagprofiler"
+local flowcontrol   = require "lua.flowcontrol"
 local restysha1     = require "lua.resty.sha1"
 local limit         = require "lua.limit"
 local accesslog     = require "lua.accesslog"
 local challenge     = require "lua.challenge"
 local utils         = require "lua.utils"
 
-local cjson       = require "cjson"
 local curiefense  = require "curiefense"
+
+
+local cjson       = require "cjson"
 
 local init          = globals.init
 
-local acl_check     = acl.check
-local acl_check_bot = acl.check_bot
-local waf_check     = waf.check
+local waf_check         = waf.check
+local acl_check         = acl.check
+local acl_check_bot     = acl.check_bot
+local limit_check       = limit.check
+local flowcontrol_check = flowcontrol.check
 
 local ACLNoMatch    = globals.ACLNoMatch
 local ACLForceDeny  = globals.ACLForceDeny
@@ -40,7 +45,6 @@ local custom_response  = utils.custom_response
 local tag_lists     = tagprofiler.tag_lists
 
 local log_request   = accesslog.log_request
-local limit_check   = limit.check
 
 local challenge_verified = challenge.verified
 local challenge_phase01 = challenge.phase01
@@ -48,12 +52,10 @@ local challenge_phase02 = challenge.phase02
 
 local sfmt = string.format
 
-function match_urlmap(request_map)
+function match_urlmap(host, url, request_map)
     local default_map = nil
     local selected_map = nil
     local matched_path = "/"
-    local url = request_map.attrs.path
-    local host = request_map.headers.host or request_map.attrs.authority
     local handle = request_map.handle
 
     for _, profile in pairs(globals.URLMap) do
@@ -119,6 +121,7 @@ function map_tags(request_map, urlmap_name, urlmapentry_name, acl_id, acl_name, 
         urlmapentry_name,
         sfmt("ip:%s", request_map.attrs.ip),
         sfmt("geo:%s", request_map.geo.country.name),
+        -- TODO: add city as tags
         sfmt("asn:%s", request_map.geo.asn)
     })
 
@@ -126,86 +129,41 @@ end
 
 local gettime = socket.gettime
 
-function addentry(t, msg)
-    table.insert(t, {gettime()*1000, msg})
-end
+-- function addentry(t, msg)
+--     table.insert(t, {gettime()*1000, msg})
+-- end
 
-function native_inspect(handle)
 
-    local headerm = {}
-    for k, v in pairs(handle:headers()) do
-        headerm[k] = v
-    end
-    local metam = {}
-    for k, v in pairs(handle:metadata()) do
-        metam[k] = v
-    end
 
-    res = curiefense.inspect(headerm, metam, grasshopper)
-    handle:logInfo(string.format("res:pass() %s", res:pass()))
-    if res and res:pass() == false then
-        handle:logInfo(string.format("res atype %s", cjson.encode(res:atype())))
-        handle:logInfo(string.format("res ban %s", cjson.encode(res:ban())))
-        handle:logInfo(string.format("res reason %s", res:reason()))
-        local action_params = {
-            ["reason"] = res:reason(),
-            ["block_mode"] = true
-        }
-        local headers = res:headers()
-        if headers == nil then
-            headers = { ["x-curiefense"] = "response" }
-        end
-        headers[":status"] = res:status()
-        handle:respond(headers, res:content())
-    else
-        return
-    end
-end
+-------[[[ rust copy/ paste ]]]
 
 function encode_request_map(request_map)
     local s_request_map = {
         headers = request_map.headers,
         cookies = request_map.cookies,
-        params = request_map.params,
         attrs = request_map.attrs,
         args = request_map.args,
+        geo = request_map.geo
     }
 
     return cjson.encode(s_request_map)
 
 end
 
-function compare_tags(stage, session_uuid, request_map)
-    local jrust_request_map = curiefense.session_serialize_request_map(session_uuid)
-    if jrust_request_map then
-        local rust_request_map = cjson.decode(jrust_request_map)
-        local e_tags = request_map.attrs.tags
-        local a_tags = rust_request_map.attrs.tags
 
-        if utils.table_length(e_tags) ~= utils.table_length(a_tags) then
-            request_map.handle:logErr(sfmt("differing tags, expected=%s actual=%s", cjson.encode(e_tags), cjson.encode(a_tags)))
-            return
-        end
 
-        for e_key, _ in pairs(e_tags) do
-            if not a_tags[e_key] then
-                request_map.handle:logErr(sfmt("differing tags, expected=%s actual=%s", cjson.encode(e_tags), cjson.encode(a_tags)))
-                return
-            end
-        end
-    else
-        request_map.handle:logErr("curiefense.session_serialize_request_map failed")
-    end
-end
+-------[[[ rust copy/ paste ]]]
+
+
 
 function inspect(handle)
 
     local timeline = {}
 
-    addentry(timeline, "0 init")
     init(handle)
 
-    handle:logInfo("******* START ********")
+
+    handle:logInfo("******* RUST START ********")
     local rust_init = false
     local _, err = curiefense.init_config()
     if err then
@@ -214,14 +172,15 @@ function inspect(handle)
         rust_init = true
     end
 
+    handle:logInfo("******* RUST END ********")
 
     -- handle:logDebug("inspection initiated")
-    addentry(timeline, "1 map_request")
     local request_map = map_request(handle)
 
-    addentry(timeline, "2 url/host assignment")
     local url = request_map.attrs.path
     local host = request_map.headers.host or request_map.attrs.authority
+
+
 
     -- rust alternative
     local session_uuid = nil
@@ -240,10 +199,8 @@ function inspect(handle)
     end
 
     -- unified the following 3 into a single operaiton
-    addentry(timeline, "3 match_urlmap")
-    local urlmap_entry, url_map = match_urlmap(request_map)
+    local urlmap_entry, url_map = match_urlmap(host, url, request_map)
 
-    addentry(timeline, "4 profiles assignment")
     local acl_active        = urlmap_entry["acl_active"]
     local waf_active        = urlmap_entry["waf_active"]
     local acl_profile_id    = urlmap_entry["acl_profile"]
@@ -251,7 +208,6 @@ function inspect(handle)
     local acl_profile       = globals.ACLProfiles[acl_profile_id]
     local waf_profile       = globals.WAFProfiles[waf_profile_id]
 
-    addentry(timeline, "5 map_tags")
     map_tags(request_map,
         sfmt('urlmap:%s', url_map.name),
         sfmt('urlmap-entry:%s', urlmap_entry.name),
@@ -261,204 +217,77 @@ function inspect(handle)
         sfmt("wafname:%s", waf_profile.name)
     )
 
-    -- rust alternative
-    local rust_urlmap = nil
-    if session_uuid then
-        local jrust_urlmap, err = curiefense.session_match_urlmap(session_uuid)
-        if err then
-            handle:logErr(sfmt("urlmap failed %s", err))
-        else
-            handle:logDebug(sfmt("rust urlmap: %s", jrust_urlmap))
-            rust_urlmap = cjson.decode(jrust_urlmap)
-        end
-    end
 
-    if rust_urlmap then
-        if rust_urlmap.urlmap ~= url_map.name then
-            handle:logErr("failed check urlmap")
-        end
-        if rust_urlmap.acl_active ~= urlmap_entry.acl_active then
-            handle:logErr("failed check acl_active")
-        end
-        if rust_urlmap.waf_active ~= urlmap_entry.waf_active then
-            handle:logErr("failed check waf_active")
-        end
-        if rust_urlmap.acl_profile ~= urlmap_entry.acl_profile then
-            handle:logErr("failed check acl_profile")
-        end
-        if rust_urlmap.waf_profile ~= urlmap_entry.waf_profile then
-            handle:logErr("failed check waf_profile")
-        end
-        if rust_urlmap.name ~= urlmap_entry.name then
-            handle:logErr("failed check name")
-        end
-        -- limit_ids are not checked
-    end
-
-    addentry(timeline, "6 session_profiling")
     -- session profiling
     tag_lists(request_map)
 
-    local rust_request_map = nil
-    if session_uuid then
-        local tagresult, err = curiefense.session_tag_request(session_uuid)
-        if err then
-            handle:logErr(sfmt("curiefense.session_tag_request failed %s", err))
-        else
-            handle:logDebug("curiefense.session_tag_request OK")
+    local action = flowcontrol_check(request_map)
+
+    if action then
+        if action.type == "default" then
+            action = {
+                ["type"] = "default",
+                ["params"] = {
+                    ["status"] = "503",
+                    ["block_mode"] = true
+                }
+            }
         end
+
+        custom_response(request_map, action.params)
     end
 
-    compare_tags("tag_request", session_uuid, request_map)
-
     if url:startswith("/7060ac19f50208cbb6b45328ef94140a612ee92387e015594234077b4d1e64f1/") then
-        -- resources must be cleaned for every implicit "return"
-        if session_uuid then
-            local _, err = curiefense.session_clean(session_uuid)
-            if err then
-                handle:logErr(sfmt("curiefense.session_clean failed %s", err))
-            end
-
-        end
         -- handle:logDebug("CHALLENGE PHASE02")
         challenge_phase02(handle, request_map)
     end
 
-    local rust_limit_check = nil
-    if session_uuid then
-        local jlimit_dec, err = curiefense.session_limit_check(session_uuid)
-        if err then
-            handle:logErr(sfmt("curiefense.session_limit_check failed %s", err))
-        else
-            rust_limit_check = cjson.decode(jlimit_dec)
-        end
-    end
 
-    if rust_limit_check then
-        handle:logInfo(sfmt("curiefense.session_limit_check %s", cjson.encode(rust_limit_check)))
-    end
-
-    addentry(timeline, "7 limit_check")
     -- rate limit
-    -- currently, if limit_check triggers a response, the rust session will not be cleaned
     limit_check(request_map, urlmap_entry["limit_ids"], urlmap_entry["name"])
-
-    compare_tags("limit_check", session_uuid, request_map)
-
-    local rust_acl_check = nil
-    if session_uuid then
-        local jacl_check, err = curiefense.session_acl_check(session_uuid)
-        if err then
-            handle:logInfo(sfmt("curiefense.session_acl_check failed %s", err))
-        else
-            rust_acl_check = cjson.decode(jacl_check)
-        end
-    end
-
-    if rust_acl_check then
-        handle:logInfo(sfmt("curiefense.session_acl_check %s", cjson.encode(rust_acl_check)))
-    end
-
-    if session_uuid then
-        local rmap, err = curiefense.session_serialize_request_map(session_uuid)
-        if err then
-            handle:logErr(sfmt("curiefense.session_serialize_request_map failed %s", err))
-        else
-            handle:logDebug(sfmt("curiefense.request_map %s", rmap))
-        end
-    end
-
-    compare_tags("acl_check", session_uuid, request_map)
 
     -- if not internal_url(url) then
     -- acl
-    addentry(timeline, "8 acl_check")
     local acl_code, acl_result = acl_check(acl_profile, request_map, acl_active)
     local acl_bot_code, acl_bot_result = acl_check_bot(acl_profile, request_map, acl_active)
-
-    -- TODO compare acl result with rust result
 
     if acl_result then
         handle:logDebug(sfmt("001 ACL REASON: %s", acl_result.reason))
         handle:logDebug(sfmt("001b request_map.attrs: %s", cjson.encode(request_map.attrs) ))
-        addentry(timeline, "8b acl_check/tag_request")
         tag_request(request_map, sfmt("acltag:%s" , acl_result.reason))
     end
 
     if acl_code == ACLDeny or acl_code == ACLForceDeny then
-        addentry(timeline, "8c acl_check/deny_request")
-        if session_uuid then
-            curiefense.session_clean(session_uuid)
-            session_uuid = nil
-        end
         custom_response(request_map, {[ "reason" ] = acl_result, ["block_mode"] = acl_active})
     end
 
-    addentry(timeline, "9 challenge_verified")
     local is_human = challenge_verified(handle, request_map)
 
-    addentry(timeline, "9b challenge_verified/tag_request")
     tag_request(request_map, is_human and "human" or "bot")
 
     if acl_code ~= ACLBypass then
         if acl_bot_code == ACLDenyBot and not is_human then
-            handle:logDebug("002 ACL DENY BOT MATCHED!")
-            addentry(timeline, "9c challenge_verified/challenge_phase01")
-            handle:logDebug("003 ACL DENY BOT MATCHED! << let's do some challenge >>")
             challenge_phase01(handle, request_map, "1")
-
         else
-            local rust_waf_check = nil
-            if session_uuid then
-                local jwaf_result, err = curiefense.session_waf_check(session_uuid)
-                if err then
-                    handle:logErr(sfmt("curiefense.session_waf_check failed %s", err))
-                else
-                    rust_waf_check = cjson.decode(jwaf_result)
-                end
-            end
-
-            if rust_waf_check then
-                handle:logInfo(sfmt("curiefense.session_waf_check %s", cjson.encode(rust_waf_check)))
-            else
-                handle:logErr("curiefense.session_waf_check failed")
-            end
-
             -- ACLAllow / ACLAllowBot/ ACLNoMatch
             -- move to WAF
-            addentry(timeline, "10 waf_check")
             local waf_code, waf_result = waf_check(waf_profile, request_map)
             -- blocked results returns as table
             if type(waf_result) == "table" then
-                addentry(timeline, "10b waf_check/tag_request")
                 tag_request(request_map, sfmt("wafsig:%s", waf_result.sig_id))
 
                 if waf_code == WAFBlock then
-                    addentry(timeline, "10c waf_check/deny_request")
                     local action_params = {
                         ["reason"] = waf_result,
                         ["block_mode"] = waf_active
                     }
-                    if session_uuid then
-                        curiefense.session_clean(session_uuid)
-                        session_uuid = nil
-                    end
                     custom_response(request_map, action_params)
                 end
             end
         end
     end
-    -- end
-
-    if session_uuid then
-        curiefense.session_clean(session_uuid)
-        session_uuid = nil
-    end
 
     -- logging
-    addentry(timeline, "11 log_request")
     log_request(request_map)
-    addentry(timeline, "12 done")
-    handle:logDebug(string.format("timeline %s",cjson.encode(timeline)))
 
 end
