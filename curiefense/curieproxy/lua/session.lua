@@ -172,7 +172,7 @@ function inspect(handle)
     local rust_init = false
     local _, err = curiefense.init_config()
     if err then
-        handle.logErr(sfmt("curiefense.init_config failed %s", err))
+        handle:logErr(sfmt("curiefense.init_config failed %s", err))
     else
         rust_init = true
     end
