@@ -28,9 +28,9 @@ module(..., package.seeall)
 -- end
 
 
-local iptools = require ("iptools")
+local curiefense = require ("curiefense")
 
-local mmdb = iptools.new_geoipdb()
+local mmdb = curiefense.new_geoipdb()
 
 mmdb:load_asn_db("/config/current/config/maxmind/GeoLite2-ASN.mmdb")
 mmdb:load_city_db("/config/current/config/maxmind/GeoLite2-City.mmdb")

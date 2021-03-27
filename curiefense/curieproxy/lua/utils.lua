@@ -8,7 +8,7 @@ local resty_md5 = require "resty.md5"
 local maxmind   = require "lua.maxmind"
 local globals   = require "lua.globals"
 local accesslog = require "lua.accesslog"
-local iptools   =  require "curiefense"
+local curiefense   =  require "curiefense"
 
 local find      = string.find
 local gsub      = string.gsub
@@ -21,7 +21,7 @@ local gmatch    = string.gmatch
 local concat    = table.concat
 local insert    = table.insert
 
-local iptonum = iptools.iptonum
+local iptonum = curiefense.iptonum
 
 local ipinfo    = maxmind.ipinfo
 
@@ -29,8 +29,8 @@ local json_decode   = json_safe.decode
 local json_encode   = json_safe.encode
 local log_request   = accesslog.log_request
 
-local urldecode     = iptools.decodeurl
-local urlencode     = iptools.encodeurl
+local urldecode     = curiefense.decodeurl
+local urlencode     = curiefense.encodeurl
 
 nobody = rex.new("(GET|DELETE|TRACE|OPTIONS|HEAD)")
 isipv4 = rex.new("(\\d{1,3}\\.){3}\\d{1,3}")
