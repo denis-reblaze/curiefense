@@ -169,12 +169,11 @@ function inspect(handle)
 
 
     handle:logInfo("******* RUST START ********")
-    local rust_init = false
     local _, err = curiefense.init_config()
     if err then
-        handle:logErr(sfmt("curiefense.init_config failed %s", err))
-    else
-        rust_init = true
+        for _, r in ipairs(err) do
+            handle:logErr(sfmt("curiefense.init_config failed %s", r))
+        end
     end
 
     handle:logInfo("******* RUST END ********")
@@ -189,18 +188,14 @@ function inspect(handle)
 
     -- rust alternative
     local session_uuid = nil
-    if rust_init then
-        local encoded = encode_request_map(request_map)
-        handle:logInfo("encoded: " .. encoded)
-        session_uuid, err = curiefense.session_init(encoded)
-        if err then
-            handle:logErr(sfmt("session_init error %s", err))
-            session_uuid = nil
-        else
-            handle:logInfo(sfmt("curiefense uuid: %s", session_uuid))
-        end
+    local encoded = encode_request_map(request_map)
+    session_uuid, err = curiefense.session_init(encoded)
+    -- session init *can* fail if the request format differs from what is expected :(
+    if err then
+        handle:logErr(sfmt("session_init error %s", err))
+        session_uuid = nil
     else
-        handle:logErr("curiefense.init_config failed")
+        handle:logInfo(sfmt("curiefense uuid: %s", session_uuid))
     end
 
     -- unified the following 3 into a single operaiton

@@ -1,4 +1,4 @@
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
@@ -72,14 +72,19 @@ impl Limit {
             },
         ))
     }
-    pub fn resolve(rawlimits: Vec<RawLimit>) -> anyhow::Result<HashMap<String, Limit>> {
-        rawlimits
-            .into_iter()
-            .map(|rl| {
-                let curid = rl.id.clone();
-                Limit::convert(rl).with_context(|| format!("limit id {}", curid))
-            })
-            .collect()
+    pub fn resolve(rawlimits: Vec<RawLimit>) -> (HashMap<String, Limit>, Vec<anyhow::Error>) {
+        let mut out = HashMap::new();
+        let mut errs = Vec::new();
+        for rl in rawlimits {
+            let curid = rl.id.clone();
+            match Limit::convert(rl) {
+                Ok((nm, lm)) => {
+                    out.insert(nm, lm);
+                }
+                Err(rr) => errs.push(anyhow!("limit id {}: {}", curid, rr)),
+            }
+        }
+        (out, errs)
     }
 }
 
@@ -92,6 +97,7 @@ pub fn limit_order(a: &Limit, b: &Limit) -> Ordering {
         (x, y) => y.cmp(&x), // inverted order
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;

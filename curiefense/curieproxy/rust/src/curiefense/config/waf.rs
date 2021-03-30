@@ -1,7 +1,8 @@
 use crate::curiefense::config::raw::{
     RawWAFEntryMatch, RawWAFProfile, RawWAFProperties, WAFSignature,
 };
-use hyperscan::prelude::{Builder, CompileFlags, Pattern, Patterns, VectoredDatabase};
+use anyhow::anyhow;
+use hyperscan::prelude::{pattern, Builder, CompileFlags, Pattern, Patterns, VectoredDatabase};
 use hyperscan::Vectored;
 use regex::Regex;
 use serde::Serialize;
@@ -22,6 +23,36 @@ pub struct WAFProfile {
     pub name: String,
     pub ignore_alphanum: bool,
     pub sections: Section<WAFSection>,
+}
+
+impl WAFProfile {
+    pub fn default() -> Self {
+        WAFProfile {
+            id: "__default__".to_string(),
+            name: "default waf".to_string(),
+            ignore_alphanum: true,
+            sections: Section {
+                headers: WAFSection {
+                    max_count: 42,
+                    max_length: 1024,
+                    names: HashMap::new(),
+                    regex: Vec::new(),
+                },
+                args: WAFSection {
+                    max_count: 512,
+                    max_length: 1024,
+                    names: HashMap::new(),
+                    regex: Vec::new(),
+                },
+                cookies: WAFSection {
+                    max_count: 42,
+                    max_length: 1024,
+                    names: HashMap::new(),
+                    regex: Vec::new(),
+                },
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -82,6 +113,16 @@ where
 pub struct WAFSignatures {
     pub db: VectoredDatabase,
     pub ids: Vec<WAFSignature>,
+}
+
+impl WAFSignatures {
+    pub fn empty() -> Self {
+        let pattern: Pattern = pattern! { "^TEST$" };
+        WAFSignatures {
+            db: pattern.build().unwrap(),
+            ids: Vec::new(),
+        }
+    }
 }
 
 fn mk_entry_match(em: RawWAFEntryMatch) -> anyhow::Result<(String, WAFEntryMatch)> {
@@ -156,16 +197,27 @@ fn convert_entry(entry: RawWAFProfile) -> anyhow::Result<(String, WAFProfile)> {
 }
 
 impl WAFProfile {
-    pub fn resolve(raw: Vec<RawWAFProfile>) -> anyhow::Result<HashMap<String, WAFProfile>> {
-        raw.into_iter().map(convert_entry).collect()
+    pub fn resolve(raw: Vec<RawWAFProfile>) -> (HashMap<String, WAFProfile>, Vec<anyhow::Error>) {
+        let mut out = HashMap::new();
+        let mut errs = Vec::new();
+        for rp in raw {
+            let id = rp.id.clone();
+            match convert_entry(rp) {
+                Ok((k, v)) => {
+                    out.insert(k, v);
+                }
+                Err(rr) => errs.push(anyhow!("waf id {}: {}", id, rr)),
+            }
+        }
+        (out, errs)
     }
 }
 
 fn convert_signature(entry: &WAFSignature) -> anyhow::Result<Pattern> {
-    Ok(Pattern::with_flags(
+    Pattern::with_flags(
         &entry.operand,
         CompileFlags::MULTILINE | CompileFlags::DOTALL | CompileFlags::CASELESS,
-    )?)
+    )
 }
 
 pub fn resolve_signatures(raws: Vec<WAFSignature>) -> anyhow::Result<WAFSignatures> {

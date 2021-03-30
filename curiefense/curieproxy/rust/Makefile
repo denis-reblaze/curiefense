@@ -1,7 +1,19 @@
-all: target/debug/libcuriefense.so
+all: ctarget/target/release/libcuriefense.so
 
-target/debug/libcuriefense.so: src/lib.rs src/config.rs Cargo.toml
-	cargo build
-	cp target/debug/libcuriefense.so ../mounts/5.1/curiedefense.so
+ctarget:
+	mkdir ctarget
 
-.PHONY: all
+ctarget/registry: container ctarget
+	mkdir -p ctarget/registry
+
+ctarget/target: container ctarget
+	mkdir -p ctarget/target
+
+ctarget/target/release/libcuriefense.so: container ctarget/registry ctarget/target
+	docker run -v `pwd`:/home/builder/rust -v `pwd`/ctarget/registry:/home/builder/.cargo/registry  -w /home/builder/rust  -t curiefense/rustbuild:latest /home/builder/.cargo/bin/cargo build --target-dir ctarget/target
+
+.PHONY: all container
+
+container:
+	tar c Dockerfile  |  docker build -t curiefense/rustbuild -f Dockerfile -
+

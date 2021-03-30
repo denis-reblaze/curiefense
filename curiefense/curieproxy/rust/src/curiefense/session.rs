@@ -83,11 +83,12 @@ impl JRequestMap {
     }
 }
 
-pub fn init_config() -> anyhow::Result<bool> {
-    match get_config_default_path() {
-        Ok(_) => Ok(true),
-        Err(rr) => Err(anyhow::anyhow!("Could not load configuration: {}", rr)),
-    }
+pub fn init_config() -> (bool, Vec<String>) {
+    let (_, errs) = get_config_default_path();
+    (
+        errs.is_empty(),
+        errs.into_iter().map(|rr| format!("{}", rr)).collect(),
+    )
 }
 
 pub fn clean_session(session_id: &str) -> anyhow::Result<()> {
@@ -209,7 +210,10 @@ pub fn session_tag_request(session_id: &str) -> anyhow::Result<bool> {
 
     let new_tags =
         with_config(|cfg| with_request_info(uuid, |rinfo| Ok(tag_request(&cfg, &rinfo))))?;
-    with_tags_mut(uuid, |tgs| Ok(tgs.extend(new_tags)))?;
+    with_tags_mut(uuid, |tgs| {
+        tgs.extend(new_tags);
+        Ok(())
+    })?;
     Ok(true)
 }
 

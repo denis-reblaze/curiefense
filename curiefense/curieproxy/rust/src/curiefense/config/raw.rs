@@ -176,6 +176,21 @@ pub struct ACLProfile {
     pub force_deny: HashSet<String>,
 }
 
+impl ACLProfile {
+    pub fn default() -> Self {
+        ACLProfile {
+            id: "__default__".to_string(),
+            name: "default-acl".to_string(),
+            allow: HashSet::new(),
+            allow_bot: HashSet::new(),
+            deny: HashSet::new(),
+            deny_bot: HashSet::new(),
+            bypass: HashSet::new(),
+            force_deny: HashSet::new(),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct RawWAFProfile {
     pub id: String,

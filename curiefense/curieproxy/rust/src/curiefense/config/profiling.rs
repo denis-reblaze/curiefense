@@ -183,7 +183,7 @@ impl ProfilingSection {
     // what an ugly function :(
     pub fn resolve(
         rawprofiling: Vec<RawProfilingSection>,
-    ) -> anyhow::Result<Vec<ProfilingSection>> {
+    ) -> (Vec<ProfilingSection>, Vec<anyhow::Error>) {
         /// build a profiling entry for "single" conditions
         fn single<F>(conv: F, val: Value) -> anyhow::Result<ProfilingEntry>
         where
@@ -254,7 +254,7 @@ impl ProfilingSection {
 
         // convert a json value
         fn convert_entry(tp: ProfilingEntryType, val: Value) -> anyhow::Result<ProfilingEntry> {
-            Ok(match tp {
+            match tp {
                 ProfilingEntryType::Ip => single(
                     |rawip| {
                         Ok(if rawip.contains('/') {
@@ -280,7 +280,7 @@ impl ProfilingSection {
                 ProfilingEntryType::Asn => {
                     single(|rawasn| Ok(ProfilingEntryE::Asn(rawasn.parse()?)), val)
                 }
-            }?)
+            }
         }
         fn convert_subsection(ss: RawProfilingSSection) -> anyhow::Result<ProfilingSSection> {
             // convert all entries individually
@@ -314,10 +314,17 @@ impl ProfilingSection {
                 sections: subsections,
             })
         }
-        rawprofiling
-            .into_iter()
-            .filter(|s| s.active)
-            .map(convert_section)
-            .collect()
+
+        let mut out = Vec::new();
+        let mut errs = Vec::new();
+
+        for rp in rawprofiling.into_iter().filter(|s| s.active) {
+            match convert_section(rp) {
+                Err(rr) => errs.push(rr),
+                Ok(profile) => out.push(profile),
+            }
+        }
+
+        (out, errs)
     }
 }

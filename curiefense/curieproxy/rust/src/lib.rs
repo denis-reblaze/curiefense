@@ -1,5 +1,6 @@
 extern crate mlua;
 
+use anyhow::anyhow;
 use mlua::prelude::*;
 use serde_json::json;
 use std::collections::HashMap;
@@ -21,6 +22,7 @@ use curiefense::utils::{ip_from_headers, map_request, RequestInfo};
 use curiefense::waf::waf_check;
 
 /// Lua/envoy entry point
+#[allow(clippy::unnecessary_wraps)]
 fn inspect(
     lua: &Lua,
     args: (
@@ -28,7 +30,7 @@ fn inspect(
         HashMap<String, LuaValue>,
         Option<LuaTable>,
     ),
-) -> LuaResult<Option<InspectionResult>> {
+) -> LuaResult<(InspectionResult, Vec<String>)> {
     println!("ARGS: {:?}", args);
 
     let (metaheaders, metadata, lua_grasshopper) = args;
@@ -40,11 +42,15 @@ fn inspect(
         .unwrap_or(1);
     let str_ip = ip_from_headers(&metaheaders, hops);
 
-    let res = inspect_generic(grasshopper, "/config/current/config", str_ip, metaheaders);
+    let (res, errs) = inspect_generic(grasshopper, "/config/current/config", str_ip, metaheaders);
     println!("Inspection result: {:?}", res);
-    Ok(res.ok().map(InspectionResult))
+    Ok((
+        InspectionResult(res),
+        errs.into_iter().map(|x| format!("{}", x)).collect(),
+    ))
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn lua_map_request(
     lua: &Lua,
     args: (HashMap<String, String>, HashMap<String, LuaValue>),
@@ -96,11 +102,11 @@ fn inspect_generic<GH: Grasshopper>(
     configpath: &str,
     ip_str: String,
     metaheaders: HashMap<String, String>,
-) -> Result<Decision, Box<dyn std::error::Error>> {
-    let cfg = get_config(configpath)?;
+) -> (Decision, Vec<anyhow::Error>) {
+    let (cfg, mut errs) = get_config(configpath);
     let reqinfo = map_request(ip_str, metaheaders);
     let (nm, urlmap) = match match_urlmap(&reqinfo, &cfg) {
-        None => return Ok(Decision::Pass),
+        None => return (Decision::Pass, errs),
         Some(x) => x,
     };
 
@@ -112,7 +118,7 @@ fn inspect_generic<GH: Grasshopper>(
             .as_ref()
             .and_then(|uri| challenge_phase02(gh, uri, &reqinfo.headers))
     }) {
-        return Ok(dec);
+        return (dec, errs);
     }
 
     let mut tags = tag_request(&cfg, &reqinfo);
@@ -132,7 +138,7 @@ fn inspect_generic<GH: Grasshopper>(
     println!("LIMIT_CHECKS: {:?}", limit_check);
     if let Decision::Action(_) = limit_check {
         // limit hit!
-        return Ok(limit_check);
+        return (limit_check, errs);
     }
 
     let acl_result = check_acl(&tags, &urlmap.acl_profile);
@@ -140,9 +146,9 @@ fn inspect_generic<GH: Grasshopper>(
     match acl_result {
         ACLResult::Bypass(dec) => {
             if dec.allowed {
-                return Ok(Decision::Pass);
+                return (Decision::Pass, errs);
             } else {
-                return Ok(acl_block(urlmap.acl_active, 0, &dec.tags));
+                return (acl_block(urlmap.acl_active, 0, &dec.tags), errs);
             }
         }
         // human blocked, always block, even if it is a bot
@@ -153,7 +159,7 @@ fn inspect_generic<GH: Grasshopper>(
                     allowed: false,
                     tags,
                 }),
-        }) => return Ok(acl_block(urlmap.acl_active, 5, &tags)),
+        }) => return (acl_block(urlmap.acl_active, 5, &tags), errs),
         // robot blocked, should be challenged, just block for now
         ACLResult::Match(BotHuman {
             bot:
@@ -166,30 +172,43 @@ fn inspect_generic<GH: Grasshopper>(
             // if grasshopper is available, run these tests
             if let Some(gh) = mgh {
                 if !challenge_verified(&gh, &reqinfo) {
-                    return Ok(match reqinfo.headers.get("user-agent") {
-                        None => acl_block(urlmap.acl_active, 3, &tags),
-                        Some(ua) => challenge_phase01(&gh, ua, tags),
-                    });
+                    return (
+                        match reqinfo.headers.get("user-agent") {
+                            None => acl_block(urlmap.acl_active, 3, &tags),
+                            Some(ua) => challenge_phase01(&gh, ua, tags),
+                        },
+                        errs,
+                    );
                 }
             }
         }
         _ => (),
     }
-    let waf_result = waf_check(&reqinfo, &urlmap.waf_profile, HSDB.read()?);
+    let waf_result = match HSDB.read() {
+        Ok(rd) => waf_check(&reqinfo, &urlmap.waf_profile, rd),
+        Err(rr) => {
+            errs.push(anyhow!("Could not get lock on HSDB: {}", rr));
+            Ok(())
+        }
+    };
     println!("WAFRESULTS: {:?}", waf_result);
 
-    Ok(match waf_result {
-        Ok(()) => Decision::Pass,
-        Err(wb) => Decision::Action(wb.to_action()),
-    })
+    (
+        match waf_result {
+            Ok(()) => Decision::Pass,
+            Err(wb) => Decision::Action(wb.to_action()),
+        },
+        errs,
+    )
 }
 
 /// wraps a result into a go-like pair
+#[allow(clippy::unnecessary_wraps)]
 fn lua_result<R>(v: anyhow::Result<R>) -> LuaResult<(Option<R>, Option<String>)> {
-    match v {
-        Ok(x) => Ok((Some(x), None)),
-        Err(rr) => Ok((None, Some(format!("{}", rr)))),
-    }
+    Ok(match v {
+        Ok(x) => (Some(x), None),
+        Err(rr) => (None, Some(format!("{}", rr))),
+    })
 }
 
 /// runs the passed function, assuming the argument is a string
@@ -197,8 +216,7 @@ fn with_str<F, R>(lua: &Lua, session_id: LuaValue, f: F) -> anyhow::Result<R>
 where
     F: FnOnce(&str) -> anyhow::Result<R>,
 {
-    let decoded: String =
-        FromLua::from_lua(session_id, lua).map_err(|rr| anyhow::anyhow!("{}", rr))?;
+    let decoded: String = FromLua::from_lua(session_id, lua).map_err(|rr| anyhow!("{}", rr))?;
     f(&decoded)
 }
 
@@ -224,7 +242,7 @@ where
     F: FnOnce(&str) -> anyhow::Result<R>,
 {
     lua_result(with_str(lua, session_id, |s| {
-        f(s).and_then(|r| serde_json::to_string(&r).map_err(|rr| anyhow::anyhow!("{}", rr)))
+        f(s).and_then(|r| serde_json::to_string(&r).map_err(|rr| anyhow!("{}", rr)))
     }))
 }
 
@@ -237,7 +255,7 @@ fn curiefense(lua: &Lua) -> LuaResult<LuaTable> {
     // session functions
     exports.set(
         "init_config",
-        lua.create_function(|_: &Lua, _: ()| lua_result(session::init_config()))?,
+        lua.create_function(|_: &Lua, _: ()| Ok(session::init_config()))?,
     )?;
     exports.set(
         "session_init",
@@ -332,7 +350,11 @@ mod tests {
 
     #[test]
     fn config_load() {
-        let r = get_config("../mounts/config/current/config");
-        assert!(r.is_ok(), format!("{:?}", r));
+        let (_, errs) = get_config("../config");
+        for r in &errs {
+            println!("{}", r);
+        }
+        assert!(errs.len() == 1);
+        assert!(format!("{}", errs[0]).contains("profiling-lists.json"))
     }
 }

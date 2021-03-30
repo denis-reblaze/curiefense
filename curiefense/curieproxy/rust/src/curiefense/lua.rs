@@ -11,6 +11,7 @@ use mlua::prelude::{Lua, LuaFunction, LuaResult, LuaTable, LuaValue, ToLua};
 pub struct InspectionResult(pub Decision);
 
 impl InspectionResult {
+    #[allow(clippy::unnecessary_wraps)]
     fn in_action<F, A>(&self, f: F) -> LuaResult<Option<A>>
     where
         F: Fn(&Action) -> A,
