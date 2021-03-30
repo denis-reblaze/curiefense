@@ -63,14 +63,14 @@ impl SigSet {
         self.id_list = Vec::new();
     }
 
-    pub fn is_match(&self, s: &String) -> Result<bool, SigSetError> {
+    pub fn is_match(&self, s: &str) -> Result<bool, SigSetError> {
         match &self.regex_set {
             None => Err(SigSetError::RegexSetNotCompiled),
             Some(rs) => Ok(rs.is_match(s)),
         }
     }
 
-    pub fn is_match_id(&self, s: &String) -> Result<Option<&String>, SigSetError> {
+    pub fn is_match_id(&self, s: &str) -> Result<Option<&String>, SigSetError> {
         match &self.regex_set {
             None => Err(SigSetError::RegexSetNotCompiled),
             Some(rs) => {
@@ -84,7 +84,7 @@ impl SigSet {
         }
     }
 
-    pub fn is_match_ids(&self, s: &String) -> Result<Vec<&String>, SigSetError> {
+    pub fn is_match_ids(&self, s: &str) -> Result<Vec<&String>, SigSetError> {
         match &self.regex_set {
             None => Err(SigSetError::RegexSetNotCompiled),
             Some(rs) => {

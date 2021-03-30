@@ -84,9 +84,7 @@ where
                         p_node.rebalance(side.unwrap());
                         (Some(InsertSide::Left), p_node.height)
                     }
-                    Ordering::Equal => {
-                        return (None, p_node.height);
-                    }
+                    Ordering::Equal => (None, p_node.height),
                 },
             }
         }

@@ -79,10 +79,7 @@ impl GeoIP {
                     Err(x) => Err(GeoIPError::LookupError(x)),
                     Ok(res) => {
                         let asn: geoip2::Asn = res;
-                        let org = match asn.autonomous_system_organization {
-                            None => None,
-                            Some(o) => Some(o.to_string()),
-                        };
+                        let org = asn.autonomous_system_organization;
                         Ok((asn.autonomous_system_number, org))
                     }
                 },
@@ -144,12 +141,9 @@ impl mlua::UserData for GeoIP {
         );
         methods.add_method("lookup_asn", |lua: &Lua, this: &GeoIP, value: String| {
             let mut res = Vec::new();
-            match this.lookup_asn(value) {
-                Ok((asn, org)) => {
-                    res.push(asn.to_lua(lua).unwrap());
-                    res.push(org.to_lua(lua).unwrap());
-                }
-                _ => {}
+            if let Ok((asn, org)) = this.lookup_asn(value) {
+                res.push(asn.to_lua(lua).unwrap());
+                res.push(org.to_lua(lua).unwrap());
             }
             Ok(mlua::MultiValue::from_vec(res))
         });
@@ -199,7 +193,7 @@ fn cmp(net: &AnyIpCidr, ip: &AnyIpCidr) -> Ordering {
         (_, _, _, _) => panic!("internal error"),
     };
     if eq {
-        return Ordering::Equal;
+        Ordering::Equal
     } else {
         net.cmp(ip)
     }
@@ -321,7 +315,7 @@ impl mlua::UserData for SigSet {
 pub fn test_regex(_: &Lua, val: String) -> LuaResult<Option<String>> {
     match regex::Regex::new(&val) {
         Ok(_) => Ok(None),
-        Err(x) => Ok(Some(format!("{:?}", x).to_string())),
+        Err(x) => Ok(Some(format!("{:?}", x))),
     }
 }
 
