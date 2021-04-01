@@ -1,0 +1,200 @@
+[
+   {
+      "action": {
+         "type": "monitor"
+      },
+      "active": true,
+      "entries_relation": "OR",
+      "id": "arg_deny",
+      "mdate": "2020-05-23T00:04:41",
+      "name": "args deny",
+      "notes": "args",
+      "rule": {
+         "relation": "AND",
+         "sections": [
+            {
+               "entries": [
+                  [
+                     "args",
+                     [
+                        "deny",
+                        ".*"
+                     ],
+                     "deny"
+                  ]
+               ],
+               "relation": "OR"
+            }
+         ]
+      },
+      "source": "self-managed",
+      "tags": [
+         "deny"
+      ]
+   },
+   {
+      "action": {
+         "type": "monitor"
+      },
+      "active": true,
+      "entries_relation": "OR",
+      "id": "arg_allow",
+      "mdate": "2020-05-23T00:04:41",
+      "name": "args allow",
+      "notes": "args",
+      "rule": {
+         "relation": "AND",
+         "sections": [
+            {
+               "entries": [
+                  [
+                     "args",
+                     [
+                        "allow",
+                        ".*"
+                     ],
+                     "allow"
+                  ]
+               ],
+               "relation": "OR"
+            }
+         ]
+      },
+      "source": "self-managed",
+      "tags": [
+         "allow"
+      ]
+   },
+   {
+      "action": {
+         "type": "monitor"
+      },
+      "active": true,
+      "entries_relation": "OR",
+      "id": "arg_allowbot",
+      "mdate": "2020-05-23T00:04:41",
+      "name": "args allowbot",
+      "notes": "args",
+      "rule": {
+         "relation": "AND",
+         "sections": [
+            {
+               "entries": [
+                  [
+                     "args",
+                     [
+                        "allowbot",
+                        ".*"
+                     ],
+                     "allowbot"
+                  ]
+               ],
+               "relation": "OR"
+            }
+         ]
+      },
+      "source": "self-managed",
+      "tags": [
+         "allowbot"
+      ]
+   },
+   {
+      "action": {
+         "type": "monitor"
+      },
+      "active": true,
+      "entries_relation": "OR",
+      "id": "arg_denybot",
+      "mdate": "2020-05-23T00:04:41",
+      "name": "args denybot",
+      "notes": "args",
+      "rule": {
+         "relation": "AND",
+         "sections": [
+            {
+               "entries": [
+                  [
+                     "args",
+                     [
+                        "denybot",
+                        ".*"
+                     ],
+                     "denybot"
+                  ]
+               ],
+               "relation": "OR"
+            }
+         ]
+      },
+      "source": "self-managed",
+      "tags": [
+         "denybot"
+      ]
+   },
+   {
+      "action": {
+         "type": "monitor"
+      },
+      "active": true,
+      "entries_relation": "OR",
+      "id": "arg_forcedeny",
+      "mdate": "2020-05-23T00:04:41",
+      "name": "args forcedeny",
+      "notes": "args",
+      "rule": {
+         "relation": "AND",
+         "sections": [
+            {
+               "entries": [
+                  [
+                     "args",
+                     [
+                        "forcedeny",
+                        ".*"
+                     ],
+                     "forcedeny"
+                  ]
+               ],
+               "relation": "OR"
+            }
+         ]
+      },
+      "source": "self-managed",
+      "tags": [
+         "forcedeny"
+      ]
+   },
+   {
+      "action": {
+         "type": "monitor"
+      },
+      "active": true,
+      "entries_relation": "OR",
+      "id": "arg_bypass",
+      "mdate": "2020-05-23T00:04:41",
+      "name": "args bypass",
+      "notes": "args",
+      "rule": {
+         "relation": "AND",
+         "sections": [
+            {
+               "entries": [
+                  [
+                     "args",
+                     [
+                        "bypass",
+                        ".*"
+                     ],
+                     "bypass"
+                  ]
+               ],
+               "relation": "OR"
+            }
+         ]
+      },
+      "source": "self-managed",
+      "tags": [
+         "bypass"
+      ]
+   }
+]

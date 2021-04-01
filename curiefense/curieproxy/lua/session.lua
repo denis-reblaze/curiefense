@@ -184,8 +184,6 @@ function inspect(handle)
     local url = request_map.attrs.path
     local host = request_map.headers.host or request_map.attrs.authority
 
-
-
     -- rust alternative
     local session_uuid = nil
     local encoded = encode_request_map(request_map)
@@ -294,4 +292,20 @@ function inspect(handle)
     -- logging
     log_request(request_map)
 
+end
+
+
+-- test related code
+-- we can't directly call these functions from the test code because of side effects when imports are resolved
+
+function get_acl_profile(acl_profile_id)
+    return globals.ACLProfiles[acl_profile_id]
+end
+
+function get_waf_profile(waf_profile_id)
+    return globals.WAFProfiles[waf_profile_id]
+end
+
+function global_init(handle)
+    return init(handle)
 end

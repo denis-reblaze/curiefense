@@ -1,0 +1,27 @@
+[
+    {
+        "match": "__default__",
+        "id": "__default__",
+        "name": "default entry",
+        "map": [
+            {
+                "match": "^/direct",
+                "name": "direct association",
+                "acl_profile": "FROMTAGS",
+                "waf_profile": "__default__",
+                "acl_active": true,
+                "waf_active": false,
+                "limit_ids": []
+            },
+            {
+                "match": "/",
+                "name": "default",
+                "acl_profile": "__default__",
+                "waf_profile": "__default__",
+                "acl_active": false,
+                "waf_active": false,
+                "limit_ids": []
+            }
+        ]
+    }
+]

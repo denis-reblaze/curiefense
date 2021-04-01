@@ -15,8 +15,22 @@ ctarget/target/release/libcuriefense.so: container ctarget/registry ctarget/targ
 ../lua/shared-objects/curiefense.so: ctarget/target/release/libcuriefense.so
 	cp ctarget/target/release/libcuriefense.so ../lua/shared-objects/curiefense.so
 
-.PHONY: all container
+.PHONY: all container test test-nodeps
 
 container:
 	tar c Dockerfile  |  docker build -t curiefense/rustbuild -f Dockerfile -
 
+test: ctarget/target/release/libcuriefense.so test-nodeps
+	echo DONE
+
+test-nodeps:
+	docker run -v `pwd`/ctarget/target/release/libcuriefense.so:/usr/local/lib/lua/5.1/curiefense.so \
+						 -v `pwd`/../lua:/home/builder/lua \
+						 -v `pwd`/../lua/shared-objects/luahs.so:/usr/local/lib/lua/5.1/luahs.so \
+						 -v `pwd`/../lua/shared-objects/grasshopper.so:/usr/local/lib/lua/5.1/grasshopper.so \
+						 -v `pwd`/../../images/confserver/bootstrap/confdb-initial-data/master/config:/config/current/config \
+						 -v `pwd`/test.lua:/home/builder/test.lua \
+						 -v `pwd`/luatests/config/json:/config/current/config/json \
+						 -v `pwd`/luatests:/home/builder/luatests \
+						 -w /home/builder -t curiefense/rustbuild:latest \
+						 /usr/bin/luajit /home/builder/test.lua
