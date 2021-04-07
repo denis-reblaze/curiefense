@@ -63,6 +63,7 @@ impl Tags {
 pub struct Action {
     pub atype: ActionType,
     pub ban: bool,
+    pub block_mode: bool,
     pub status: u32,
     pub headers: Option<HashMap<String, String>>,
     pub reason: serde_json::value::Value,
@@ -78,10 +79,20 @@ pub enum ActionType {
     AlterHeaders,
 }
 
+impl ActionType {
+    pub fn is_blocking(self: &Self) -> bool {
+        match self {
+            ActionType::Block => true,
+            _ => false
+        }
+    }
+}
+
 impl std::default::Default for Action {
     fn default() -> Self {
         Action {
             atype: ActionType::Block,
+            block_mode: true,
             ban: false,
             status: 403,
             headers: None,
@@ -116,6 +127,7 @@ impl Action {
                 ))
             }
         };
+        action.block_mode = action.atype.is_blocking();
         Ok(action)
     }
 }
@@ -131,6 +143,7 @@ pub trait Grasshopper {
 pub fn gh_fail_decision(reason: &str) -> Decision {
     Decision::Action(Action {
         atype: ActionType::Block,
+        block_mode: true,
         ban: false,
         reason: json!({"initiator": "phase01", "reason": reason}),
         headers: None,
@@ -174,6 +187,7 @@ pub fn challenge_phase01<GH: Grasshopper>(gh: &GH, ua: &str, tags: Vec<String>) 
     // (this would have been caught by the previous guard)
     Decision::Action(Action {
         atype: ActionType::Block,
+        block_mode: true,
         ban: false,
         reason: json!({"initiator": "phase01", "reason": "challenge", "tags": tags}),
         headers: Some(hdrs),
@@ -217,6 +231,7 @@ pub fn challenge_phase02<GH: Grasshopper>(
 
     Some(Decision::Action(Action {
         atype: ActionType::Block,
+        block_mode: true,
         ban: false,
         reason: json!({"initiator": "phase02", "reason": "challenge"}),
         headers: Some(nheaders),

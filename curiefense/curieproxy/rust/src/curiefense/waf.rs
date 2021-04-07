@@ -107,6 +107,7 @@ impl WAFBlock {
 
         Action {
             atype: ActionType::Block,
+            block_mode: true,
             ban: false,
             status: 403,
             headers: None,

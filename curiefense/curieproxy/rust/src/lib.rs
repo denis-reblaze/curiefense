@@ -75,6 +75,7 @@ fn acl_block(blocking: bool, code: i32, tags: &[String]) -> Decision {
         } else {
             ActionType::Monitor
         },
+        block_mode: blocking,
         ban: false,
         status: 403,
         headers: None,
