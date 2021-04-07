@@ -547,7 +547,7 @@ function custom_response(request_map, action_params)
 
     -- override defaults
     if action_params["status" ] then response["status" ] = action_params["status" ] end
-    if action_params["headers"] then response["headers"] = action_params["headers"] end
+    if action_params["headers"] and action_params["headers"] ~= cjson.null then response["headers"] = action_params["headers"] end
     if action_params["reason" ] then response["reason" ] = action_params["reason" ] end
     if action_params["content"] then response["content"] = action_params["content"] end
 

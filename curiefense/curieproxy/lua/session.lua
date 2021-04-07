@@ -215,9 +215,21 @@ function inspect(handle)
         sfmt("wafname:%s", waf_profile.name)
     )
 
-
     -- session profiling
     tag_lists(request_map)
+
+    -- rust match urlmap + session profiling
+    _, err = curiefense.session_match_urlmap(session_uuid)
+    if err then
+        handle:logErr("curiefense.session_match_urlmap failed: " .. err)
+    end
+
+    _, err = curiefense.session_tag_request(session_uuid)
+    if err then
+        handle:logErr("curiefense.session_tag_request failed: " .. err)
+    end
+
+    -- end of rust match urlmap + session profiling
 
     local action = flowcontrol_check(request_map)
 
@@ -241,8 +253,21 @@ function inspect(handle)
     end
 
 
-    -- rate limit
-    limit_check(request_map, urlmap_entry["limit_ids"], urlmap_entry["name"])
+    -- lua rate limit
+    -- limit_check(request_map, urlmap_entry["limit_ids"], urlmap_entry["name"])
+
+    -- rust rate limit
+    local jrlimit, err = curiefense.session_limit_check(session_uuid)
+    if err then
+        handle:logErr("curiefense.limit_check failed: " .. err)
+    else
+        local rlimit = cjson.decode(jrlimit)
+        if rlimit ~= "Pass" then
+            handle:logInfo("Limit check: " .. jrlimit)
+            custom_response(request_map, rlimit["Action"])
+        end
+    end
+
 
     -- if not internal_url(url) then
     -- acl
