@@ -58,7 +58,7 @@ impl Limit {
                     .parse()
                     .with_context(|| "when converting the limit")?,
                 ttl: rawlimit
-                    .limit
+                    .ttl
                     .parse()
                     .with_context(|| "when converting the ttl")?,
                 action: Action::resolve(&rawlimit.action)
