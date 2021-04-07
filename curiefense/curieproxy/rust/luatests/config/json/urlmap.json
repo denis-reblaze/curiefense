@@ -14,6 +14,24 @@
                 "limit_ids": []
             },
             {
+                "match": "^/waf/noinjection",
+                "name": "direct association",
+                "acl_profile": "__default__",
+                "waf_profile": "noinject",
+                "acl_active": true,
+                "waf_active": true,
+                "limit_ids": []
+            },
+            {
+                "match": "^/waf/omitted",
+                "name": "direct association",
+                "acl_profile": "__default__",
+                "waf_profile": "omitted",
+                "acl_active": true,
+                "waf_active": true,
+                "limit_ids": []
+            },
+            {
                 "match": "/",
                 "name": "default",
                 "acl_profile": "__default__",

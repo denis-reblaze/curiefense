@@ -150,28 +150,39 @@ function test_request_map(request_map)
       error("curiefense.session_acl_check failed " .. err)
   end
   local rust_acl = cjson.decode(jrust_acl)
+  local txt_acl_result = "?"
   if rust_acl["Match"] then
     bot = rust_acl["Match"]["bot"]
     human = rust_acl["Match"]["human"]
     if bot ~= cjson.null then
       if bot["allowed"] then
         r_acl_bot_code = ACLAllowBot
+        txt_acl_result = "AB/"
       else
         r_acl_bot_code = ACLDenyBot
+        txt_acl_result = "DB/"
       end
+    else
+      txt_acl_result = "NB/"
     end
     if human ~= cjson.null then
       if human["allowed"] then
         r_acl_code = ACLAllow
+        txt_acl_result = txt_acl_result .. "AH"
       else
         r_acl_code = ACLDeny
+        txt_acl_result = txt_acl_result .. "DH"
       end
+    else
+      txt_acl_result = txt_acl_result .. "NH"
     end
   else
     if rust_acl["Bypass"]["allowed"] then
       r_acl_code = ACLBypass
+      txt_acl_result = "BP"
     else
       r_acl_code = ACLForceDeny
+      txt_acl_result = "FD"
     end
   end
 
@@ -205,6 +216,15 @@ function test_request_map(request_map)
   end
 
   curiefense.session_clean(session_uuid)
+
+  local txt_waf_result = "?"
+  if waf_code == WAFPass then
+    txt_waf_result = "WAFPass"
+  elseif waf_code == WAFBlock then
+    txt_waf_result = "WAFBlock"
+  end
+
+  return txt_acl_result .. "/" .. txt_waf_result
 end
 
 -- testing from a request_map
@@ -233,18 +253,21 @@ function Machin:new(content)
 end
 
 -- testing from envoy metadata
-function test_request2(request_path)
+function test_raw_request(request_path)
   print("Testing " .. request_path)
-  local raw_request_map = load_json_file(request_path)
-  local handle = FakeHandle
-  function handle.headers()
-    return Machin:new(raw_request_map.headers)
+  local raw_request_maps = load_json_file(request_path)
+  for _, raw_request_map in pairs(raw_request_maps) do
+    local handle = FakeHandle
+    function handle.headers()
+      return Machin:new(raw_request_map.headers)
+    end
+    function handle.metadata()
+      return Machin:new({xff_trusted_hops=1})
+    end
+    local request_map = utils.map_request(handle)
+    local result = test_request_map(request_map)
+    print(" -> " .. raw_request_map.name .. " " .. result)
   end
-  function handle.metadata()
-    return Machin:new(raw_request_map.metadata)
-  end
-  local request_map = utils.map_request(handle)
-  test_request_map(request_map)
 end
 
 local function ends_with(str, ending)
@@ -259,7 +282,7 @@ end
 
 for file in lfs.dir[[luatests/raw_requests]] do
   if ends_with(file, ".json") then
-    test_request2("luatests/raw_requests/" .. file)
+    test_raw_request("luatests/raw_requests/" .. file)
   end
 end
 
