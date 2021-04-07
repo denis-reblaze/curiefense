@@ -83,7 +83,7 @@ impl ActionType {
     pub fn is_blocking(self: &Self) -> bool {
         match self {
             ActionType::Block => true,
-            _ => false
+            _ => false,
         }
     }
 }

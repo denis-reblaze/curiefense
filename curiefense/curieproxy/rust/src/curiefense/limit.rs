@@ -8,7 +8,6 @@ use crate::curiefense::utils::{check_selector_cond, select_string, RequestInfo};
 /// creates a connection to a redis server
 fn redis_conn() -> anyhow::Result<redis::Connection> {
     let server = std::env::var("REDIS_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-    println!("SERVER={}", server);
     let client = redis::Client::open(format!("redis://{}:6379/", server))?;
     let max_timeout = Duration::from_millis(100);
     let cnx = client.get_connection_with_timeout(max_timeout)?;

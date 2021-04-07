@@ -226,8 +226,7 @@ pub fn session_limit_check(session_id: &str) -> anyhow::Result<Decision> {
     with_request_info(uuid, |rinfo| {
         with_urlmap(uuid, |urlmap| {
             with_tags_mut(uuid, |mut tags| {
-                let dec = limit_check(&urlmap.name, &rinfo, &limits, &mut tags);
-                Ok(dec)
+                Ok(limit_check(&urlmap.name, &rinfo, &limits, &mut tags))
             })
         })
     })
