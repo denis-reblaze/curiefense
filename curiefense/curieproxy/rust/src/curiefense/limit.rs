@@ -17,13 +17,12 @@ fn redis_conn() -> anyhow::Result<redis::Connection> {
     Ok(cnx)
 }
 
-fn build_key(reqinfo: &RequestInfo, limit: &Limit) -> Option<String> {
-    let kvals: Option<Vec<String>> = limit
-        .key
-        .iter()
-        .map(|r| select_string(reqinfo, r))
-        .collect();
-    Some(format!("{:X}", md5::compute(kvals?.concat())))
+fn build_key(url_map_name: &str, reqinfo: &RequestInfo, limit: &Limit) -> Option<String> {
+    let mut key = url_map_name.to_string() + &limit.id;
+    for kpart in limit.key.iter().map(|r| select_string(reqinfo, r)) {
+        key += &kpart?;
+    }
+    Some(format!("{:X}", md5::compute(key)))
 }
 
 fn get_ban_key(key: &str) -> String {
@@ -74,18 +73,18 @@ fn redis_check_limit(
     let current = mcurrent.unwrap_or(0);
     let expire = mexpire.unwrap_or(-1);
 
-    println!(
-        "key={} limit={} ttl={} current={} expire={}",
-        key, limit, ttl, current, expire
-    );
-
     if expire < 0 {
         let _: () = redis::cmd("EXPIRE").arg(key).arg(ttl).query(cnx)?;
     }
     Ok(current > limit as i64)
 }
 
-pub fn limit_check(reqinfo: &RequestInfo, limits: &[Limit], tags: &mut Tags) -> Decision {
+pub fn limit_check(
+    url_map_name: &str,
+    reqinfo: &RequestInfo,
+    limits: &[Limit],
+    tags: &mut Tags,
+) -> Decision {
     // early return to avoid redis connection
     if limits.is_empty() {
         return Decision::Pass;
@@ -101,8 +100,6 @@ pub fn limit_check(reqinfo: &RequestInfo, limits: &[Limit], tags: &mut Tags) -> 
     };
 
     for limit in limits {
-        println!("Checking {:?}", limit);
-
         if limit
             .exclude
             .iter()
@@ -121,7 +118,7 @@ pub fn limit_check(reqinfo: &RequestInfo, limits: &[Limit], tags: &mut Tags) -> 
         // every matching ratelimit rule is tagged by name
         tags.insert(&limit.name);
 
-        let key = match build_key(reqinfo, limit) {
+        let key = match build_key(url_map_name, reqinfo, limit) {
             None => return Decision::Pass,
             Some(k) => k,
         };

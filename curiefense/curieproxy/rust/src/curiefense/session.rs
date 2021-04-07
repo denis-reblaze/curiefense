@@ -224,9 +224,11 @@ pub fn session_limit_check(session_id: &str) -> anyhow::Result<Decision> {
     let limits = with_urlmap(uuid, |urlmap| Ok(urlmap.limits.clone()))?;
 
     with_request_info(uuid, |rinfo| {
-        with_tags_mut(uuid, |mut tags| {
-            let dec = limit_check(&rinfo, &limits, &mut tags);
-            Ok(dec)
+        with_urlmap(uuid, |urlmap| {
+            with_tags_mut(uuid, |mut tags| {
+                let dec = limit_check(&urlmap.name, &rinfo, &limits, &mut tags);
+                Ok(dec)
+            })
         })
     })
 }

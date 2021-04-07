@@ -134,7 +134,7 @@ fn inspect_generic<GH: Grasshopper>(
     println!("urlmap: {:?}", urlmap);
 
     // limit checks, this is
-    let limit_check = limit_check(&reqinfo, &urlmap.limits, &mut tags);
+    let limit_check = limit_check(&urlmap.name, &reqinfo, &urlmap.limits, &mut tags);
     println!("LIMIT_CHECKS: {:?}", limit_check);
     if let Decision::Action(_) = limit_check {
         // limit hit!
