@@ -27,10 +27,11 @@ test-nodeps:
 	docker run -v `pwd`/ctarget/target/release/libcuriefense.so:/usr/local/lib/lua/5.1/curiefense.so \
 						 -v `pwd`/../lua:/home/builder/lua \
 						 -v `pwd`/../lua/shared-objects/luahs.so:/usr/local/lib/lua/5.1/luahs.so \
+						 -v `pwd`/../lua/shared-objects/libinjection.so:/usr/local/lib/lua/5.1/libinjection.so \
 						 -v `pwd`/../lua/shared-objects/grasshopper.so:/usr/local/lib/lua/5.1/grasshopper.so \
 						 -v `pwd`/../../images/confserver/bootstrap/confdb-initial-data/master/config:/config/current/config \
 						 -v `pwd`/test.lua:/home/builder/test.lua \
 						 -v `pwd`/luatests/config/json:/config/current/config/json \
 						 -v `pwd`/luatests:/home/builder/luatests \
 						 -w /home/builder -t curiefense/rustbuild:latest \
-						 /usr/bin/luajit /home/builder/test.lua
+						 /usr/local/bin/luajit /home/builder/test.lua

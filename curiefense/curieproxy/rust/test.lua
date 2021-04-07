@@ -7,6 +7,9 @@ local cjson = require "cjson"
 local json_safe = require "cjson.safe"
 local json_decode = json_safe.decode
 local tagprofiler = require "lua.tagprofiler"
+local waf = require "lua.waf"
+
+require 'lfs'
 
 ACLNoMatch   = -1
 ACLForceDeny = 0
@@ -15,6 +18,9 @@ ACLAllowBot  = 2
 ACLDenyBot   = 3
 ACLAllow     = 4
 ACLDeny      = 5
+
+WAFPass  = 1
+WAFBlock = 0
 
 function read_file(path)
     local fh = io.open(path, "r")
@@ -79,6 +85,7 @@ function identical_tags(stage, request_map, session_uuid)
 end
 
 function test_request(request_path)
+  print("Testing " .. request_path)
   local raw_request_map = load_json_file(request_path)
   local request_map = raw_request_map
   request_map.handle = FakeHandle
@@ -177,6 +184,35 @@ function test_request(request_path)
   if r_acl_bot_code ~= acl_bot_code then
     error(sfmt("acl_bot_code differs, expected %s, actual %s", acl_bot_code, r_acl_bot_code))
   end
+
+
+  local waf_code, waf_result = waf.check(waf_profile, request_map)
+  local jrwaf_result, err = curiefense.session_waf_check(session_uuid)
+  if err then
+    error("curiefense.waf_check failed: " .. err)
+  end
+  local rwaf_result = cjson.decode(jrwaf_result)
+  if waf_code == WAFPass and rwaf_result == "Pass" then
+    -- ok!
+  else
+    print(cjson.encode(rwaf_result))
+    print(waf_code)
+    print(waf_result)
+    error(":(")
+  end
+
+  curiefense.session_clean(session_uuid)
+
+
 end
 
-test_request("luatests/requests/r1.json")
+local function ends_with(str, ending)
+  return ending == "" or str:sub(-#ending) == ending
+end
+
+for file in lfs.dir[[luatests/requests]] do
+
+  if ends_with(file, ".json") then
+    test_request("luatests/requests/" .. file)
+  end
+end

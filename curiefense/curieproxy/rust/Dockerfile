@@ -1,12 +1,12 @@
 # build container
-FROM ubuntu:18.04
+FROM nickblah/luajit:2-lua52compat-luarocks-bionic
 
 RUN apt-get update && \
     apt-get dist-upgrade -y && \
     apt-get -yq --no-install-recommends install \
         curl ca-certificates libhyperscan-dev \
-        gcc pkg-config libssl-dev libluajit-5.1-dev python2.7 clang-10 libclang1-10 \
-        luarocks libpcre2-dev libgeoip-dev make unzip luajit
+        gcc pkg-config libssl-dev python2.7 clang-10 libclang1-10 \
+        libpcre2-dev libgeoip-dev make unzip git
 RUN ln -s /usr/bin/python2.7 /usr/bin/python2
 
 RUN luarocks install lrexlib-pcre2 && \
