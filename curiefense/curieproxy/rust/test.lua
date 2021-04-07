@@ -8,6 +8,7 @@ local json_safe = require "cjson.safe"
 local json_decode = json_safe.decode
 local tagprofiler = require "lua.tagprofiler"
 local waf = require "lua.waf"
+local utils = require "lua.utils"
 
 require 'lfs'
 
@@ -84,11 +85,7 @@ function identical_tags(stage, request_map, session_uuid)
   return identical_tags_resolved(stage, expected, actual)
 end
 
-function test_request(request_path)
-  print("Testing " .. request_path)
-  local raw_request_map = load_json_file(request_path)
-  local request_map = raw_request_map
-  request_map.handle = FakeHandle
+function test_request_map(request_map)
 
   local url = request_map.attrs.path
   local host = request_map.headers.host or request_map.attrs.authority
@@ -193,17 +190,61 @@ function test_request(request_path)
   end
   local rwaf_result = cjson.decode(jrwaf_result)
   if waf_code == WAFPass and rwaf_result == "Pass" then
-    -- ok!
+    -- ok, both mark it pass passed
+  elseif waf_code == WAFBlock and rwaf_result["Action"] then
+    -- ok, both mark it as blocked
   else
-    print(cjson.encode(rwaf_result))
-    print(waf_code)
-    print(waf_result)
+    print("waf_check mismatch")
+    print("native code returned: " .. jrwaf_result)
+    print("lua code " .. cjson.encode(waf_code) .. ", result: " .. cjson.encode(waf_result))
     error(":(")
   end
 
+  if not identical_tags("waf_check", request_map, session_uuid) then
+    error("failed at stage waf_check")
+  end
+
   curiefense.session_clean(session_uuid)
+end
 
+-- testing from a request_map
+function test_request(request_path)
+  print("Testing " .. request_path)
+  local raw_request_map = load_json_file(request_path)
+  local request_map = raw_request_map
+  request_map.handle = FakeHandle
+  test_request_map(raw_request_map)
+end
 
+-- cheating with the fake handler
+local M = {}
+function M.__pairs(tbl)
+  return pairs(tbl.content)
+end
+
+local Machin = {}
+function Machin:new(content)
+  local t = {}
+  t.content = content
+  function t:get(key)
+    return content[key]
+  end
+  return setmetatable(t, M)
+end
+
+-- testing from envoy metadata
+function test_request2(request_path)
+  print("Testing " .. request_path)
+  local raw_request_map = load_json_file(request_path)
+  local handle = FakeHandle
+  function handle.headers()
+    return Machin:new(raw_request_map.headers)
+  end
+  function handle.metadata()
+    return Machin:new(raw_request_map.metadata)
+  end
+  local request_map = utils.map_request(handle)
+  test_request_map(request_map)
 end
 
 local function ends_with(str, ending)
@@ -211,8 +252,14 @@ local function ends_with(str, ending)
 end
 
 for file in lfs.dir[[luatests/requests]] do
-
   if ends_with(file, ".json") then
     test_request("luatests/requests/" .. file)
   end
 end
+
+for file in lfs.dir[[luatests/raw_requests]] do
+  if ends_with(file, ".json") then
+    test_request2("luatests/raw_requests/" .. file)
+  end
+end
+

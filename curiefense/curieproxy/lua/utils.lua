@@ -168,7 +168,7 @@ function map_ip(headers, metadata, map)
     }
 
     if city then
-        map.geo.city.name = (city.city and city.city.names.en) or "-"
+        map.geo.city.name = (city.city and city.city ~= cjson.null and city.city.names.en) or "-"
 
         -- Use lat and lon to match the key names
         -- expected by Elasticsearch's geo_ip field type
