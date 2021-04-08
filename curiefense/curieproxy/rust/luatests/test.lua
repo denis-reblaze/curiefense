@@ -9,6 +9,7 @@ local json_decode = json_safe.decode
 local tagprofiler = require "lua.tagprofiler"
 local waf = require "lua.waf"
 local utils = require "lua.utils"
+local socket = require "socket"
 
 require 'lfs'
 
@@ -91,7 +92,7 @@ function test_request_map(request_map)
   local host = request_map.headers.host or request_map.attrs.authority
 
   local encoded = session.encode_request_map(request_map)
-  session_uuid, err = curiefense.session_init(encoded)
+  local session_uuid, err = curiefense.session_init(encoded)
   if err then
     error("session_init failed: " .. err)
   end
@@ -105,7 +106,7 @@ function test_request_map(request_map)
   local acl_profile       = session.get_acl_profile(acl_profile_id)
   local waf_profile       = session.get_waf_profile(waf_profile_id)
 
-  json_urlmap, err = curiefense.session_match_urlmap(session_uuid)
+  local json_urlmap, err = curiefense.session_match_urlmap(session_uuid)
   if err then
     error("session_match_urlmap failed: " .. err)
   end
@@ -270,6 +271,57 @@ function test_raw_request(request_path)
   end
 end
 
+-- testing for rate limiting
+function test_ratelimit(request_path)
+  print("Rate limit " .. request_path)
+  local raw_request_maps = load_json_file(request_path)
+  for n, raw_request_map in pairs(raw_request_maps) do
+    print(" -> step " .. n)
+    local handle = FakeHandle
+    function handle.headers()
+      return Machin:new(raw_request_map.headers)
+    end
+    function handle.metadata()
+      return Machin:new({xff_trusted_hops=1})
+    end
+    local request_map = utils.map_request(handle)
+
+    local encoded = session.encode_request_map(request_map)
+    session_uuid, err = curiefense.session_init(encoded)
+    if err then
+      error("session_init failed: " .. err)
+    end
+    local json_urlmap, err = curiefense.session_match_urlmap(session_uuid)
+    if err then
+      error("session_match_urlmap failed: " .. err)
+    end
+    local _, err = curiefense.session_tag_request(session_uuid)
+    if err then
+        error("curiefense.session_tag_request failed " .. err)
+    end
+    local jres, err = curiefense.session_limit_check(session_uuid)
+    if err then
+        error("curiefense.session_limit_check failed " .. err)
+    end
+    curiefense.session_clean(session_uuid)
+    local res = cjson.decode(jres)
+
+    if raw_request_map.pass then
+      if res ~= "Pass" then
+        error("curiefense.session_limit should have returned pass, but returned: " .. jres)
+      end
+    else
+      if res == "Pass" or not res["Action"] then
+        error("curiefense.session_limit should have blocked, but returned: " .. jres)
+      end
+    end
+
+    if raw_request_map.delay then
+      socket.sleep(raw_request_map.delay)
+    end
+  end
+end
+
 local function ends_with(str, ending)
   return ending == "" or str:sub(-#ending) == ending
 end
@@ -286,3 +338,8 @@ for file in lfs.dir[[luatests/raw_requests]] do
   end
 end
 
+for file in lfs.dir[[luatests/ratelimit]] do
+  if ends_with(file, ".json") then
+    test_ratelimit("luatests/ratelimit/" .. file)
+  end
+end

@@ -30,8 +30,9 @@ test-nodeps:
 						 -v `pwd`/../lua/shared-objects/libinjection.so:/usr/local/lib/lua/5.1/libinjection.so \
 						 -v `pwd`/../lua/shared-objects/grasshopper.so:/usr/local/lib/lua/5.1/grasshopper.so \
 						 -v `pwd`/../../images/confserver/bootstrap/confdb-initial-data/master/config:/config/current/config \
-						 -v `pwd`/test.lua:/home/builder/test.lua \
+						 -v `pwd`/luatests/test.lua:/home/builder/test.lua \
+						 -v `pwd`/luatests/run.sh:/home/builder/run.sh \
 						 -v `pwd`/luatests/config/json:/config/current/config/json \
 						 -v `pwd`/luatests:/home/builder/luatests \
 						 -w /home/builder -t curiefense/rustbuild:latest \
-						 /usr/local/bin/luajit /home/builder/test.lua
+						 /bin/sh /home/builder/run.sh
