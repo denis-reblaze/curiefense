@@ -1,9 +1,9 @@
 [
     {
         "id": "limitsimple",
-        "name": "Rate Limit Example Rule 3/10",
-        "description": "3 requests in 10s",
-        "ttl": "10",
+        "name": "Rate Limit Example Rule 3/3",
+        "description": "3 requests in 3s",
+        "ttl": "3",
         "limit": "3",
         "action": {
             "type": "default"
@@ -31,9 +31,9 @@
     },
     {
         "id": "limitinclude",
-        "name": "Rate Limit Example Rule 3/10",
-        "description": "3 requests in 10s",
-        "ttl": "10",
+        "name": "Rate Limit Example Rule 3/3",
+        "description": "3 requests in 3s",
+        "ttl": "3",
         "limit": "3",
         "action": {
             "type": "default"
@@ -63,9 +63,9 @@
     },
     {
         "id": "limitexclude",
-        "name": "Rate Limit Example Rule 3/10",
-        "description": "3 requests in 10s",
-        "ttl": "10",
+        "name": "Rate Limit Example Rule 3/3",
+        "description": "3 requests in 3s",
+        "ttl": "3",
         "limit": "3",
         "action": {
             "type": "default"

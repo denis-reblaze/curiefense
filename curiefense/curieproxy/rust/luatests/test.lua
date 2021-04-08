@@ -1,12 +1,14 @@
 package.path = package.path .. ";lua/?.lua"
 local acl = require "lua.acl"
+local tagprofiler = require "lua.tagprofiler"
+local redisutils = require "lua.redisutils"
 local curiefense = require "curiefense"
-local session = require("session")
+local session = require "session"
+
 local sfmt = string.format
 local cjson = require "cjson"
 local json_safe = require "cjson.safe"
 local json_decode = json_safe.decode
-local tagprofiler = require "lua.tagprofiler"
 local waf = require "lua.waf"
 local utils = require "lua.utils"
 local socket = require "socket"
@@ -271,9 +273,19 @@ function test_raw_request(request_path)
   end
 end
 
+-- remove all keys from redis
+function clean_redis()
+    local conn = redisutils.redis_connection()
+    local keys = conn:keys("*")
+    for _, key in pairs(keys) do
+      conn:del(key)
+    end
+end
+
 -- testing for rate limiting
 function test_ratelimit(request_path)
   print("Rate limit " .. request_path)
+  clean_redis()
   local raw_request_maps = load_json_file(request_path)
   for n, raw_request_map in pairs(raw_request_maps) do
     print(" -> step " .. n)
