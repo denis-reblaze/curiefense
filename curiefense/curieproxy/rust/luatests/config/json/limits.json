@@ -1,5 +1,35 @@
 [
     {
+        "id": "limitcountry",
+        "name": "Rate Limit Example Rule 3/3",
+        "description": "3 requests in 3s",
+        "ttl": "3",
+        "limit": "3",
+        "action": {
+            "type": "default"
+        },
+        "include": {
+            "headers": {},
+            "cookies": {},
+            "args": {},
+            "attrs": {}
+        },
+        "exclude": {
+            "headers": {},
+            "cookies": {},
+            "args": {},
+            "attrs": {}
+        },
+        "key": [
+            {
+                "attrs": "country"
+            }
+        ],
+        "pairwith": {
+            "self": "self"
+        }
+    },
+    {
         "id": "limitsimple",
         "name": "Rate Limit Example Rule 3/3",
         "description": "3 requests in 3s",

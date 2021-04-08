@@ -43,6 +43,17 @@
                 ]
             },
             {
+                "match": "^/limits/country",
+                "name": "limits country",
+                "acl_profile": "__default__",
+                "waf_profile": "__default__",
+                "acl_active": true,
+                "waf_active": true,
+                "limit_ids": [
+                    "limitcountry"
+                ]
+            },
+            {
                 "match": "^/limits/include",
                 "name": "limits simple",
                 "acl_profile": "__default__",
