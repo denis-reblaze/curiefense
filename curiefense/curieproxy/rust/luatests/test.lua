@@ -88,7 +88,7 @@ function identical_tags(stage, request_map, session_uuid)
   return identical_tags_resolved(stage, expected, actual)
 end
 
-function test_request_map(request_map)
+function test_request_map(name, request_map)
 
   local url = request_map.attrs.path
   local host = request_map.headers.host or request_map.attrs.authority
@@ -190,10 +190,10 @@ function test_request_map(request_map)
   end
 
   if r_acl_code ~= acl_code then
-    error(sfmt("acl_code differs, expected %s, actual %s", acl_code, r_acl_code))
+    error(sfmt("for %s, acl_code differs, expected %s, actual %s (result=%s)", name, acl_code, r_acl_code, jrust_acl))
   end
-  if r_acl_bot_code ~= acl_bot_code then
-    error(sfmt("acl_bot_code differs, expected %s, actual %s", acl_bot_code, r_acl_bot_code))
+  if acl_code ~= ACLForceDeny and acl_code ~= ACLBypass and r_acl_bot_code ~= acl_bot_code then
+    error(sfmt("for %s, acl_bot_code differs, expected %s, actual %s (result=%s, acl_code=%d)", name, acl_bot_code, r_acl_bot_code, jrust_acl, acl_code))
   end
 
 
@@ -236,7 +236,7 @@ function test_request(request_path)
   local raw_request_map = load_json_file(request_path)
   local request_map = raw_request_map
   request_map.handle = FakeHandle
-  test_request_map(raw_request_map)
+  test_request_map("(no name)", raw_request_map)
 end
 
 -- cheating with the fake handler
@@ -268,7 +268,7 @@ function test_raw_request(request_path)
       return Machin:new({xff_trusted_hops=1})
     end
     local request_map = utils.map_request(handle)
-    local result = test_request_map(request_map)
+    local result = test_request_map(raw_request_map.name, request_map)
     print(" -> " .. raw_request_map.name .. " " .. result)
   end
 end
