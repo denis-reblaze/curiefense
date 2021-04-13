@@ -308,6 +308,12 @@ fn curiefense(lua: &Lua) -> LuaResult<LuaTable> {
             wrap_session_json(lua, session_id, session::session_waf_check)
         })?,
     )?;
+    exports.set(
+        "session_flow_check",
+        lua.create_function(|lua: &Lua, session_id: LuaValue| {
+            wrap_session_json(lua, session_id, session::session_flow_check)
+        })?,
+    )?;
 
     exports.set(
         "new_ip_set",

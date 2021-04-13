@@ -22,7 +22,7 @@ pub struct Limit {
     pub key: Vec<RequestSelector>,
 }
 
-fn resolve_selector_map(sel: HashMap<String, String>) -> anyhow::Result<RequestSelector> {
+pub fn resolve_selector_map(sel: HashMap<String, String>) -> anyhow::Result<RequestSelector> {
     if sel.len() != 1 {
         return Err(anyhow::anyhow!("invalid selector {:?}", sel));
     }
@@ -30,7 +30,9 @@ fn resolve_selector_map(sel: HashMap<String, String>) -> anyhow::Result<RequestS
     resolve_selector_raw(&key, &val)
 }
 
-fn resolve_selectors(rawsel: RawLimitSelector) -> anyhow::Result<Vec<RequestSelectorCondition>> {
+pub fn resolve_selectors(
+    rawsel: RawLimitSelector,
+) -> anyhow::Result<Vec<RequestSelectorCondition>> {
     let mk_selectors = |tp: SelectorType, mp: HashMap<String, String>| {
         mp.into_iter()
             .map(move |(v, cond)| decode_request_selector_condition(tp, &v, &cond))

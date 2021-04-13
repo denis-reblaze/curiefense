@@ -233,3 +233,26 @@ pub struct WAFSignature {
     pub category: String,
     pub subcategory: String,
 }
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct RawFlowEntry {
+    pub id: String,
+    pub include: Vec<String>,
+    pub exclude: Vec<String>,
+    pub name: String,
+    #[serde(default)]
+    pub key: Vec<HashMap<String, String>>,
+    pub active: bool,
+    pub ttl: u64,
+    pub action: RawAction,
+    pub sequence: Vec<RawFlowStep>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct RawFlowStep {
+    pub method: String,
+    pub uri: String,
+    pub cookies: HashMap<String, String>,
+    pub headers: HashMap<String, String>,
+    pub args: HashMap<String, String>,
+}

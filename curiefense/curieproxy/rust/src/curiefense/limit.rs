@@ -1,20 +1,9 @@
-use core::time::Duration;
 use redis::RedisResult;
 
 use crate::curiefense::config::limit::Limit;
 use crate::curiefense::interface::{Decision, Tags};
+use crate::curiefense::redis::redis_conn;
 use crate::curiefense::utils::{check_selector_cond, select_string, RequestInfo};
-
-/// creates a connection to a redis server
-fn redis_conn() -> anyhow::Result<redis::Connection> {
-    let server = std::env::var("REDIS_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let client = redis::Client::open(format!("redis://{}:6379/", server))?;
-    let max_timeout = Duration::from_millis(100);
-    let cnx = client.get_connection_with_timeout(max_timeout)?;
-    cnx.set_read_timeout(Some(max_timeout))?;
-    cnx.set_write_timeout(Some(max_timeout))?;
-    Ok(cnx)
-}
 
 fn build_key(url_map_name: &str, reqinfo: &RequestInfo, limit: &Limit) -> Option<String> {
     let mut key = url_map_name.to_string() + &limit.id;

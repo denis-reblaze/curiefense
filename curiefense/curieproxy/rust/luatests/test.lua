@@ -4,6 +4,7 @@ local tagprofiler = require "lua.tagprofiler"
 local redisutils = require "lua.redisutils"
 local curiefense = require "curiefense"
 local session = require "session"
+local flowcontrol   = require "lua.flowcontrol"
 
 local sfmt = string.format
 local cjson = require "cjson"
@@ -12,6 +13,9 @@ local json_decode = json_safe.decode
 local waf = require "lua.waf"
 local utils = require "lua.utils"
 local socket = require "socket"
+
+local ffi = require "ffi"
+ffi.load("crypto", true)
 
 require 'lfs'
 
@@ -54,6 +58,9 @@ end
 local FakeHandle = {}
 function FakeHandle:logDebug(content)
   -- ignore debug
+end
+function FakeHandle:logInfo(content)
+  print(content)
 end
 
 function identical_tags_resolved(stage, expected, actual)
@@ -282,6 +289,27 @@ function clean_redis()
     end
 end
 
+function redis_debug()
+    local conn = redisutils.redis_connection()
+    local keys = conn:keys("*")
+    for _, key in pairs(keys) do
+      tp = conn:type(key)
+      if tp == "list" then
+        print("* " .. key)
+        while true do
+          content = conn:lpop(key)
+          if content then
+            print(" - " .. content)
+          else
+            break
+          end
+        end
+      else
+        error("unhandled key type " .. tp)
+      end
+    end
+end
+
 -- testing for rate limiting
 function test_ratelimit(request_path)
   print("Rate limit " .. request_path)
@@ -320,11 +348,11 @@ function test_ratelimit(request_path)
 
     if raw_request_map.pass then
       if res ~= "Pass" then
-        error("curiefense.session_limit should have returned pass, but returned: " .. jres)
+        error("curiefense.session_limit_check should have returned pass, but returned: " .. jres)
       end
     else
       if res == "Pass" or not res["Action"] then
-        error("curiefense.session_limit should have blocked, but returned: " .. jres)
+        error("curiefense.session_limit_check should have blocked, but returned: " .. jres)
       end
     end
 
@@ -334,6 +362,58 @@ function test_ratelimit(request_path)
   end
 end
 
+-- testing for control flow
+function test_flow(request_path)
+  print("Flow control " .. request_path)
+  clean_redis()
+  local raw_request_maps = load_json_file(request_path)
+  for n, raw_request_map in pairs(raw_request_maps) do
+    print(" -> step " .. n)
+    local handle = FakeHandle
+    function handle.headers()
+      return Machin:new(raw_request_map.headers)
+    end
+    function handle.metadata()
+      return Machin:new({xff_trusted_hops=1})
+    end
+    local request_map = utils.map_request(handle)
+
+    local encoded = session.encode_request_map(request_map)
+    session_uuid, err = curiefense.session_init(encoded)
+    if err then
+      error("session_init failed: " .. err)
+    end
+    local json_urlmap, err = curiefense.session_match_urlmap(session_uuid)
+    if err then
+      error("session_match_urlmap failed: " .. err)
+    end
+    local _, err = curiefense.session_tag_request(session_uuid)
+    if err then
+        error("curiefense.session_tag_request failed " .. err)
+    end
+
+    local jres, err = curiefense.session_flow_check(session_uuid)
+    if err then
+        error("curiefense.session_flow_check failed " .. err)
+    end
+    curiefense.session_clean(session_uuid)
+    local res = cjson.decode(jres)
+
+    if raw_request_map.pass then
+      if res ~= "Pass" then
+        error("curiefense.session_flow_check should have returned pass, but returned: " .. jres)
+      end
+    else
+      if res == "Pass" or not res["Action"] then
+        error("curiefense.session_flow_check should have blocked, but returned: " .. jres)
+      end
+    end
+
+    if raw_request_map.delay then
+      socket.sleep(raw_request_map.delay)
+    end
+  end
+end
 local function ends_with(str, ending)
   return ending == "" or str:sub(-#ending) == ending
 end
@@ -350,8 +430,14 @@ for file in lfs.dir[[luatests/raw_requests]] do
   end
 end
 
-for file in lfs.dir[[luatests/ratelimit]] do
+-- for file in lfs.dir[[luatests/ratelimit]] do
+--   if ends_with(file, ".json") then
+--     test_ratelimit("luatests/ratelimit/" .. file)
+--   end
+-- end
+
+for file in lfs.dir[[luatests/flows]] do
   if ends_with(file, ".json") then
-    test_ratelimit("luatests/ratelimit/" .. file)
+    test_flow("luatests/flows/" .. file)
   end
 end

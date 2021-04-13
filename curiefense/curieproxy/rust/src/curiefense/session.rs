@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::curiefense::acl::{check_acl, ACLResult};
 use crate::curiefense::config::{get_config_default_path, CONFIG, HSDB};
+use crate::curiefense::flow::flow_check;
 use crate::curiefense::interface::Tags;
 use crate::curiefense::limit::limit_check;
 use crate::curiefense::tagging::tag_request;
@@ -251,6 +252,16 @@ pub fn session_waf_check(session_id: &str) -> anyhow::Result<Decision> {
                 Ok(()) => Decision::Pass,
                 Err(rr) => Decision::Action(rr.to_action()),
             })
+        })
+    })
+}
+
+pub fn session_flow_check(session_id: &str) -> anyhow::Result<Decision> {
+    let uuid: Uuid = session_id.parse()?;
+
+    with_config(|cfg| {
+        with_request_info(uuid, |rinfo| {
+            with_tags(uuid, |tags| flow_check(&cfg.flows, rinfo, tags))
         })
     })
 }

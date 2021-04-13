@@ -1,3 +1,4 @@
+pub mod flow;
 pub mod hostmap;
 pub mod limit;
 pub mod profiling;
@@ -14,10 +15,13 @@ use std::path::PathBuf;
 use std::sync::RwLock;
 use std::time::SystemTime;
 
+use flow::{flow_resolve, FlowElement, SequenceKey};
 use hostmap::{HostMap, UrlMap};
 use limit::{limit_order, Limit};
 use profiling::ProfilingSection;
-use raw::{ACLProfile, RawHostMap, RawLimit, RawProfilingSection, RawUrlMap, RawWAFProfile};
+use raw::{
+    ACLProfile, RawFlowEntry, RawHostMap, RawLimit, RawProfilingSection, RawUrlMap, RawWAFProfile,
+};
 use utils::Matching;
 use waf::{resolve_signatures, WAFProfile, WAFSignatures};
 
@@ -71,6 +75,7 @@ pub struct Config {
     pub default: Option<HostMap>,
     pub last_mod: SystemTime,
     pub container_name: Option<String>,
+    pub flows: HashMap<SequenceKey, Vec<FlowElement>>,
 }
 
 fn from_map<V: Clone>(mp: &HashMap<String, V>, k: &str) -> anyhow::Result<V> {
@@ -152,6 +157,7 @@ impl Config {
         rawacls: Vec<ACLProfile>,
         rawwafprofiles: Vec<RawWAFProfile>,
         container_name: Option<String>,
+        rawflows: Vec<RawFlowEntry>,
     ) -> (Config, Vec<anyhow::Error>) {
         let mut default: Option<HostMap> = None;
         let mut urlmaps: Vec<Matching<HostMap>> = Vec::new();
@@ -199,6 +205,9 @@ impl Config {
         let (profiling, perrs) = ProfilingSection::resolve(rawprofiling);
         errs.extend(perrs);
 
+        let (flows, ferrs) = flow_resolve(rawflows);
+        errs.extend(ferrs);
+
         (
             Config {
                 urlmaps,
@@ -206,6 +215,7 @@ impl Config {
                 last_mod,
                 profiling,
                 container_name,
+                flows,
             },
             errs,
         )
@@ -271,6 +281,10 @@ impl Config {
                 errs.push(rr);
                 Vec::new()
             });
+        let flows = Config::load_config_file(&bjson, "flow-control.json").unwrap_or_else(|rr| {
+            errs.push(rr);
+            Vec::new()
+        });
         let container_name = std::fs::read_to_string("/etc/hostname")
             .ok()
             .map(|s| s.trim().to_string());
@@ -286,6 +300,7 @@ impl Config {
             acls,
             wafprofiles,
             container_name,
+            flows,
         );
         errs.extend(cerrs);
         (Some((config, hsdb)), errs)
@@ -298,6 +313,7 @@ impl Config {
             last_mod: SystemTime::UNIX_EPOCH,
             default: None,
             container_name: None,
+            flows: HashMap::new(),
         }
     }
 }
