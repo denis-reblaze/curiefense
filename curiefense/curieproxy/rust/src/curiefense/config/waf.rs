@@ -151,15 +151,9 @@ fn mk_section(
         .regex
         .into_iter()
         .map(|e| {
-            // this is a bit annoying because the errors are converted into an identical type
-            // somebody better at rust would probably make it nicer
-            mk_entry_match(e)
-                .map_err(anyhow::Error::from)
-                .and_then(|(s, v)| {
-                    Regex::new(&s)
-                        .map_err(anyhow::Error::from)
-                        .map(|re| (re, v))
-                })
+            let (s, v) = mk_entry_match(e)?;
+            let re = Regex::new(&s)?;
+            Ok((re, v))
         })
         .collect();
     Ok(WAFSection {
