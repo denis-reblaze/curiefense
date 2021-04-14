@@ -188,7 +188,7 @@ fn section_check(
     ignore_alphanum: bool,
     omit: &mut Omitted,
 ) -> Result<(), WAFBlock> {
-    if params.len() >= section.max_count {
+    if params.len() > section.max_count {
         return Err(WAFBlock::TooManyEntries(idx));
     }
 
