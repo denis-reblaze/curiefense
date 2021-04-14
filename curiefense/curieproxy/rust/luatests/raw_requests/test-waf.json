@@ -111,5 +111,151 @@
       ":path": "/waf/noinjection/foo",
       ":authority": "localhost:30081"
     }
+  },
+  {
+    "name": "alphanum blocked",
+    "headers": {
+      "x-request-id": "e6acdce3-e076-4f0d-9a22-9d82fe01ba60",
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf/omitted/?v=AZDGSDQZE16Z",
+      ":authority": "localhost:30081"
+    }
+  },
+  {
+    "name": "alphanum skipped",
+    "headers": {
+      "x-request-id": "e6acdce3-e076-4f0d-9a22-9d82fe01ba60",
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf/noinjection/?v=AZDGSDQZE16Z",
+      ":authority": "localhost:30081"
+    }
+  },
+  {
+    "name": "too many args",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf/args/?a=A&b=B&c=C&d=D&e=E",
+      ":authority": "localhost:30081"
+    }
+  },
+  {
+    "name": "passing",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf/args/?a=A&b=B&c=C",
+      ":authority": "localhost:30081"
+    }
+  },
+  {
+    "name": "test args a",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf/args/?a=A",
+      ":authority": "localhost:30081"
+    }
+  },
+  {
+    "name": "test args b",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf/args/?b=B",
+      ":authority": "localhost:30081"
+    }
+  },
+  {
+    "name": "test args c",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf/args/?c=C",
+      ":authority": "localhost:30081"
+    }
+  },
+  {
+    "name": "test args d",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf/args/?d=D",
+      ":authority": "localhost:30081"
+    }
+  },
+  {
+    "name": "test args a (n)",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf/args/?a=1",
+      ":authority": "localhost:30081"
+    }
+  },
+  {
+    "name": "test args b (n)",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf/args/?b=2",
+      ":authority": "localhost:30081"
+    }
+  },
+  {
+    "name": "test args c (n)",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf/args/?c=3",
+      ":authority": "localhost:30081"
+    }
+  },
+  {
+    "name": "test args d (n)",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf/args/?d=4",
+      ":authority": "localhost:30081"
+    }
+  },
+  {
+    "name": "test args a (nosig)",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf/args/?a=AZDGSDQZE16Z",
+      ":authority": "localhost:30081"
+    }
+  },
+  {
+    "name": "test args b (nosig)",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf/args/?b=AZDGSDQZE16Z",
+      ":authority": "localhost:30081"
+    }
+  },
+  {
+    "name": "test args c (nosig)",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf/args/?c=AZDGSDQZE16Z",
+      ":authority": "localhost:30081"
+    }
+  },
+  {
+    "name": "test args d (nosig)",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf/args/?d=AZDGSDQZE16Z",
+      ":authority": "localhost:30081"
+    }
   }
 ]

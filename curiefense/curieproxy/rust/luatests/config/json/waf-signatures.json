@@ -20,6 +20,16 @@
     "subcategory": "built-in function invocation"
   },
   {
+    "id": "100010",
+    "name": "100010",
+    "msg": "alphanum operand",
+    "operand": "AZDGSDQZE16Z",
+    "severity": 5,
+    "certainity": 5,
+    "category": "generic",
+    "subcategory": "generic"
+  },
+  {
     "id": "100099",
     "name": "100099",
     "msg": "RFI/LFI/OSCI",

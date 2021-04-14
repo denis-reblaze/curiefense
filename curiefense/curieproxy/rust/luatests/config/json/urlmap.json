@@ -15,7 +15,7 @@
             },
             {
                 "match": "^/waf/noinjection",
-                "name": "direct association",
+                "name": "waf noinjection tests",
                 "acl_profile": "__default__",
                 "waf_profile": "noinject",
                 "acl_active": true,
@@ -24,9 +24,18 @@
             },
             {
                 "match": "^/waf/omitted",
-                "name": "direct association",
+                "name": "waf omit tests",
                 "acl_profile": "__default__",
                 "waf_profile": "omitted",
+                "acl_active": true,
+                "waf_active": true,
+                "limit_ids": []
+            },
+            {
+                "match": "^/waf/args",
+                "name": "waf args tests",
+                "acl_profile": "__default__",
+                "waf_profile": "argschecks",
                 "acl_active": true,
                 "waf_active": true,
                 "limit_ids": []

@@ -430,14 +430,14 @@ for file in lfs.dir[[luatests/raw_requests]] do
   end
 end
 
--- for file in lfs.dir[[luatests/ratelimit]] do
---   if ends_with(file, ".json") then
---     test_ratelimit("luatests/ratelimit/" .. file)
---   end
--- end
-
 for file in lfs.dir[[luatests/flows]] do
   if ends_with(file, ".json") then
     test_flow("luatests/flows/" .. file)
+  end
+end
+
+for file in lfs.dir[[luatests/ratelimit]] do
+  if ends_with(file, ".json") then
+    test_ratelimit("luatests/ratelimit/" .. file)
   end
 end
