@@ -164,32 +164,26 @@ end
 function inspect(handle)
 
     local timeline = {}
-
     init(handle)
-
     local request_map = map_request(handle)
-    local encoded = encode_request_map(request_map)
-
-    local decision, err = curiefense.inspect_request_map(encoded, grasshopper)
+    local request_map_as_json = encode_request_map(request_map)
+    local response, err = curiefense.inspect_request_map(request_map_as_json, grasshopper)
     if err then
         for _, r in ipairs(err) do
-            handle:logErr(sfmt("curiefense.inspect_reques_tmap error %s", r))
+            handle:logErr(sfmt("curiefense.inspect_request_map error %s", r))
         end
     end
-
-    local to_log = request_map
-
-    if decision then
-        local encoded = decision:encoded()
-        handle:logDebug("decision " .. encoded)
-        local dec = cjson.decode(encoded)
-        to_log = dec["request_map"]
-        if dec["action"] == "custom_response" then
-            custom_response(request_map, dec["response"])
+    if response then
+        local response_table = cjson.decode(response)
+        handle:logDebug("decision " .. response)
+        request_map = response_table["request_map"]
+        request_map.handle = handle
+        if response_table["action"] == "custom_response" then
+            custom_response(request_map, response_table["response"])
         end
     end
-
     log_request(request_map)
+
 end
 
 

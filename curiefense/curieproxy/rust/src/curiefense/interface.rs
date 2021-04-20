@@ -12,7 +12,7 @@ pub enum Decision {
 }
 
 impl Decision {
-    pub fn to_json(&self, request_map: serde_json::Value) -> anyhow::Result<String> {
+    pub fn to_json(&self, request_map: serde_json::Value) -> String {
         let (action_desc, response) = match self {
             Decision::Pass => ("pass", None),
             Decision::Action(a) => ("custom_response", Some(a))
@@ -22,7 +22,7 @@ impl Decision {
             "action": action_desc,
             "response": response
         });
-        Ok(serde_json::to_string(&j)?)
+        serde_json::to_string(&j).unwrap_or_else(|_| "{}".to_string())
     }
 }
 

@@ -119,6 +119,12 @@ pub fn session_serialize_request_map(session_id: &str) -> anyhow::Result<serde_j
 
     // get the tags
     let tags = with_tags(uuid, |tgs| Ok(tgs.clone()))?;
+
+    update_tags(raw, tags)
+}
+
+pub fn update_tags(rawjson: serde_json::Value, tags: Tags) -> anyhow::Result<serde_json::Value> {
+    let mut raw = rawjson;
     let tags_map: HashMap<String, u32> =
         tags.as_hash_ref().iter().map(|k| (k.clone(), 1)).collect();
 

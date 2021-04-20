@@ -1,6 +1,7 @@
 extern crate mlua;
 
 use crate::curiefense::interface::Tags;
+use crate::session::update_tags;
 use crate::session::JRequestMap;
 use anyhow::anyhow;
 use mlua::prelude::*;
@@ -56,24 +57,35 @@ fn inspect(
 pub fn inspect_request_map(
     _lua: &Lua,
     args: (String, Option<LuaTable>),
-) -> LuaResult<(InspectionResult, Vec<String>)> {
+) -> LuaResult<(String, Vec<String>)> {
     let (encoded_request_map, lua_grasshopper) = args;
     let grasshopper = lua_grasshopper.map(Luagrasshopper);
 
     let jvalue: serde_json::Value = match serde_json::from_str(&encoded_request_map) {
         Ok(v) => v,
-        Err(rr) => return Ok((InspectionResult(Decision::Pass), vec![format!("{}", rr)])),
+        Err(rr) => {
+            return Ok((
+                Decision::Pass.to_json(serde_json::Value::Null),
+                vec![format!("{}", rr)],
+            ))
+        }
     };
-    let jmap: JRequestMap = match serde_json::from_value(jvalue) {
+    let jmap: JRequestMap = match serde_json::from_value(jvalue.clone()) {
         Ok(v) => v,
-        Err(rr) => return Ok((InspectionResult(Decision::Pass), vec![format!("{}", rr)])),
+        Err(rr) => return Ok((Decision::Pass.to_json(jvalue), vec![format!("{}", rr)])),
     };
-    let (rinfo, tags) = jmap.into_request_info();
+    let (rinfo, itags) = jmap.into_request_info();
 
-    let (res, errs) =
-        inspect_generic_request_map("/config/current/config", grasshopper, rinfo, tags);
+    let (res, tags, mut errs) = inspect_generic_request_map("/config/current/config", grasshopper, rinfo, itags);
+    let updated_request_map = match update_tags(jvalue, tags) {
+        Ok(v) => v,
+        Err(rr) => {
+            errs.push(rr);
+            serde_json::Value::Null
+        }
+    };
     Ok((
-        InspectionResult(res),
+        res.to_json(updated_request_map),
         errs.into_iter().map(|x| format!("{}", x)).collect(),
     ))
 }
@@ -136,7 +148,8 @@ fn inspect_generic<GH: Grasshopper>(
     // TODO: make it a load only event, not a config cloning event
     let _ = with_config(configpath, |_| {});
     let reqinfo = map_request(ip_str, metaheaders);
-    inspect_generic_request_map(configpath, mgh, reqinfo, Tags::new())
+    let (dec, _tags, errs) = inspect_generic_request_map(configpath, mgh, reqinfo, Tags::new());
+    (dec, errs)
 }
 
 // generic entry point when the request map has already been parsed
@@ -145,7 +158,7 @@ fn inspect_generic_request_map<GH: Grasshopper>(
     mgh: Option<GH>,
     reqinfo: RequestInfo,
     itags: Tags,
-) -> (Decision, Vec<anyhow::Error>) {
+) -> (Decision, Tags, Vec<anyhow::Error>) {
     let mut tags = itags;
 
     // do all config queries in the lambda once
@@ -158,7 +171,7 @@ fn inspect_generic_request_map<GH: Grasshopper>(
         (murlmap, ntags, nflows)
     }) {
         (Some((Some(stuff), itags, iflows)), ierrs) => (stuff, itags, iflows, ierrs),
-        (_, ierrs) => return (Decision::Pass, ierrs),
+        (_, ierrs) => return (Decision::Pass, Tags::new(), ierrs),
     };
     tags.extend(ntags);
     tags.insert_qualified("urlmap", &nm);
@@ -171,7 +184,7 @@ fn inspect_generic_request_map<GH: Grasshopper>(
         Err(rr) => errs.push(rr),
         Ok(Decision::Pass) => {}
         // TODO, check for monitor
-        Ok(a) => return (a, errs),
+        Ok(a) => return (a, tags, errs),
     }
 
     if let Some(dec) = mgh.as_ref().and_then(|gh| {
@@ -183,23 +196,23 @@ fn inspect_generic_request_map<GH: Grasshopper>(
             .and_then(|uri| challenge_phase02(gh, uri, &reqinfo.headers))
     }) {
         // TODO, check for monitor
-        return (dec, errs);
+        return (dec, tags, errs);
     }
 
     // limit checks
     let limit_check = limit_check(&urlmap.name, &reqinfo, &urlmap.limits, &mut tags);
     if let Decision::Action(_) = limit_check {
         // limit hit!
-        return (limit_check, errs);
+        return (limit_check, tags, errs);
     }
 
     let acl_result = check_acl(&tags, &urlmap.acl_profile);
     match acl_result {
         ACLResult::Bypass(dec) => {
             if dec.allowed {
-                return (Decision::Pass, errs);
+                return (Decision::Pass, tags, errs);
             } else {
-                return (acl_block(urlmap.acl_active, 0, &dec.tags), errs);
+                return (acl_block(urlmap.acl_active, 0, &dec.tags), tags, errs);
             }
         }
         // human blocked, always block, even if it is a bot
@@ -208,15 +221,15 @@ fn inspect_generic_request_map<GH: Grasshopper>(
             human:
                 Some(ACLDecision {
                     allowed: false,
-                    tags,
+                    tags: dtags,
                 }),
-        }) => return (acl_block(urlmap.acl_active, 5, &tags), errs),
+        }) => return (acl_block(urlmap.acl_active, 5, &dtags), tags, errs),
         // robot blocked, should be challenged
         ACLResult::Match(BotHuman {
             bot:
                 Some(ACLDecision {
                     allowed: false,
-                    tags,
+                    tags: dtags,
                 }),
             human: _,
         }) => {
@@ -225,9 +238,10 @@ fn inspect_generic_request_map<GH: Grasshopper>(
                 if !challenge_verified(&gh, &reqinfo) {
                     return (
                         match reqinfo.headers.get("user-agent") {
-                            None => acl_block(urlmap.acl_active, 3, &tags),
-                            Some(ua) => challenge_phase01(&gh, ua, tags),
+                            None => acl_block(urlmap.acl_active, 3, &dtags),
+                            Some(ua) => challenge_phase01(&gh, ua, dtags),
                         },
+                        tags,
                         errs,
                     );
                 }
@@ -248,6 +262,7 @@ fn inspect_generic_request_map<GH: Grasshopper>(
             Ok(()) => Decision::Pass,
             Err(wb) => Decision::Action(wb.to_action()),
         },
+        tags,
         errs,
     )
 }
@@ -306,11 +321,7 @@ where
     F: FnOnce(&str) -> anyhow::Result<Decision>,
 {
     lua_result(with_str(lua, session_id, |s| {
-        f(s).and_then(|r| {
-            session::session_serialize_request_map(s).and_then(|v| {
-                r.to_json(v)
-            })
-        })
+        f(s).and_then(|r| session::session_serialize_request_map(s).map(|v| r.to_json(v)))
     }))
 }
 
