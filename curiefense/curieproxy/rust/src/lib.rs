@@ -12,6 +12,7 @@ mod curiefense;
 use curiefense::acl::{check_acl, ACLDecision, ACLResult, BotHuman};
 use curiefense::config::hostmap::{HostMap, UrlMap};
 use curiefense::config::{with_config, Config, HSDB};
+use curiefense::flow::flow_check;
 use curiefense::interface::{
     challenge_phase01, challenge_phase02, Action, ActionType, Decision, Grasshopper,
 };
@@ -145,12 +146,15 @@ fn inspect_generic_request_map<GH: Grasshopper>(
     let mut tags = itags;
 
     // do all config queries in the lambda once
-    let ((nm, urlmap), ntags, mut errs) = match with_config(configpath, |cfg| {
+    // there is a lot of copying taking place, to minimize the lock time
+    // this decision should be backed with benchmarks
+    let ((nm, urlmap), ntags, flows, mut errs) = match with_config(configpath, |cfg| {
         let murlmap = match_urlmap(&reqinfo, cfg).map(|(nm, um)| (nm, um.clone()));
+        let nflows = cfg.flows.clone();
         let ntags = tag_request(&cfg, &reqinfo);
-        (murlmap, ntags)
+        (murlmap, ntags, nflows)
     }) {
-        (Some((Some(stuff), itags)), ierrs) => (stuff, itags, ierrs),
+        (Some((Some(stuff), itags, iflows)), ierrs) => (stuff, itags, iflows, ierrs),
         (_, ierrs) => return (Decision::Pass, ierrs),
     };
     tags.extend(ntags);
@@ -160,6 +164,13 @@ fn inspect_generic_request_map<GH: Grasshopper>(
     tags.insert_qualified("aclname", &urlmap.acl_profile.name);
     tags.insert_qualified("wafid", &urlmap.waf_profile.name);
 
+    match flow_check(&flows, &reqinfo, &tags) {
+        Err(rr) => errs.push(rr),
+        Ok(Decision::Pass) => {}
+        // TODO, check for monitor
+        Ok(a) => return (a, errs),
+    }
+
     if let Some(dec) = mgh.as_ref().and_then(|gh| {
         reqinfo
             .rinfo
@@ -168,6 +179,7 @@ fn inspect_generic_request_map<GH: Grasshopper>(
             .as_ref()
             .and_then(|uri| challenge_phase02(gh, uri, &reqinfo.headers))
     }) {
+        // TODO, check for monitor
         return (dec, errs);
     }
 
