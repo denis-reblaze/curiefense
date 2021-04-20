@@ -4,11 +4,26 @@ use serde_json::json;
 /// this file contains all the data type that are used when interfacing with a proxy
 use std::collections::{HashMap, HashSet};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone)]
 pub enum Decision {
     Pass,
     /// pass because the Hostmap/Urlmap lacked a default entry
     Action(Action),
+}
+
+impl Decision {
+    pub fn to_json(&self, request_map: serde_json::Value) -> anyhow::Result<String> {
+        let (action_desc, response) = match self {
+            Decision::Pass => ("pass", None),
+            Decision::Action(a) => ("custom_response", Some(a))
+        };
+        let j = serde_json::json!({
+            "request_map": request_map,
+            "action": action_desc,
+            "response": response
+        });
+        Ok(serde_json::to_string(&j)?)
+    }
 }
 
 /// a newtype representing tags, to make sure they are tagified when inserted

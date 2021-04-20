@@ -236,10 +236,10 @@ function inspect(handle)
     if jflowresult then
         handle:logDebug("curiefense.session_flow_check returned " .. jflowresult)
         local flowresult = cjson.decode(jflowresult)
-        if flowresult ~= "Pass" then
+        if flowresult["action"] ~= "pass" then
             handle:logInfo("Flowresult check: " .. jflowresult)
             -- TODO: clean up session when blocking
-            custom_response(request_map, flowresult["Action"])
+            custom_response(request_map, flowresult["response"])
         end
     end
 
@@ -254,9 +254,9 @@ function inspect(handle)
     else
         handle:logDebug("curiefense.limit_check resturned " .. jrlimit)
         local rlimit = cjson.decode(jrlimit)
-        if rlimit ~= "Pass" then
+        if rlimit["action"] ~= "pass" then
             handle:logInfo("Limit check: " .. jrlimit)
-            custom_response(request_map, rlimit["Action"])
+            custom_response(request_map, rlimit["response"])
         end
     end
 
@@ -309,10 +309,10 @@ function inspect(handle)
         else
             handle:logDebug("curiefense.session_waf_check returned " .. jwaf)
             local waf = cjson.decode(jwaf)
-            if waf ~= "Pass" then
+            if waf["action"] ~= "pass" then
                 handle:logInfo("Limit check: " .. jrlimit)
                 rust_session_clean(session_uuid)
-                custom_response(request_map, rlimit["Action"])
+                custom_response(request_map, rlimit["response"])
             end
         end
     end

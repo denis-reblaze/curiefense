@@ -47,7 +47,7 @@ impl mlua::UserData for InspectionResult {
             this.in_action(|a| a.content.clone())
         });
         methods.add_method("encoded", |_, this: &InspectionResult, _:()| {
-            Ok(serde_json::to_string(&this.0).ok())
+            Ok(this.0.to_json(serde_json::Value::Null).ok())
         });
     }
 }

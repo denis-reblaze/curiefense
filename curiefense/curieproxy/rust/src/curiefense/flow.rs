@@ -92,7 +92,9 @@ pub fn flow_check(
                 if check_flow(&mut cnx, &redis_key, elem.step, elem.ttl, elem.is_last)? {
                     return Ok(Decision::Pass);
                 } else {
-                    bad = Decision::Action(elem.action.clone())
+                    let mut naction = elem.action.clone();
+                    naction.reason = serde_json::json!({"initiator":"flow_check"});
+                    bad = Decision::Action(naction);
                 }
             }
             Ok(bad)

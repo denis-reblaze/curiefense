@@ -24,7 +24,7 @@ use curiefense::urlmap::match_urlmap;
 use curiefense::utils::{ip_from_headers, map_request, RequestInfo};
 use curiefense::waf::waf_check;
 
-/// Lua/envoy entry point
+/// Lua entry point, does not work properly as it does not yet handle body parsing
 #[allow(clippy::unnecessary_wraps)]
 fn inspect(
     lua: &Lua,
@@ -50,6 +50,9 @@ fn inspect(
     ))
 }
 
+/// Lua entry point, parameters are
+///  * a JSON-encoded request_map
+///  * the grasshopper lua module
 pub fn inspect_request_map(
     _lua: &Lua,
     args: (String, Option<LuaTable>),
@@ -293,6 +296,24 @@ where
     }))
 }
 
+/// runs the underlying string using, Decision returning, function, catching mlua errors
+fn wrap_session_decision<F>(
+    lua: &Lua,
+    session_id: LuaValue,
+    f: F,
+) -> LuaResult<(Option<String>, Option<String>)>
+where
+    F: FnOnce(&str) -> anyhow::Result<Decision>,
+{
+    lua_result(with_str(lua, session_id, |s| {
+        f(s).and_then(|r| {
+            session::session_serialize_request_map(s).and_then(|v| {
+                r.to_json(v)
+            })
+        })
+    }))
+}
+
 #[mlua::lua_module]
 fn curiefense(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
@@ -343,7 +364,7 @@ fn curiefense(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set(
         "session_limit_check",
         lua.create_function(|lua: &Lua, session_id: LuaValue| {
-            wrap_session_json(lua, session_id, session::session_limit_check)
+            wrap_session_decision(lua, session_id, session::session_limit_check)
         })?,
     )?;
     exports.set(
@@ -355,13 +376,13 @@ fn curiefense(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set(
         "session_waf_check",
         lua.create_function(|lua: &Lua, session_id: LuaValue| {
-            wrap_session_json(lua, session_id, session::session_waf_check)
+            wrap_session_decision(lua, session_id, session::session_waf_check)
         })?,
     )?;
     exports.set(
         "session_flow_check",
         lua.create_function(|lua: &Lua, session_id: LuaValue| {
-            wrap_session_json(lua, session_id, session::session_flow_check)
+            wrap_session_decision(lua, session_id, session::session_flow_check)
         })?,
     )?;
 

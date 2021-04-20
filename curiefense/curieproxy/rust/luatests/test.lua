@@ -210,9 +210,9 @@ function test_request_map(name, request_map)
     error("curiefense.waf_check failed: " .. err)
   end
   local rwaf_result = cjson.decode(jrwaf_result)
-  if waf_code == WAFPass and rwaf_result == "Pass" then
+  if waf_code == WAFPass and rwaf_result["action"] == "pass" then
     -- ok, both mark it pass passed
-  elseif waf_code == WAFBlock and rwaf_result["Action"] then
+  elseif waf_code == WAFBlock and rwaf_result["action"] == "custom_response" then
     -- ok, both mark it as blocked
   else
     print("waf_check mismatch")
@@ -347,11 +347,11 @@ function test_ratelimit(request_path)
     local res = cjson.decode(jres)
 
     if raw_request_map.pass then
-      if res ~= "Pass" then
+      if res["action"] ~= "pass" then
         error("curiefense.session_limit_check should have returned pass, but returned: " .. jres)
       end
     else
-      if res == "Pass" or not res["Action"] then
+      if res["action"] == "pass" then
         error("curiefense.session_limit_check should have blocked, but returned: " .. jres)
       end
     end
@@ -400,11 +400,11 @@ function test_flow(request_path)
     local res = cjson.decode(jres)
 
     if raw_request_map.pass then
-      if res ~= "Pass" then
+      if res["action"] ~= "pass" then
         error("curiefense.session_flow_check should have returned pass, but returned: " .. jres)
       end
     else
-      if res == "Pass" or not res["Action"] then
+      if res["action"] == "pass" then
         error("curiefense.session_flow_check should have blocked, but returned: " .. jres)
       end
     end

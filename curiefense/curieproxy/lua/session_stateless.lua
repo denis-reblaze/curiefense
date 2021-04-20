@@ -177,14 +177,15 @@ function inspect(handle)
         end
     end
 
-    -- TODO, request map has NOT been updated with this API
+    local to_log = request_map
 
     if decision then
         local encoded = decision:encoded()
         handle:logDebug("decision " .. encoded)
         local dec = cjson.decode(encoded)
-        if dec ~= "Pass" then
-            custom_response(request_map, dec["Action"])
+        to_log = dec["request_map"]
+        if dec["action"] == "custom_response" then
+            custom_response(request_map, dec["response"])
         end
     end
 
