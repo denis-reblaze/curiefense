@@ -183,9 +183,7 @@ fn inspect_generic_request_map<GH: Grasshopper>(
         return (dec, errs);
     }
 
-    // TODO challenge
-
-    // limit checks, this is
+    // limit checks
     let limit_check = limit_check(&urlmap.name, &reqinfo, &urlmap.limits, &mut tags);
     if let Decision::Action(_) = limit_check {
         // limit hit!
@@ -210,7 +208,7 @@ fn inspect_generic_request_map<GH: Grasshopper>(
                     tags,
                 }),
         }) => return (acl_block(urlmap.acl_active, 5, &tags), errs),
-        // robot blocked, should be challenged, just block for now
+        // robot blocked, should be challenged
         ACLResult::Match(BotHuman {
             bot:
                 Some(ACLDecision {
