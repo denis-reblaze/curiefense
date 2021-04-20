@@ -10,7 +10,7 @@ local restysha1     = require "lua.resty.sha1"
 local limit         = require "lua.limit"
 local accesslog     = require "lua.accesslog"
 local challenge     = require "lua.challenge"
-local utils         = require "lua.utils"
+local grasshopper  = require "grasshopper"
 
 local curiefense  = require "curiefense"
 
