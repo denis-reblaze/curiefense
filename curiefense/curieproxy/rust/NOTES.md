@@ -1,60 +1,35 @@
 # Current status
 
-An initial implementation of all filtering components had been written.
+An initial implementation of all filtering components had been written. The following is currently handled in Lua:
 
-## Missing features
-
+ * request mapping
+ * request replies
  * logging
- * request body parsing
 
 ## Things to fix
 
  * pervasive testing, making sure the behaviour is in line with what is expected
- * implement asynchronous methods so as not to block envoy
- * more sharing, less copying of the configuration
+ * implement asynchronous methods so as not to block envoy -> unfortunately hard than expected
+ * performance profiling
  * code structure / refactorings / etc.
 
-## Sample lua filter
+# Stateless API
 
-```lua
-module(..., package.seeall)
+The stateless API can be used to perform filtering operations.
 
-local native      = require "curiedefense"
-local cjson       = require "cjson"
-local grasshopper = require "grasshopper"
+## Functions
 
-function native_inspect(handle)
+### `inspect_request_map`
 
-    local headerm = {}
-    for k, v in pairs(handle:headers()) do
-        headerm[k] = v
-    end
-    local metam = {}
-    for k, v in pairs(handle:metadata()) do
-        metam[k] = v
-    end
+Takes two arguments:
 
-    res = native.inspect(headerm, metam, grasshopper)
-    handle:logInfo(string.format("res:pass() %s", res:pass()))
-    if res and res:pass() == false then
-        handle:logInfo(string.format("res atype %s", cjson.encode(res:atype())))
-        handle:logInfo(string.format("res ban %s", cjson.encode(res:ban())))
-        handle:logInfo(string.format("res reason %s", res:reason()))
-        local action_params = {
-            ["reason"] = res:reason(),
-            ["block_mode"] = true
-        }
-        local headers = res:headers()
-        if headers == nil then
-            headers = { ["x-curiefense"] = "response" }
-        end
-        headers[":status"] = res:status()
-        handle:respond(headers, res:content())
-    else
-        return
-    end
-end
-```
+ * a JSON-encoded string representing the *request_map*
+ * a Lua table containing the *grasshopper* functions (such as the imported grasshopper module), or `nil`
+
+It will perform all the curieproxy checks, and return a pair, with:
+
+ * a Decision (see below),
+ * a list of strings, containing all encountered errors
 
 # Session API
 
@@ -63,7 +38,7 @@ The session API can be used for fine grained control over the matching process.
 ## Functions
 
 All functions return pairs, where the first value is the function result (possibly `nil` for functions that don't return anything),
-and the second value is an error (`nil` when there were no errors).
+and the second value is a string encoded error (`nil` when there were no errors).
 
 Most functions need other functions to be called before being available:
 
@@ -76,7 +51,10 @@ Most functions need other functions to be called before being available:
 
 Called without arguments.
 
-Returns a value that can be discarded.
+Returns a boolean value, `true` meaning the config was loaded without errors.
+
+The "error" part of the returned pair is a list of strings, and not a single string, when errors happen.
+It will list all problems encountered when loading the configuration files.
 
 ### `session_init`
 
@@ -128,6 +106,12 @@ This function updates the tags with the urlmap specific tags.
 Takes a single argument: the *session id*.
 
 Returns a value that can be discarded.
+
+### `session_flow_check`
+
+Takes a single argument: the *session id*.
+
+Returns a decision (see below).
 
 ### `session_limit_check`
 
