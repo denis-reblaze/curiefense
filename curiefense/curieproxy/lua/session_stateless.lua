@@ -163,8 +163,6 @@ end
 
 function inspect(handle)
 
-    local timeline = {}
-    init(handle)
     local request_map = map_request(handle)
     local request_map_as_json = encode_request_map(request_map)
     local response, err = curiefense.inspect_request_map(request_map_as_json, grasshopper)
