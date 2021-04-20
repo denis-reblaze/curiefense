@@ -168,15 +168,12 @@ function inspect(handle)
     init(handle)
 
 
-    handle:logInfo("******* RUST START ********")
     local _, err = curiefense.init_config()
     if err then
         for _, r in ipairs(err) do
             handle:logErr(sfmt("curiefense.init_config failed %s", r))
         end
     end
-
-    handle:logInfo("******* RUST END ********")
 
     -- handle:logDebug("inspection initiated")
     local request_map = map_request(handle)
@@ -231,36 +228,31 @@ function inspect(handle)
 
     -- end of rust match urlmap + session profiling
 
-    local action = flowcontrol_check(request_map)
-
-    if action then
-        if action.type == "default" then
-            action = {
-                ["type"] = "default",
-                ["params"] = {
-                    ["status"] = "503",
-                    ["block_mode"] = true
-                }
-            }
+    -- flow profiling
+    local jflowresult, err = curiefense.session_flow_check(session_uuid)
+    if err then
+        handle:logErr("curiefense.session_flow_check failed: " .. err)
+    end
+    if jflowresult then
+        handle:logDebug("curiefense.session_flow_check returned " .. jflowresult)
+        local flowresult = cjson.decode(jflowresult)
+        if flowresult ~= "Pass" then
+            handle:logInfo("Flowresult check: " .. jflowresult)
+            -- TODO: clean up session when blocking
+            custom_response(request_map, flowresult["Action"])
         end
-
-        custom_response(request_map, action.params)
     end
 
     if url:startswith("/7060ac19f50208cbb6b45328ef94140a612ee92387e015594234077b4d1e64f1/") then
-        -- handle:logDebug("CHALLENGE PHASE02")
         challenge_phase02(handle, request_map)
     end
-
-
-    -- lua rate limit
-    -- limit_check(request_map, urlmap_entry["limit_ids"], urlmap_entry["name"])
 
     -- rust rate limit
     local jrlimit, err = curiefense.session_limit_check(session_uuid)
     if err then
         handle:logErr("curiefense.limit_check failed: " .. err)
     else
+        handle:logDebug("curiefense.limit_check resturned " .. jrlimit)
         local rlimit = cjson.decode(jrlimit)
         if rlimit ~= "Pass" then
             handle:logInfo("Limit check: " .. jrlimit)
@@ -268,55 +260,74 @@ function inspect(handle)
         end
     end
 
+    -- TODO: tag request with human/bot
+    -- tag request with acl check result
 
-    -- if not internal_url(url) then
-    -- acl
-    local acl_code, acl_result = acl_check(acl_profile, request_map, acl_active)
-    local acl_bot_code, acl_bot_result = acl_check_bot(acl_profile, request_map, acl_active)
+    local jrust_acl, err = curiefense.session_acl_check(session_uuid)
+    local skip_waf = false
+    if err then
+        handle:logErr("curiefense.session_acl_check failed " .. err)
+    else
+        handle:logDebug("curiefense.session_acl_check returned " .. jrust_acl)
+        local rust_acl = cjson.decode(jrust_acl)
 
-    if acl_result then
-        handle:logDebug(sfmt("001 ACL REASON: %s", acl_result.reason))
-        handle:logDebug(sfmt("001b request_map.attrs: %s", cjson.encode(request_map.attrs) ))
-        tag_request(request_map, sfmt("acltag:%s" , acl_result.reason))
-    end
-
-    if acl_code == ACLDeny or acl_code == ACLForceDeny then
-        custom_response(request_map, {[ "reason" ] = acl_result, ["block_mode"] = acl_active})
-    end
-
-    local is_human = challenge_verified(handle, request_map)
-
-    tag_request(request_map, is_human and "human" or "bot")
-
-    if acl_code ~= ACLBypass then
-        if acl_bot_code == ACLDenyBot and not is_human then
-            challenge_phase01(handle, request_map, "1")
+        if rust_acl["Bypass"] then
+            if rust_acl["Bypass"].allowed then
+                skip_waf = true
+            else
+                rust_session_clean(session_uuid)
+                custom_response(request_map, {[ "reason" ] = acl_result, ["block_mode"] = acl_active})
+            end
         else
-            -- ACLAllow / ACLAllowBot/ ACLNoMatch
-            -- move to WAF
-            local waf_code, waf_result = waf_check(waf_profile, request_map)
-            -- blocked results returns as table
-            if type(waf_result) == "table" then
-                tag_request(request_map, sfmt("wafsig:%s", waf_result.sig_id))
-
-                if waf_code == WAFBlock then
-                    local action_params = {
-                        ["reason"] = waf_result,
-                        ["block_mode"] = waf_active
-                    }
-
+            local bot = rust_acl["Match"]["bot"]
+            local human = rust_acl["Match"]["human"]
+            if human ~= cjson.null then
+                if not human["allowed"] then
+                    -- when humans are denied, it means deny
                     rust_session_clean(session_uuid)
-
-                    custom_response(request_map, action_params)
+                    custom_response(request_map, {[ "reason" ] = acl_result, ["block_mode"] = acl_active})
                 end
+            end
+            if bot ~= cjson.null then
+                if not bot["allowed"] then
+                    local is_human = challenge_verified(handle, request_map)
+                    if not is_human then
+                        rust_session_clean(session_uuid)
+                        challenge_phase01(handle, request_map, "1")
+                    end
+                    -- continue, as humans were not explicitely denied
+                end
+            end
+
+        end
+    end
+
+    if not skip_waf then
+        local jwaf, err = curiefense.session_waf_check(session_uuid)
+        if err then
+            handle:logErr("curiefense.session_waf_check failed " .. err)
+        else
+            handle:logDebug("curiefense.session_waf_check returned " .. jwaf)
+            local waf = cjson.decode(jwaf)
+            if waf ~= "Pass" then
+                handle:logInfo("Limit check: " .. jrlimit)
+                rust_session_clean(session_uuid)
+                custom_response(request_map, rlimit["Action"])
             end
         end
     end
 
+    local jrequest_map, err = curiefense.session_serialize_request_map(session_uuid)
     rust_session_clean(session_uuid)
-    -- logging
-    log_request(request_map)
-
+    if err then
+        handle:logErr("curiefense.session_serialize_request_map failed " .. err)
+        -- log the original request :(
+        log_request(request_map)
+    else
+        local decoded = cjson.decode(jrequest_map)
+        decoded.handle = handle
+        log_request(decoded)
+    end
 end
 
 
