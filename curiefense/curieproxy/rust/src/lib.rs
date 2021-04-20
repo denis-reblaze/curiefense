@@ -1,5 +1,7 @@
 extern crate mlua;
 
+use crate::curiefense::interface::Tags;
+use crate::session::JRequestMap;
 use anyhow::anyhow;
 use mlua::prelude::*;
 use serde_json::json;
@@ -9,7 +11,7 @@ mod curiefense;
 
 use curiefense::acl::{check_acl, ACLDecision, ACLResult, BotHuman};
 use curiefense::config::hostmap::{HostMap, UrlMap};
-use curiefense::config::{get_config, Config, HSDB};
+use curiefense::config::{with_config, Config, HSDB};
 use curiefense::interface::{
     challenge_phase01, challenge_phase02, Action, ActionType, Decision, Grasshopper,
 };
@@ -31,8 +33,6 @@ fn inspect(
         Option<LuaTable>,
     ),
 ) -> LuaResult<(InspectionResult, Vec<String>)> {
-    println!("ARGS: {:?}", args);
-
     let (metaheaders, metadata, lua_grasshopper) = args;
     let grasshopper = lua_grasshopper.map(Luagrasshopper);
 
@@ -43,7 +43,31 @@ fn inspect(
     let str_ip = ip_from_headers(&metaheaders, hops);
 
     let (res, errs) = inspect_generic(grasshopper, "/config/current/config", str_ip, metaheaders);
-    println!("Inspection result: {:?}", res);
+    Ok((
+        InspectionResult(res),
+        errs.into_iter().map(|x| format!("{}", x)).collect(),
+    ))
+}
+
+pub fn inspect_request_map(
+    _lua: &Lua,
+    args: (String, Option<LuaTable>),
+) -> LuaResult<(InspectionResult, Vec<String>)> {
+    let (encoded_request_map, lua_grasshopper) = args;
+    let grasshopper = lua_grasshopper.map(Luagrasshopper);
+
+    let jvalue: serde_json::Value = match serde_json::from_str(&encoded_request_map) {
+        Ok(v) => v,
+        Err(rr) => return Ok((InspectionResult(Decision::Pass), vec![format!("{}", rr)])),
+    };
+    let jmap: JRequestMap = match serde_json::from_value(jvalue) {
+        Ok(v) => v,
+        Err(rr) => return Ok((InspectionResult(Decision::Pass), vec![format!("{}", rr)])),
+    };
+    let (rinfo, tags) = jmap.into_request_info();
+
+    let (res, errs) =
+        inspect_generic_request_map("/config/current/config", grasshopper, rinfo, tags);
     Ok((
         InspectionResult(res),
         errs.into_iter().map(|x| format!("{}", x)).collect(),
@@ -104,12 +128,37 @@ fn inspect_generic<GH: Grasshopper>(
     ip_str: String,
     metaheaders: HashMap<String, String>,
 ) -> (Decision, Vec<anyhow::Error>) {
-    let (cfg, mut errs) = get_config(configpath);
+    // make sure config is loaded before calling map_request
+    // TODO: make it a load only event, not a config cloning event
+    let _ = with_config(configpath, |_| {});
     let reqinfo = map_request(ip_str, metaheaders);
-    let (nm, urlmap) = match match_urlmap(&reqinfo, &cfg) {
-        None => return (Decision::Pass, errs),
-        Some(x) => x,
+    inspect_generic_request_map(configpath, mgh, reqinfo, Tags::new())
+}
+
+// generic entry point when the request map has already been parsed
+fn inspect_generic_request_map<GH: Grasshopper>(
+    configpath: &str,
+    mgh: Option<GH>,
+    reqinfo: RequestInfo,
+    itags: Tags,
+) -> (Decision, Vec<anyhow::Error>) {
+    let mut tags = itags;
+
+    // do all config queries in the lambda once
+    let ((nm, urlmap), ntags, mut errs) = match with_config(configpath, |cfg| {
+        let murlmap = match_urlmap(&reqinfo, cfg).map(|(nm, um)| (nm, um.clone()));
+        let ntags = tag_request(&cfg, &reqinfo);
+        (murlmap, ntags)
+    }) {
+        (Some((Some(stuff), itags)), ierrs) => (stuff, itags, ierrs),
+        (_, ierrs) => return (Decision::Pass, ierrs),
     };
+    tags.extend(ntags);
+    tags.insert_qualified("urlmap", &nm);
+    tags.insert_qualified("urlmap-entry", &urlmap.name);
+    tags.insert_qualified("aclid", &urlmap.acl_profile.id);
+    tags.insert_qualified("aclname", &urlmap.acl_profile.name);
+    tags.insert_qualified("wafid", &urlmap.waf_profile.name);
 
     if let Some(dec) = mgh.as_ref().and_then(|gh| {
         reqinfo
@@ -122,28 +171,16 @@ fn inspect_generic<GH: Grasshopper>(
         return (dec, errs);
     }
 
-    let mut tags = tag_request(&cfg, &reqinfo);
-    tags.insert_qualified("urlmap", &nm);
-    tags.insert_qualified("urlmap-entry", &urlmap.name);
-    tags.insert_qualified("aclid", &urlmap.acl_profile.id);
-    tags.insert_qualified("aclname", &urlmap.acl_profile.name);
-    tags.insert_qualified("wafid", &urlmap.waf_profile.name);
-
     // TODO challenge
-
-    println!("REQINFO: {:?}", reqinfo);
-    println!("urlmap: {:?}", urlmap);
 
     // limit checks, this is
     let limit_check = limit_check(&urlmap.name, &reqinfo, &urlmap.limits, &mut tags);
-    println!("LIMIT_CHECKS: {:?}", limit_check);
     if let Decision::Action(_) = limit_check {
         // limit hit!
         return (limit_check, errs);
     }
 
     let acl_result = check_acl(&tags, &urlmap.acl_profile);
-    println!("ACLRESULTS: {:?}", acl_result);
     match acl_result {
         ACLResult::Bypass(dec) => {
             if dec.allowed {
@@ -192,7 +229,6 @@ fn inspect_generic<GH: Grasshopper>(
             Ok(())
         }
     };
-    println!("WAFRESULTS: {:?}", waf_result);
 
     (
         match waf_result {
@@ -251,6 +287,10 @@ where
 fn curiefense(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
     exports.set("inspect", lua.create_function(inspect)?)?;
+    exports.set(
+        "inspect_request_map",
+        lua.create_function(inspect_request_map)?,
+    )?;
     exports.set("map_request", lua.create_function(lua_map_request)?)?;
 
     // session functions
@@ -357,7 +397,7 @@ mod tests {
 
     #[test]
     fn config_load() {
-        let (_, errs) = get_config("../config");
+        let (_, errs) = with_config("../config", |_| {});
         for r in &errs {
             println!("{}", r);
         }

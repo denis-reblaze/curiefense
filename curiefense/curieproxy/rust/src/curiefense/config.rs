@@ -30,42 +30,38 @@ lazy_static! {
     pub static ref HSDB: RwLock<Option<WAFSignatures>> = RwLock::new(None);
 }
 
-pub fn get_config(basepath: &str) -> (Config, Vec<anyhow::Error>) {
-    // cloned to release the lock - this might be horribly expensive though
-    // TODO: somehow work with a reference to that data
-    let mut errs = Vec::new();
-    let mconfig = match CONFIG.read() {
-        Ok(cfg) => cfg.clone(),
-        Err(rr) => {
-            errs.push(anyhow!("{}", rr));
-            Config::empty()
+pub fn with_config<R, F>(basepath: &str, f: F) -> (Option<R>, Vec<anyhow::Error>)
+where
+    F: FnOnce(&Config) -> R,
+{
+    let ((newconfig, newhsdb), mut errs) = match CONFIG.read() {
+        Ok(cfg) => match cfg.reload(basepath) {
+            (None, nerrs) => return (Some(f(&cfg)), nerrs),
+            (Some(cfginfo), nerrs) => (cfginfo, nerrs),
+        },
+        Err(rr) =>
+        // read failed :(
+        {
+            return (None, vec![anyhow!("{}", rr)])
         }
     };
-    match mconfig.reload(basepath) {
-        (None, nerrs) => {
-            errs.extend(nerrs);
-            (mconfig, errs)
-        }
-        (Some((newconfig, hsdb)), nerrs) => {
-            errs.extend(nerrs);
-            match CONFIG.write() {
-                Ok(mut w) => {
-                    println!("Updating configuration!");
-                    *w = newconfig.clone();
-                }
-                Err(rr) => errs.push(anyhow!("{}", rr)),
-            };
-            match HSDB.write() {
-                Ok(mut dbw) => *dbw = Some(hsdb),
-                Err(rr) => errs.push(anyhow!("{}", rr)),
-            };
-            (newconfig, errs)
-        }
-    }
+    let r = f(&newconfig);
+    match CONFIG.write() {
+        Ok(mut w) => *w = newconfig,
+        Err(rr) => errs.push(anyhow!("{}", rr)),
+    };
+    match HSDB.write() {
+        Ok(mut dbw) => *dbw = Some(newhsdb),
+        Err(rr) => errs.push(anyhow!("{}", rr)),
+    };
+    (Some(r), errs)
 }
 
-pub fn get_config_default_path() -> (Config, Vec<anyhow::Error>) {
-    get_config("/config/current/config")
+pub fn with_config_default_path<R, F>(f: F) -> (Option<R>, Vec<anyhow::Error>)
+where
+    F: FnOnce(&Config) -> R,
+{
+    with_config("/config/current/config", f)
 }
 
 #[derive(Debug, Clone)]

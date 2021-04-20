@@ -6,7 +6,7 @@ use std::sync::RwLock;
 use uuid::Uuid;
 
 use crate::curiefense::acl::{check_acl, ACLResult};
-use crate::curiefense::config::{get_config_default_path, CONFIG, HSDB};
+use crate::curiefense::config::{with_config_default_path, CONFIG, HSDB};
 use crate::curiefense::flow::flow_check;
 use crate::curiefense::interface::Tags;
 use crate::curiefense::limit::limit_check;
@@ -45,7 +45,7 @@ struct JAttrs {
 }
 
 impl JRequestMap {
-    fn into_request_info(self) -> (RequestInfo, Tags) {
+    pub fn into_request_info(self) -> (RequestInfo, Tags) {
         let host: String = self
             .headers
             .get("host")
@@ -85,7 +85,7 @@ impl JRequestMap {
 }
 
 pub fn init_config() -> (bool, Vec<String>) {
-    let (_, errs) = get_config_default_path();
+    let (_, errs) = with_config_default_path(|_| {});
     (
         errs.is_empty(),
         errs.into_iter().map(|rr| format!("{}", rr)).collect(),

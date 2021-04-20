@@ -53,8 +53,9 @@ pub fn urldecode_str(input: &str) -> String {
     String::from_utf8_lossy(&urldecode(input)).into_owned()
 }
 
+#[cfg(test)]
 mod test_lib {
-    use super::*;
+    use super::urldecode_str;
 
     #[test]
     fn test_urldecode_normal() {

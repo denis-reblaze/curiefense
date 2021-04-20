@@ -80,7 +80,7 @@ pub enum ActionType {
 }
 
 impl ActionType {
-    pub fn is_blocking(self: &Self) -> bool {
+    pub fn is_blocking(&self) -> bool {
         matches!(self, ActionType::Block)
     }
 }
