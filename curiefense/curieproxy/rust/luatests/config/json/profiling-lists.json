@@ -196,5 +196,83 @@
       "tags": [
          "bypass"
       ]
+   },
+   {
+      "id": "45f5dda5931e",
+      "name": "Sante test",
+      "source": "self-managed",
+      "mdate": "2021-04-20T14:46:50.195Z",
+      "notes": "New List Notes and Remarks",
+      "active": true,
+      "tags": [
+         "sante"
+      ],
+      "action": {
+         "type": "monitor"
+      },
+      "rule": {
+         "relation": "OR",
+         "sections": [
+            {
+               "relation": "OR",
+               "entries": [
+                  [
+                     "headers",
+                     [
+                        "toto",
+                        "simon"
+                     ]
+                  ],
+                  [
+                     "ip",
+                     "1.2.3.4",
+                     ""
+                  ],
+                  [
+                     "ip",
+                     "4.3.2.1",
+                     "comment"
+                  ],
+                  [
+                     "method",
+                     "POST|PUT",
+                     ""
+                  ],
+                  [
+                     "method",
+                     "GET|HEAD",
+                     "comment 02"
+                  ],
+                  [
+                     "cookies",
+                     [
+                        "zooloo",
+                        "gooloo"
+                     ]
+                  ]
+               ]
+            },
+            {
+               "relation": "OR",
+               "entries": [
+                  [
+                     "country",
+                     "France",
+                     "viva"
+                  ],
+                  [
+                     "country",
+                     "Italy",
+                     ""
+                  ],
+                  [
+                     "query",
+                     "foo=bar",
+                     ""
+                  ]
+               ]
+            }
+         ]
+      }
    }
 ]
