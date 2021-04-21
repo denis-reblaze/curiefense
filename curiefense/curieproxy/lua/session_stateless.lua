@@ -11,6 +11,8 @@ local log_request   = accesslog.log_request
 
 local sfmt = string.format
 
+local custom_response = utils.custom_response
+
 
 function inspect(handle)
 
