@@ -447,7 +447,7 @@ mod tests {
 
     #[test]
     fn config_load() {
-        let (cfg, errs) = with_config("../config", |c| {c.clone()});
+        let (cfg, errs) = with_config("../config", |c| c.clone());
         for r in &errs {
             println!("ERR: {}", r);
         }
