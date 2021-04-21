@@ -76,7 +76,8 @@ pub fn inspect_request_map(
     };
     let (rinfo, itags) = jmap.into_request_info();
 
-    let (res, tags, mut errs) = inspect_generic_request_map("/config/current/config", grasshopper, rinfo, itags);
+    let (res, tags, mut errs) =
+        inspect_generic_request_map("/config/current/config", grasshopper, rinfo, itags);
     let updated_request_map = match update_tags(jvalue, tags) {
         Ok(v) => v,
         Err(rr) => {

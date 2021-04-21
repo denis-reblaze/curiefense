@@ -15,7 +15,7 @@ impl Decision {
     pub fn to_json(&self, request_map: serde_json::Value) -> String {
         let (action_desc, response) = match self {
             Decision::Pass => ("pass", None),
-            Decision::Action(a) => ("custom_response", Some(a))
+            Decision::Action(a) => ("custom_response", Some(a)),
         };
         let j = serde_json::json!({
             "request_map": request_map,
