@@ -83,7 +83,6 @@ fn check_subsection(rinfo: &RequestInfo, sub: &ProfilingSSection) -> bool {
 pub fn tag_request(cfg: &Config, rinfo: &RequestInfo) -> Tags {
     let mut tags = Tags::new();
     tags.insert("all");
-    tags.insert("curieaccesslog");
     for psection in &cfg.profiling {
         if check_relation(
             rinfo,

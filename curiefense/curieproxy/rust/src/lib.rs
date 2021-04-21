@@ -64,15 +64,19 @@ pub fn inspect_request_map(
     let jvalue: serde_json::Value = match serde_json::from_str(&encoded_request_map) {
         Ok(v) => v,
         Err(rr) => {
+            println!("Could not decode the request map: {}", rr);
             return Ok((
                 Decision::Pass.to_json(serde_json::Value::Null),
                 vec![format!("{}", rr)],
-            ))
+            ));
         }
     };
     let jmap: JRequestMap = match serde_json::from_value(jvalue.clone()) {
         Ok(v) => v,
-        Err(rr) => return Ok((Decision::Pass.to_json(jvalue), vec![format!("{}", rr)])),
+        Err(rr) => {
+            println!("Could not decode the request_map: {}", rr);
+            return Ok((Decision::Pass.to_json(jvalue), vec![format!("{}", rr)]));
+        }
     };
     let (rinfo, itags) = jmap.into_request_info();
 
@@ -85,6 +89,9 @@ pub fn inspect_request_map(
             serde_json::Value::Null
         }
     };
+    for rr in errs.iter() {
+        println!("{}", rr);
+    }
     Ok((
         res.to_json(updated_request_map),
         errs.into_iter().map(|x| format!("{}", x)).collect(),
