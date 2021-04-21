@@ -1,6 +1,6 @@
 module(..., package.seeall)
 
-local accesslog   = require "accesslog"
+local accesslog   = require "lua.accesslog"
 local cjson       = require "cjson"
 local curiefense  = require "curiefense"
 local grasshopper = require "grasshopper"
