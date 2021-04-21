@@ -308,7 +308,7 @@ impl ProfilingSection {
                 .map(convert_subsection)
                 .collect();
             let subsections: Vec<ProfilingSSection> =
-                rsubsections.with_context(|| format!("In section id={}, name={}", sid, sname))?;
+                rsubsections.with_context(|| format!("profiling configuration error in section id={}, name={}", sid, sname))?;
             Ok(ProfilingSection {
                 tags: Tags::from_vec(&s.tags),
                 relation: s.rule.relation,

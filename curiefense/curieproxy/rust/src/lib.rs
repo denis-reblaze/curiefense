@@ -440,11 +440,13 @@ mod tests {
 
     #[test]
     fn config_load() {
-        let (_, errs) = with_config("../config", |_| {});
+        let (cfg, errs) = with_config("../config", |c| {c.clone()});
         for r in &errs {
-            println!("{}", r);
+            println!("ERR: {}", r);
         }
-        assert!(errs.len() == 1);
-        assert!(format!("{}", errs[0]).contains("profiling-lists.json"))
+        assert!(cfg.is_some());
+        assert!(errs.len() == 2);
+        assert!(format!("{}", errs[0]).contains("profiling-lists.json"));
+        assert!(format!("{}", errs[1]).contains("rbz-cloud-platforms"));
     }
 }

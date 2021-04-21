@@ -220,14 +220,36 @@ impl Config {
     fn load_config_file<A: serde::de::DeserializeOwned>(
         base: &Path,
         fname: &str,
-    ) -> anyhow::Result<A> {
+        errs: &mut Vec<anyhow::Error>,
+    ) -> Vec<A> {
         let mut path = base.to_path_buf();
         path.push(fname);
         let fullpath = path.to_str().unwrap_or(fname).to_string();
-        let file =
-            std::fs::File::open(path).map_err(|rr| anyhow!("when loading {}: {}", fullpath, rr))?;
-        serde_json::from_reader(std::io::BufReader::new(file))
-            .map_err(|rr| anyhow!("when deserializing {}: {}", fullpath, rr))
+        let file = match std::fs::File::open(path) {
+            Ok(f) => f,
+            Err(rr) => {
+                errs.push(anyhow!("when loading {}: {}", fullpath, rr));
+                return Vec::new();
+            }
+        };
+        let values: Vec<serde_json::Value> =
+            match serde_json::from_reader(std::io::BufReader::new(file)) {
+                Ok(vs) => vs,
+                Err(rr) => {
+                    // if it is not a json array, abort early and do not resolve anything
+                    errs.push(anyhow!("when loading {}: {}", fullpath, rr));
+                    return Vec::new();
+                }
+            };
+        let mut out = Vec::new();
+        for value in values {
+            // for each entry, try to resolve it as a raw configuration value, failing otherwise
+            match serde_json::from_value(value) {
+                Err(rr) => errs.push(anyhow!("when loading {}: {}", fullpath, rr)),
+                Ok(v) => out.push(v),
+            }
+        }
+        out
     }
 
     pub fn reload(&self, basepath: &str) -> (Option<(Config, WAFSignatures)>, Vec<anyhow::Error>) {
@@ -250,37 +272,14 @@ impl Config {
         let mut bjson = PathBuf::from(basepath);
         bjson.push("json");
 
-        let urlmap = Config::load_config_file(&bjson, "urlmap.json").unwrap_or_else(|rr| {
-            errs.push(rr);
-            Vec::new()
-        });
-        let profiling =
-            Config::load_config_file(&bjson, "profiling-lists.json").unwrap_or_else(|rr| {
-                errs.push(rr);
-                Vec::new()
-            });
-        let limits = Config::load_config_file(&bjson, "limits.json").unwrap_or_else(|rr| {
-            errs.push(rr);
-            Vec::new()
-        });
-        let acls = Config::load_config_file(&bjson, "acl-profiles.json").unwrap_or_else(|rr| {
-            errs.push(rr);
-            Vec::new()
-        });
-        let wafprofiles =
-            Config::load_config_file(&bjson, "waf-profiles.json").unwrap_or_else(|rr| {
-                errs.push(rr);
-                Vec::new()
-            });
-        let wafsignatures =
-            Config::load_config_file(&bjson, "waf-signatures.json").unwrap_or_else(|rr| {
-                errs.push(rr);
-                Vec::new()
-            });
-        let flows = Config::load_config_file(&bjson, "flow-control.json").unwrap_or_else(|rr| {
-            errs.push(rr);
-            Vec::new()
-        });
+        let urlmap = Config::load_config_file(&bjson, "urlmap.json", &mut errs);
+        let profiling = Config::load_config_file(&bjson, "profiling-lists.json", &mut errs);
+        let limits = Config::load_config_file(&bjson, "limits.json", &mut errs);
+        let acls = Config::load_config_file(&bjson, "acl-profiles.json", &mut errs);
+        let wafprofiles = Config::load_config_file(&bjson, "waf-profiles.json", &mut errs);
+        let wafsignatures = Config::load_config_file(&bjson, "waf-signatures.json", &mut errs);
+        let flows = Config::load_config_file(&bjson, "flow-control.json", &mut errs);
+
         let container_name = std::fs::read_to_string("/etc/hostname")
             .ok()
             .map(|s| s.trim().to_string());
