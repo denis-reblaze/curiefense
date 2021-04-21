@@ -50,8 +50,13 @@ end
 session.global_init(nil)
 local _, err = curiefense.init_config()
 if err then
+    local failure = false
     for _, r in ipairs(err) do
-        error(sfmt("curiefense.init_config failed %s", r))
+        print(sfmt("curiefense.init_config failed %s", r))
+        failure = true
+    end
+    if failure then
+      error("Configuration loading failed")
     end
 end
 
