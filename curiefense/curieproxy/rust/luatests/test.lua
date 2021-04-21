@@ -3,7 +3,10 @@ local acl = require "lua.acl"
 local tagprofiler = require "lua.tagprofiler"
 local redisutils = require "lua.redisutils"
 local curiefense = require "curiefense"
-local session = require "session"
+local session = require "session_hybrid"
+if not session then
+  error("Could not load session")
+end
 local flowcontrol   = require "lua.flowcontrol"
 
 local sfmt = string.format
