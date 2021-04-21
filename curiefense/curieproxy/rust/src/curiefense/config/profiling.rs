@@ -6,7 +6,8 @@ use serde_json::{from_value, Value};
 use std::net::IpAddr;
 
 use crate::curiefense::config::raw::{
-    ProfilingEntryType, RawProfilingSSection, RawProfilingSection, Relation,
+    ProfilingEntryType, RawProfilingSSection, RawProfilingSSectionEntry, RawProfilingSection,
+    Relation,
 };
 use crate::curiefense::config::utils::anchored_re;
 use crate::curiefense::interface::Tags;
@@ -287,9 +288,9 @@ impl ProfilingSection {
             let rentries: anyhow::Result<Vec<ProfilingEntry>> = ss
                 .entries
                 .into_iter()
-                .map(|(tp, val, comment)| {
-                    convert_entry(tp, val)
-                        .with_context(|| format!("Entry type={:?} comment={}", tp, comment))
+                .map(|RawProfilingSSectionEntry { tp, vl, comment }| {
+                    convert_entry(tp, vl)
+                        .with_context(|| format!("Entry type={:?} comment={:?}", tp, comment))
                 })
                 .collect();
             Ok(ProfilingSSection {

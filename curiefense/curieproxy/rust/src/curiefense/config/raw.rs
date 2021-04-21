@@ -1,3 +1,4 @@
+use serde::de::{self, Deserializer, SeqAccess, Visitor};
 /// this module contains types that map to the the JSON configuration format of curiefense configuration files
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -64,10 +65,53 @@ pub enum ProfilingEntryType {
     Ip,
 }
 
+/// a special datatype for deserializing tuples with 2 elements, and optional extra elements
+#[derive(Debug, Serialize, Clone)]
+pub struct RawProfilingSSectionEntry {
+    pub tp: ProfilingEntryType,
+    pub vl: serde_json::Value,
+    pub comment: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for RawProfilingSSectionEntry {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct MyTupleVisitor;
+
+        impl<'de> Visitor<'de> for MyTupleVisitor {
+            type Value = RawProfilingSSectionEntry;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a profiling section entry")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> Result<Self::Value, V::Error>
+            where
+                V: SeqAccess<'de>,
+            {
+                let tp = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                let vl = seq
+                    .next_element()?
+                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                // comment might not be present
+                let comment = seq.next_element()?;
+
+                Ok(RawProfilingSSectionEntry { tp, vl, comment })
+            }
+        }
+
+        deserializer.deserialize_seq(MyTupleVisitor)
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct RawProfilingSSection {
     pub relation: Relation,
-    pub entries: Vec<(ProfilingEntryType, serde_json::Value, String)>,
+    pub entries: Vec<RawProfilingSSectionEntry>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

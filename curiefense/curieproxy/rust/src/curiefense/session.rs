@@ -109,7 +109,7 @@ pub fn clean_session(session_id: &str) -> anyhow::Result<()> {
 pub fn session_serialize_request_map(session_id: &str) -> anyhow::Result<serde_json::Value> {
     let uuid: Uuid = session_id.parse()?;
     // get raw request first
-    let mut raw: serde_json::Value = match RAW.read() {
+    let raw: serde_json::Value = match RAW.read() {
         Ok(raws) => match raws.get(&uuid) {
             Some(v) => v.clone(),
             None => return Err(anyhow::anyhow!("Could not get RAW {}", uuid)),
