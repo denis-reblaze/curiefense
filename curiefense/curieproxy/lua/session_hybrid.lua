@@ -111,7 +111,6 @@ function map_tags(request_map, urlmap_name, urlmapentry_name, acl_id, acl_name, 
 
     tag_request(request_map, {
         "all",
-        "curieaccesslog",
         globals.ContainerID,
         acl_id,
         acl_name,
