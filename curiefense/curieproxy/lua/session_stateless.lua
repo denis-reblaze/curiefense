@@ -1,16 +1,17 @@
 module(..., package.seeall)
 
-local accesslog   = require "lua.accesslog"
 local cjson       = require "cjson"
+
 local curiefense  = require "curiefense"
 local grasshopper = require "grasshopper"
-local utils       = require "lua.utils"
 
-local map_request   = utils.map_request
-local log_request   = accesslog.log_request
+local accesslog   = require "lua.accesslog"
+local utils       = require "lua.utils"
 
 local sfmt = string.format
 
+local log_request = accesslog.log_request
+local map_request = utils.map_request
 local custom_response = utils.custom_response
 
 
