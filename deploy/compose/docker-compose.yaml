@@ -26,7 +26,7 @@ services:
 
   curieproxyngx:
     container_name: curieproxyngx
-    image: "openresty/openresty:focal"
+    image: "curiefense/curieproxy-nginx:${DOCKER_TAG}"
     restart: always
     volumes:
       - curieproxy_config:/config
