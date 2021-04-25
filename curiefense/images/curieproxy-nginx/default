@@ -1,8 +1,0 @@
-server {
-    listen 30082 default_server;
-    server_name _;
-
-    location / {
-        proxy_pass http://echo:30081;
-    }
-}
