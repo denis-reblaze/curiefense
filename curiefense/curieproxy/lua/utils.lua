@@ -136,7 +136,7 @@ function detectip(xff, hops)
 end
 
 
-function map_ip(headers, metadata, map)
+function extract_ip(headers, metadata)
     local client_addr = "1.1.1.1"
     local xff = headers:get("x-forwarded-for")
     local hops = metadata:get("xff_trusted_hops") or "1"
@@ -146,19 +146,22 @@ function map_ip(headers, metadata, map)
 
     client_addr = detectip(addrs, hops) or client_addr
 
-    -- if #addrs == 1 then
-    --     client_addr = addrs[1]
-    -- elseif #addrs < hops then
-    --     client_addr = addrs[#addrs]
-    -- else
-    --     client_addr = addrs[#addrs-hops]
-    -- end
+    return client_addr
+end
+
+function map_ip(client_addr, map)
+    map = get_geo_info(map, client_addr)
+    return map
+end
+
+
+function get_geo_info(map, client_addr)
 
     map.attrs.ip = client_addr
-    map.attrs.remote_addr = client_addr
+    -- map.attrs.remote_addr = client_addr
     map.attrs.ipnum = ip_to_num(client_addr)
 
-    local city, country, iso, asn, company = unpack(ipinfo(client_addr, map.handle))
+    local city, country, iso, asn, company = unpack(ipinfo(client_addr))
 
     map.geo = {
         city      = {},
@@ -192,6 +195,8 @@ function map_ip(headers, metadata, map)
         map.geo.company = company
     end
 
+    return map
+
 end
 
 function tagify(input)
@@ -213,17 +218,12 @@ function tag_request(r_map, tags)
     end
 end
 
-function map_request(handle)
-    local headers = handle:headers()
-    local metadata = handle:metadata()
-    local map = new_request_map()
 
-    map.handle = handle
-
+function build_request_map(headers, metadata, map, handle, client_addr)
     map_headers(headers, map)
     map_metadata(metadata, map)
-    map_ip(headers, metadata, map)
-    map_args(handle, map)
+    map_ip(client_addr, map)
+    s(handle, map)
 
     map.attrs.session_sequence_key = string.format(
         "%s%s%s",
@@ -233,6 +233,17 @@ function map_request(handle)
     )
 
     return map
+end
+
+function map_request(handle)
+    local headers = handle:headers()
+    local metadata = handle:metadata()
+    local map = new_request_map()
+
+    map.handle = handle
+
+    local client_addr = extract_ip(headers, metadata)
+    return build_request_map(headers, metadata, map, handle, client_addr)
 end
 
 
@@ -530,7 +541,7 @@ function md5(input)
     return digest:tohex()
 end
 
-function custom_response(request_map, action_params)
+function envoy_custom_response(request_map, action_params)
     if not action_params then action_params = {} end
     local block_mode = action_params.block_mode
     -- if not block_mode then block_mode = true end
@@ -563,3 +574,6 @@ function custom_response(request_map, action_params)
     end
 
 end
+
+
+

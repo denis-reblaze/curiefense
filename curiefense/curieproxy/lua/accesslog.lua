@@ -9,7 +9,7 @@ local json_decode   = cjson.decode
 DMFN = "com.reblaze.curiefense"
 LOG_KEY = "request.info"
 
-function log_request(request_map)
+function envoy_log_request(request_map)
   -- handle is userData which is not serilizable
   local request_handle = request_map.handle
   local entries = {

@@ -10,9 +10,9 @@ local utils       = require "lua.utils"
 
 local sfmt = string.format
 
-local log_request = accesslog.log_request
+local log_request = accesslog.envoy_log_request
 local map_request = utils.map_request
-local custom_response = utils.custom_response
+local custom_response = utils.envoy_custom_response
 
 
 function inspect(handle)
