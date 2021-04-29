@@ -17,27 +17,37 @@ local custom_response = utils.envoy_custom_response
 
 function inspect(handle)
 
-    local request_map = map_request(handle)
 
-    local request_map_as_json = cjson.encode({
-        headers = request_map.headers,
-        cookies = request_map.cookies,
-        attrs = request_map.attrs,
-        args = request_map.args,
-        geo = request_map.geo
-    })
+    local ip_str = utils.extract_ip(handle:headers(), handle:metadata())
 
-    local response, err = curiefense.inspect_request_map(request_map_as_json, grasshopper)
+    local headers = {}
+    local meta = {}
+    for k, v in pairs(handle:headers()) do
+        if utils.startswith(k, ":") then
+            meta[k:sub(2):lower()] = v
+        else
+            headers[k] = v
+        end
+    end
+
+    local hbody = handle:body()
+    local body_content = nil
+    if hbody then
+        body_content = hbody:getBytes(0, hbody:length())
+    end
+
+    local response, err = curiefense.inspect_request(
+        meta, headers, body_content, ip_str, grasshopper
+    )
 
     if err then
-        for _, r in ipairs(err) do
-            handle:logErr(sfmt("curiefense.inspect_request_map error %s", r))
-        end
+        handle:logErr(sfmt("curiefense.inspect_request_map error %s", err))
     end
 
     if response then
         local response_table = cjson.decode(response)
         handle:logDebug("decision " .. response)
+        utils.log_native_message(handle, response_table["logs"])
         request_map = response_table["request_map"]
         request_map.handle = handle
         if response_table["action"] == "custom_response" then

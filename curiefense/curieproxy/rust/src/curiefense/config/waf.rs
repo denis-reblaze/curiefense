@@ -1,7 +1,8 @@
 use crate::curiefense::config::raw::{
     RawWAFEntryMatch, RawWAFProfile, RawWAFProperties, WAFSignature,
 };
-use anyhow::anyhow;
+use crate::Logs;
+
 use hyperscan::prelude::{pattern, Builder, CompileFlags, Pattern, Patterns, VectoredDatabase};
 use hyperscan::Vectored;
 use regex::Regex;
@@ -189,19 +190,18 @@ fn convert_entry(entry: RawWAFProfile) -> anyhow::Result<(String, WAFProfile)> {
 }
 
 impl WAFProfile {
-    pub fn resolve(raw: Vec<RawWAFProfile>) -> (HashMap<String, WAFProfile>, Vec<anyhow::Error>) {
+    pub fn resolve(logs: &mut Logs, raw: Vec<RawWAFProfile>) -> HashMap<String, WAFProfile> {
         let mut out = HashMap::new();
-        let mut errs = Vec::new();
         for rp in raw {
             let id = rp.id.clone();
             match convert_entry(rp) {
                 Ok((k, v)) => {
                     out.insert(k, v);
                 }
-                Err(rr) => errs.push(anyhow!("waf id {}: {}", id, rr)),
+                Err(rr) => logs.error(format!("waf id {}: {}", id, rr)),
             }
         }
-        (out, errs)
+        out
     }
 }
 

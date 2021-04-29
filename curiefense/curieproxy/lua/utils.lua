@@ -27,7 +27,7 @@ local ipinfo    = maxmind.ipinfo
 
 local json_decode   = json_safe.decode
 local json_encode   = json_safe.encode
-local log_request   = accesslog.log_request
+local log_request   = accesslog.envoy_log_request
 
 local urldecode     = curiefense.decodeurl
 local urlencode     = curiefense.encodeurl
@@ -575,5 +575,20 @@ function envoy_custom_response(request_map, action_params)
 
 end
 
-
-
+function log_native_messages(handle, logs)
+    for _, log in ipairs(logs) do
+        level = log["level"]
+        msg = log["message"]
+        if level == "debug" then
+            handle:logDebug(msg)
+        elseif level == "info" then
+            handle:logInfo(msg)
+        elseif level == "warning" then
+            handle:logWarn(msg)
+        elseif level == "error" then
+            handle:logError(msg)
+        else
+            handle:logError("Can't log this message: " .. cjson.encode(logs))
+        end
+    end
+end

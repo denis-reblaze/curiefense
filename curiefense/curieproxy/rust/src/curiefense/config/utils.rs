@@ -77,7 +77,7 @@ pub fn decode_request_selector_condition(
         Ok(RequestSelectorCondition::Tag(cond.to_string()))
     } else {
         let sel = resolve_selector(tp, v)?;
-        let re = anchored_re(cond)?;
+        let re = Regex::new(cond)?;
         Ok(RequestSelectorCondition::N(sel, re))
     }
 }
@@ -86,16 +86,4 @@ pub fn decode_request_selector_condition(
 pub struct Matching<A> {
     pub matcher: Regex,
     pub inner: A,
-}
-
-// make sure regexes are anchored
-pub fn anchored_re(i: &str) -> Result<Regex, regex::Error> {
-    let mut s: String = i.to_string();
-    if !s.starts_with('^') {
-        s = "^".to_string() + &s;
-    }
-    if !s.ends_with('$') {
-        s += "$";
-    }
-    Regex::new(&s)
 }

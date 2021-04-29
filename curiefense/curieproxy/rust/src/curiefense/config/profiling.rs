@@ -9,8 +9,8 @@ use crate::curiefense::config::raw::{
     ProfilingEntryType, RawProfilingSSection, RawProfilingSSectionEntry, RawProfilingSection,
     Relation,
 };
-use crate::curiefense::config::utils::anchored_re;
 use crate::curiefense::interface::Tags;
+use crate::Logs;
 
 #[derive(Debug, Clone)]
 pub struct ProfilingSection {
@@ -183,8 +183,9 @@ pub fn optimize_ipranges(rel: Relation, unoptimized: Vec<ProfilingEntry>) -> Vec
 impl ProfilingSection {
     // what an ugly function :(
     pub fn resolve(
+        logs: &mut Logs,
         rawprofiling: Vec<RawProfilingSection>,
-    ) -> (Vec<ProfilingSection>, Vec<anyhow::Error>) {
+    ) -> Vec<ProfilingSection> {
         /// build a profiling entry for "single" conditions
         fn single<F>(conv: F, val: Value) -> anyhow::Result<ProfilingEntry>
         where
@@ -204,7 +205,7 @@ impl ProfilingSection {
         }
 
         /// build a profiling entry for "single" conditions that match strings
-        fn single_re<F>(conv: F, val: Value) -> anyhow::Result<ProfilingEntry>
+        fn single_re<F>(logs: &mut Logs, conv: F, val: Value) -> anyhow::Result<ProfilingEntry>
         where
             F: FnOnce(SingleEntry) -> ProfilingEntryE,
         {
@@ -212,7 +213,13 @@ impl ProfilingSection {
                 |s| {
                     Ok(conv(SingleEntry {
                         exact: s.to_string(),
-                        re: anchored_re(s).ok(),
+                        re: match Regex::new(s) {
+                            Ok(r) => Some(r),
+                            Err(rr) => {
+                                logs.error(format!("Bad regex {}: {}", s, rr));
+                                None
+                            }
+                        },
                     }))
                 },
                 val,
@@ -220,7 +227,7 @@ impl ProfilingSection {
         }
 
         /// build a profiling entry for "pair" conditions
-        fn pair<F>(conv: F, val: Value) -> anyhow::Result<ProfilingEntry>
+        fn pair<F>(logs: &mut Logs, conv: F, val: Value) -> anyhow::Result<ProfilingEntry>
         where
             F: FnOnce(PairEntry) -> ProfilingEntryE,
         {
@@ -234,9 +241,13 @@ impl ProfilingSection {
                     negated: false,
                     entry: conv(PairEntry {
                         key: k,
-                        re: anchored_re(&v)
-                            .with_context(|| format!("regex: {}", &v))
-                            .ok(),
+                        re: match Regex::new(&v) {
+                            Ok(r) => Some(r),
+                            Err(rr) => {
+                                logs.error(format!("Bad regex {}: {}", v, rr));
+                                None
+                            }
+                        },
                         exact: v,
                     }),
                 },
@@ -244,9 +255,13 @@ impl ProfilingSection {
                     negated: true,
                     entry: conv(PairEntry {
                         key: k,
-                        re: anchored_re(nval)
-                            .with_context(|| format!("regex: {}", &v))
-                            .ok(),
+                        re: match Regex::new(nval) {
+                            Ok(r) => Some(r),
+                            Err(rr) => {
+                                logs.error(format!("Bad regex {}: {}", nval, rr));
+                                None
+                            }
+                        },
                         exact: nval.to_string(),
                     }),
                 },
@@ -254,7 +269,11 @@ impl ProfilingSection {
         }
 
         // convert a json value
-        fn convert_entry(tp: ProfilingEntryType, val: Value) -> anyhow::Result<ProfilingEntry> {
+        fn convert_entry(
+            logs: &mut Logs,
+            tp: ProfilingEntryType,
+            val: Value,
+        ) -> anyhow::Result<ProfilingEntry> {
             match tp {
                 ProfilingEntryType::Ip => single(
                     |rawip| {
@@ -270,26 +289,29 @@ impl ProfilingSection {
                     },
                     val,
                 ),
-                ProfilingEntryType::Args => pair(ProfilingEntryE::Args, val),
-                ProfilingEntryType::Cookies => pair(ProfilingEntryE::Cookies, val),
-                ProfilingEntryType::Headers => pair(ProfilingEntryE::Header, val),
-                ProfilingEntryType::Path => single_re(ProfilingEntryE::Path, val),
-                ProfilingEntryType::Query => single_re(ProfilingEntryE::Query, val),
-                ProfilingEntryType::Uri => single_re(ProfilingEntryE::Uri, val),
-                ProfilingEntryType::Country => single_re(ProfilingEntryE::Country, val),
-                ProfilingEntryType::Method => single_re(ProfilingEntryE::Method, val),
+                ProfilingEntryType::Args => pair(logs, ProfilingEntryE::Args, val),
+                ProfilingEntryType::Cookies => pair(logs, ProfilingEntryE::Cookies, val),
+                ProfilingEntryType::Headers => pair(logs, ProfilingEntryE::Header, val),
+                ProfilingEntryType::Path => single_re(logs, ProfilingEntryE::Path, val),
+                ProfilingEntryType::Query => single_re(logs, ProfilingEntryE::Query, val),
+                ProfilingEntryType::Uri => single_re(logs, ProfilingEntryE::Uri, val),
+                ProfilingEntryType::Country => single_re(logs, ProfilingEntryE::Country, val),
+                ProfilingEntryType::Method => single_re(logs, ProfilingEntryE::Method, val),
                 ProfilingEntryType::Asn => {
                     single(|rawasn| Ok(ProfilingEntryE::Asn(rawasn.parse()?)), val)
                 }
             }
         }
-        fn convert_subsection(ss: RawProfilingSSection) -> anyhow::Result<ProfilingSSection> {
+        fn convert_subsection(
+            logs: &mut Logs,
+            ss: RawProfilingSSection,
+        ) -> anyhow::Result<ProfilingSSection> {
             // convert all entries individually
             let rentries: anyhow::Result<Vec<ProfilingEntry>> = ss
                 .entries
                 .into_iter()
                 .map(|RawProfilingSSectionEntry { tp, vl, comment }| {
-                    convert_entry(tp, vl)
+                    convert_entry(logs, tp, vl)
                         .with_context(|| format!("Entry type={:?} comment={:?}", tp, comment))
                 })
                 .collect();
@@ -298,17 +320,24 @@ impl ProfilingSection {
                 entries: optimize_ipranges(ss.relation, rentries?),
             })
         }
-        fn convert_section(s: RawProfilingSection) -> anyhow::Result<ProfilingSection> {
+        fn convert_section(
+            logs: &mut Logs,
+            s: RawProfilingSection,
+        ) -> anyhow::Result<ProfilingSection> {
             let sname = &s.name;
             let sid = &s.id;
             let rsubsections: anyhow::Result<Vec<ProfilingSSection>> = s
                 .rule
                 .sections
                 .into_iter()
-                .map(convert_subsection)
+                .map(|ss| convert_subsection(logs, ss))
                 .collect();
-            let subsections: Vec<ProfilingSSection> =
-                rsubsections.with_context(|| format!("profiling configuration error in section id={}, name={}", sid, sname))?;
+            let subsections: Vec<ProfilingSSection> = rsubsections.with_context(|| {
+                format!(
+                    "profiling configuration error in section id={}, name={}",
+                    sid, sname
+                )
+            })?;
             Ok(ProfilingSection {
                 tags: Tags::from_vec(&s.tags),
                 relation: s.rule.relation,
@@ -317,15 +346,14 @@ impl ProfilingSection {
         }
 
         let mut out = Vec::new();
-        let mut errs = Vec::new();
 
         for rp in rawprofiling.into_iter().filter(|s| s.active) {
-            match convert_section(rp) {
-                Err(rr) => errs.push(rr),
+            match convert_section(logs, rp) {
+                Err(rr) => logs.error(format!("{}", rr)),
                 Ok(profile) => out.push(profile),
             }
         }
 
-        (out, errs)
+        out
     }
 }

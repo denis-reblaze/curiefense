@@ -1,4 +1,6 @@
+use crate::{Logs, RequestInfo};
 use crate::curiefense::config::raw::{RawAction, RawActionType};
+use crate::curiefense::requestfields::RequestField;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 /// this file contains all the data type that are used when interfacing with a proxy
@@ -12,7 +14,7 @@ pub enum Decision {
 }
 
 impl Decision {
-    pub fn to_json(&self, request_map: serde_json::Value) -> String {
+    pub fn to_json_raw(&self, request_map: serde_json::Value, logs: Logs) -> String {
         let (action_desc, response) = match self {
             Decision::Pass => ("pass", None),
             Decision::Action(a) => ("custom_response", Some(a)),
@@ -20,7 +22,23 @@ impl Decision {
         let j = serde_json::json!({
             "request_map": request_map,
             "action": action_desc,
-            "response": response
+            "response": response,
+            "logs": logs.0
+        });
+        serde_json::to_string(&j).unwrap_or_else(|_| "{}".to_string())
+    }
+
+    pub fn to_json(&self, rinfo: RequestInfo, tags: Tags, logs: Logs) -> String {
+        let (action_desc, response) = match self {
+            Decision::Pass => ("pass", None),
+            Decision::Action(a) => ("custom_response", Some(a)),
+        };
+        let request_map = rinfo.to_json(tags);
+        let j = serde_json::json!({
+            "request_map": request_map,
+            "action": action_desc,
+            "response": response,
+            "logs": logs.0
         });
         serde_json::to_string(&j).unwrap_or_else(|_| "{}".to_string())
     }
@@ -214,8 +232,8 @@ pub fn challenge_phase01<GH: Grasshopper>(gh: &GH, ua: &str, tags: Vec<String>) 
     })
 }
 
-fn extract_zebra(headers: &HashMap<String, String>) -> Option<String> {
-    for (k, v) in headers {
+fn extract_zebra(headers: &RequestField) -> Option<String> {
+    for (k, v) in headers.iter() {
         if k.starts_with("x-zebra-") {
             return Some(v.replace('-', "="));
         }
@@ -226,7 +244,7 @@ fn extract_zebra(headers: &HashMap<String, String>) -> Option<String> {
 pub fn challenge_phase02<GH: Grasshopper>(
     gh: &GH,
     uri: &str,
-    headers: &HashMap<String, String>,
+    headers: &RequestField,
 ) -> Option<Decision> {
     if !uri.starts_with("/7060ac19f50208cbb6b45328ef94140a612ee92387e015594234077b4d1e64f1/") {
         return None;

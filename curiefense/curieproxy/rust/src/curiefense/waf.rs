@@ -8,6 +8,7 @@ use crate::curiefense::config::waf::{
     Section, SectionIdx, WAFEntryMatch, WAFProfile, WAFSection, WAFSignatures,
 };
 use crate::curiefense::interface::{Action, ActionType};
+use crate::curiefense::requestfields::RequestField;
 use crate::RequestInfo;
 
 #[derive(Debug, Clone)]
@@ -184,7 +185,7 @@ pub fn waf_check(
 fn section_check(
     idx: SectionIdx,
     section: &WAFSection,
-    params: &HashMap<String, String>,
+    params: &RequestField,
     ignore_alphanum: bool,
     omit: &mut Omitted,
 ) -> Result<(), WAFBlock> {
@@ -192,7 +193,7 @@ fn section_check(
         return Err(WAFBlock::TooManyEntries(idx));
     }
 
-    for (name, value) in params {
+    for (name, value) in params.iter() {
         if value.len() >= section.max_length {
             return Err(WAFBlock::EntryTooLarge(idx, name.clone()));
         }
@@ -246,11 +247,11 @@ fn section_check(
 
 fn injection_check(
     idx: SectionIdx,
-    params: &HashMap<String, String>,
+    params: &RequestField,
     omit: &Omitted,
     hca_keys: &mut HashMap<String, (SectionIdx, String)>,
 ) -> Result<(), WAFBlock> {
-    for (name, value) in params {
+    for (name, value) in params.iter() {
         if !omit.entries.get(idx).contains(name) {
             if !omit
                 .exclusions

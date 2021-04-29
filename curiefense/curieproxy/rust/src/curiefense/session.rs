@@ -10,9 +10,11 @@ use crate::curiefense::config::{with_config_default_path, CONFIG, HSDB};
 use crate::curiefense::flow::flow_check;
 use crate::curiefense::interface::Tags;
 use crate::curiefense::limit::limit_check;
+use crate::curiefense::requestfields::RequestField;
 use crate::curiefense::tagging::tag_request;
-use crate::curiefense::utils::{find_geoip, EnvoyMeta, QueryInfo, RInfo};
+use crate::curiefense::utils::{find_geoip, QueryInfo, RInfo, RequestMeta};
 use crate::curiefense::waf::waf_check;
+use crate::Logs;
 use crate::{match_urlmap, Config, Decision, RequestInfo, UrlMap};
 
 // Session stuff, the key is the session id
@@ -26,9 +28,9 @@ lazy_static! {
 /// json representation of the useful fields in the request map
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct JRequestMap {
-    headers: HashMap<String, String>,
-    cookies: HashMap<String, String>,
-    args: HashMap<String, String>,
+    headers: RequestField,
+    cookies: RequestField,
+    args: RequestField,
     attrs: JAttrs,
 }
 
@@ -55,7 +57,7 @@ impl JRequestMap {
 
         // TODO, get geoip data from the encoded request, not from the ip
         let geoip = find_geoip(self.attrs.ip);
-        let meta = EnvoyMeta {
+        let meta = RequestMeta {
             authority: self.attrs.authority,
             method: self.attrs.method,
             path: self.attrs.uri.clone(), // this is wrong, uri should be url-encoded back
@@ -85,11 +87,10 @@ impl JRequestMap {
 }
 
 pub fn init_config() -> (bool, Vec<String>) {
-    let (_, errs) = with_config_default_path(|_| {});
-    (
-        errs.is_empty(),
-        errs.into_iter().map(|rr| format!("{}", rr)).collect(),
-    )
+    let mut logs = Logs::new();
+    with_config_default_path(&mut logs, |_, _| {});
+    let is_ok = logs.0.is_empty();
+    (is_ok, logs.to_stringvec())
 }
 
 pub fn clean_session(session_id: &str) -> anyhow::Result<()> {
@@ -123,6 +124,7 @@ pub fn session_serialize_request_map(session_id: &str) -> anyhow::Result<serde_j
     update_tags(raw, tags)
 }
 
+/// update the tags in the JSON-encoded request_map
 pub fn update_tags(rawjson: serde_json::Value, tags: Tags) -> anyhow::Result<serde_json::Value> {
     let mut raw = rawjson;
     let tags_map: HashMap<String, u32> =
@@ -177,10 +179,12 @@ pub struct SessionUrlMap {
 
 /// returns a RawUrlMap object (minus the match field), and updates the internal structure for the url map
 pub fn session_match_urlmap(session_id: &str) -> anyhow::Result<SessionUrlMap> {
+    let mut logs = Logs::new();
     let uuid: Uuid = session_id.parse()?;
     // this is done this way in order to release the config lock before writing the tags
+    // this might not be optimal though, perhaps it is faster to keep the locks and avoir copies
     let (hostmap_name, urlmap) = with_config(|cfg| {
-        with_request_info(uuid, |rinfo| match match_urlmap(&rinfo, &cfg) {
+        with_request_info(uuid, |rinfo| match match_urlmap(&rinfo, &cfg, &mut logs) {
             Some((hn, urlmap)) => {
                 let mut wurlmap = URLMAP
                     .write()

@@ -5,6 +5,7 @@ use crate::curiefense::config::limit::{resolve_selector_map, resolve_selectors};
 use crate::curiefense::config::raw::{RawFlowEntry, RawFlowStep, RawLimitSelector};
 use crate::curiefense::config::utils::{RequestSelector, RequestSelectorCondition};
 use crate::curiefense::interface::Action;
+use crate::Logs;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SequenceKey(pub String);
@@ -104,15 +105,15 @@ impl FlowStep {
 }
 
 pub fn flow_resolve(
+    logs: &mut Logs,
     rawentries: Vec<RawFlowEntry>,
-) -> (HashMap<SequenceKey, Vec<FlowElement>>, Vec<anyhow::Error>) {
-    let mut errs: Vec<anyhow::Error> = Vec::new();
+) -> HashMap<SequenceKey, Vec<FlowElement>> {
     let mut out: HashMap<SequenceKey, Vec<FlowElement>> = HashMap::new();
 
     // entries are created with steps in order
     for rawentry in rawentries {
         match FlowEntry::convert(rawentry) {
-            Err(rr) => errs.push(rr),
+            Err(rr) => logs.warning(format!("{}", rr)),
             Ok(entry) => {
                 let nsteps = entry.sequence.len();
                 for (stepid, step) in entry.sequence.into_iter().enumerate() {
@@ -140,5 +141,5 @@ pub fn flow_resolve(
         o.reverse()
     }
 
-    (out, errs)
+    out
 }

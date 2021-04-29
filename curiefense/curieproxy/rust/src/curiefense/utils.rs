@@ -1,3 +1,4 @@
+use crate::Logs;
 use itertools::Itertools;
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -7,73 +8,44 @@ pub mod url;
 use crate::curiefense::config::utils::{RequestSelector, RequestSelectorCondition};
 use crate::curiefense::interface::Tags;
 use crate::curiefense::maxmind::{get_asn, get_city, get_country};
+use crate::curiefense::requestfields::RequestField;
+use crate::Decision;
 
-/// extract client IP from request headers, and amount of "trusted hops"
-pub fn ip_from_headers(headers: &HashMap<String, String>, hops: usize) -> String {
-    let ips: Vec<&str> = headers
-        .get("x-forwarded-for")
-        .map(|h| h.split(',').map(|s| s.trim()).collect())
-        .unwrap_or_default();
-
-    if ips.len() <= hops {
-        ips.first().unwrap_or(&"1.1.1.1")
-    } else {
-        ips[ips.len() - hops - 1]
+pub fn cookie_map(cookies: &mut RequestField, cookie: &str) {
+    // tries to split the cookie around "="
+    fn to_kv(cook: &str) -> (String, String) {
+        match cook.splitn(2, '=').collect_tuple() {
+            Some((k, v)) => (k.to_string(), v.to_string()),
+            None => (cook.to_string(), String::new()),
+        }
     }
-    .to_string()
+    for (k, v) in cookie.split("; ").map(to_kv) {
+        cookies.add(k, v);
+    }
 }
 
 /// Parse raw headers and:
-/// * remove leading ':' for meta headers
 /// * lowercase the header name
 /// * extract cookies
 ///
-/// THIS WILL PANIC IF authority, method and path are not set in the raw headers!
-///
-/// Returns (cookies, headers, envoymeta, attrs)
-pub fn map_headers(
-    rawheaders: HashMap<String, String>,
-) -> (HashMap<String, String>, HashMap<String, String>, EnvoyMeta) {
-    fn cookie_map(cookie: &str) -> HashMap<String, String> {
-        // tries to split the cookie around "="
-        fn to_kv(cook: &str) -> (String, String) {
-            match cook.splitn(2, '=').collect_tuple() {
-                Some((k, v)) => (k.to_string(), v.to_string()),
-                None => (cook.to_string(), String::new()),
-            }
-        }
-        cookie.split("; ").map(to_kv).collect()
-    }
-    let mut cookies = HashMap::<String, String>::new();
-    let mut headers = HashMap::<String, String>::new();
-    let mut attrs = HashMap::<String, String>::new();
+/// Returns (headers, cookies)
+pub fn map_headers(rawheaders: HashMap<String, String>) -> (RequestField, RequestField) {
+    let mut cookies = RequestField::new();
+    let mut headers = RequestField::new();
     for (k, v) in rawheaders {
         let lk = k.to_lowercase();
         if k == "cookie" {
-            cookies = cookie_map(&v);
+            cookie_map(&mut cookies, &v);
         } else {
-            match &lk.strip_prefix(':') {
-                None => {
-                    headers.insert(lk, v);
-                }
-                Some(ak) => {
-                    attrs.insert(ak.to_string(), v);
-                }
-            }
+            headers.add(lk, v);
         }
     }
 
-    let meta = EnvoyMeta {
-        authority: attrs.get("authority").cloned(),
-        method: attrs.get("method").unwrap().clone(),
-        path: attrs.get("path").unwrap().clone(),
-        extra: attrs,
-    };
-    (cookies, headers, meta)
+    (headers, cookies)
 }
 
 /// parses query parameters
-fn map_query(query: &str) -> HashMap<String, String> {
+fn map_query(query: &str) -> RequestField {
     fn parse_kv(kv: &str) -> (String, String) {
         match kv.splitn(2, '=').collect_tuple() {
             Some((k, v)) => (url::urldecode_str(k), url::urldecode_str(v)),
@@ -99,7 +71,7 @@ fn map_args(path: &str) -> QueryInfo {
             qpath: path.to_string(),
             query: String::new(),
             uri,
-            args: HashMap::new(),
+            args: RequestField::new(),
         },
     }
 }
@@ -113,7 +85,7 @@ pub struct QueryInfo {
     pub query: String,
     /// URL decoded path, if decoding worked
     pub uri: Option<String>,
-    pub args: HashMap<String, String>,
+    pub args: RequestField,
 }
 
 #[derive(Debug, Clone)]
@@ -127,7 +99,7 @@ pub struct GeoIp {
 }
 
 #[derive(Debug, Clone)]
-pub struct EnvoyMeta {
+pub struct RequestMeta {
     pub authority: Option<String>,
     pub method: String,
     pub path: String,
@@ -136,9 +108,24 @@ pub struct EnvoyMeta {
     pub extra: HashMap<String, String>,
 }
 
+impl RequestMeta {
+    pub fn from_map(attrs: HashMap<String, String>) -> Result<Self, &'static str> {
+        let mut mattrs = attrs;
+        let authority = mattrs.remove("authority");
+        let method = mattrs.remove("method").ok_or("missing method field")?;
+        let path = mattrs.remove("path").ok_or("missing path field")?;
+        Ok(RequestMeta {
+            authority,
+            method,
+            path,
+            extra: mattrs,
+        })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct RInfo {
-    pub meta: EnvoyMeta,
+    pub meta: RequestMeta,
     pub geoip: GeoIp,
     pub qinfo: QueryInfo,
     pub host: String,
@@ -146,9 +133,54 @@ pub struct RInfo {
 
 #[derive(Debug, Clone)]
 pub struct RequestInfo {
-    pub cookies: HashMap<String, String>,
-    pub headers: HashMap<String, String>,
+    pub cookies: RequestField,
+    pub headers: RequestField,
     pub rinfo: RInfo,
+}
+
+impl RequestInfo {
+    pub fn to_json(self, tags: Tags) -> serde_json::Value {
+        // TODO: ipnum, geo
+        serde_json::json!({
+            "headers": self.headers,
+            "cookies": self.headers,
+            "args": self.rinfo.qinfo.args,
+            "attrs": {
+                "uri": self.rinfo.qinfo.uri,
+                "path": self.rinfo.qinfo.qpath,
+                "query": self.rinfo.qinfo.query,
+                "ip": self.rinfo.geoip.ipstr,
+                "remote_addr": self.rinfo.geoip.ipstr,
+                "ipnum": self.rinfo.geoip.ip,
+                "tags": tags
+            }
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct InspectionResult {
+    pub decision: Decision,
+    pub rinfo: Option<RequestInfo>,
+    pub tags: Option<Tags>,
+    pub err: Option<String>,
+    pub logs: Logs,
+}
+
+impl InspectionResult {
+    pub fn to_json(self) -> (String, Option<String>) {
+        // return the request map, but only if we have it !
+        let resp = match self.rinfo {
+            None => self
+                .decision
+                .to_json_raw(serde_json::Value::Null, self.logs),
+            Some(rinfo) => {
+                self.decision
+                    .to_json(rinfo, self.tags.unwrap_or_else(|| Tags::new()), self.logs)
+            }
+        };
+        (resp, self.err)
+    }
 }
 
 pub fn find_geoip(ipstr: String) -> GeoIp {
@@ -175,8 +207,13 @@ pub fn find_geoip(ipstr: String) -> GeoIp {
     }
 }
 
-pub fn map_request(ipstr: String, rawheaders: HashMap<String, String>) -> RequestInfo {
-    let (cookies, headers, meta) = map_headers(rawheaders);
+pub fn map_request(
+    ipstr: String,
+    headers: HashMap<String, String>,
+    meta: RequestMeta,
+    _mbody: Option<&[u8]>,
+) -> Result<RequestInfo, String> {
+    let (headers, cookies) = map_headers(headers);
     let geoip = find_geoip(ipstr);
     let qinfo = map_args(&meta.path);
 
@@ -194,88 +231,11 @@ pub fn map_request(ipstr: String, rawheaders: HashMap<String, String>) -> Reques
         host,
     };
 
-    RequestInfo {
+    Ok(RequestInfo {
         cookies,
         headers,
         rinfo,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn hop_test(hop: usize, expected: &str) {
-        let hdrs1: HashMap<String, String> = [(
-            "x-forwarded-for".to_string(),
-            "1.2.3.4,5.6.7.8,9.10.11.12".to_string(),
-        )]
-        .iter()
-        .cloned()
-        .collect();
-        assert_eq!(ip_from_headers(&hdrs1, hop), expected);
-    }
-
-    #[test]
-    fn test_ip_from_headers_0() {
-        hop_test(0, "9.10.11.12");
-    }
-
-    #[test]
-    fn test_ip_from_headers_1() {
-        hop_test(1, "5.6.7.8");
-    }
-
-    #[test]
-    fn test_ip_from_headers_2() {
-        hop_test(2, "1.2.3.4");
-    }
-
-    #[test]
-    fn test_ip_from_headers_3() {
-        hop_test(3, "1.2.3.4");
-    }
-
-    #[test]
-    fn test_ip_from_headers_4() {
-        hop_test(4, "1.2.3.4");
-    }
-
-    #[test]
-    fn test_ip_empty_headers_0() {
-        assert_eq!(ip_from_headers(&HashMap::new(), 0), "1.1.1.1");
-    }
-
-    #[test]
-    fn test_ip_empty_headers_1() {
-        assert_eq!(ip_from_headers(&HashMap::new(), 1), "1.1.1.1");
-    }
-
-    #[test]
-    fn test_map_args_full() {
-        let qinfo = map_args("/a/b/%20c?xa%20=12&bbbb=12%28&cccc");
-
-        assert_eq!(qinfo.qpath, "/a/b/%20c");
-        assert_eq!(qinfo.uri, Some("/a/b/ c?xa =12&bbbb=12(&cccc".to_string()));
-        assert_eq!(qinfo.query, "xa%20=12&bbbb=12%28&cccc");
-
-        let expected_args: HashMap<String, String> = [("xa ", "12"), ("bbbb", "12("), ("cccc", "")]
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect();
-        assert_eq!(qinfo.args, expected_args);
-    }
-
-    #[test]
-    fn test_map_args_simple() {
-        let qinfo = map_args("/a/b");
-
-        assert_eq!(qinfo.qpath, "/a/b");
-        assert_eq!(qinfo.uri, Some("/a/b".to_string()));
-        assert_eq!(qinfo.query, "");
-
-        assert_eq!(qinfo.args, HashMap::new());
-    }
+    })
 }
 
 enum Selected<'a> {
@@ -327,5 +287,36 @@ pub fn check_selector_cond(
             Some(Selected::Str(s)) => re.is_match(s),
             Some(Selected::U32(s)) => re.is_match(&format!("{}", s)),
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_map_args_full() {
+        let qinfo = map_args("/a/b/%20c?xa%20=12&bbbb=12%28&cccc");
+
+        assert_eq!(qinfo.qpath, "/a/b/%20c");
+        assert_eq!(qinfo.uri, Some("/a/b/ c?xa =12&bbbb=12(&cccc".to_string()));
+        assert_eq!(qinfo.query, "xa%20=12&bbbb=12%28&cccc");
+
+        let expected_args: RequestField = [("xa ", "12"), ("bbbb", "12("), ("cccc", "")]
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+        assert_eq!(qinfo.args, expected_args);
+    }
+
+    #[test]
+    fn test_map_args_simple() {
+        let qinfo = map_args("/a/b");
+
+        assert_eq!(qinfo.qpath, "/a/b");
+        assert_eq!(qinfo.uri, Some("/a/b".to_string()));
+        assert_eq!(qinfo.query, "");
+
+        assert_eq!(qinfo.args, RequestField::new());
     }
 }

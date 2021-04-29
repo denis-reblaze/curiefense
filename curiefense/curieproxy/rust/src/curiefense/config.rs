@@ -15,6 +15,7 @@ use std::path::PathBuf;
 use std::sync::RwLock;
 use std::time::SystemTime;
 
+use crate::Logs;
 use flow::{flow_resolve, FlowElement, SequenceKey};
 use hostmap::{HostMap, UrlMap};
 use limit::{limit_order, Limit};
@@ -30,38 +31,39 @@ lazy_static! {
     pub static ref HSDB: RwLock<Option<WAFSignatures>> = RwLock::new(None);
 }
 
-pub fn with_config<R, F>(basepath: &str, f: F) -> (Option<R>, Vec<anyhow::Error>)
+pub fn with_config<R, F>(basepath: &str, logs: &mut Logs, f: F) -> Option<R>
 where
-    F: FnOnce(&Config) -> R,
+    F: FnOnce(&mut Logs, &Config) -> R,
 {
-    let ((newconfig, newhsdb), mut errs) = match CONFIG.read() {
-        Ok(cfg) => match cfg.reload(basepath) {
-            (None, nerrs) => return (Some(f(&cfg)), nerrs),
-            (Some(cfginfo), nerrs) => (cfginfo, nerrs),
+    let (newconfig, newhsdb) = match CONFIG.read() {
+        Ok(cfg) => match cfg.reload(logs, basepath) {
+            None => return Some(f(logs, &cfg)),
+            Some(cfginfo) => cfginfo,
         },
         Err(rr) =>
         // read failed :(
         {
-            return (None, vec![anyhow!("{}", rr)])
+            logs.error(format!("{}", rr));
+            return None;
         }
     };
-    let r = f(&newconfig);
+    let r = f(logs, &newconfig);
     match CONFIG.write() {
         Ok(mut w) => *w = newconfig,
-        Err(rr) => errs.push(anyhow!("{}", rr)),
+        Err(rr) => logs.error(format!("{}", rr)),
     };
     match HSDB.write() {
         Ok(mut dbw) => *dbw = Some(newhsdb),
-        Err(rr) => errs.push(anyhow!("{}", rr)),
+        Err(rr) => logs.error(format!("{}", rr)),
     };
-    (Some(r), errs)
+    Some(r)
 }
 
-pub fn with_config_default_path<R, F>(f: F) -> (Option<R>, Vec<anyhow::Error>)
+pub fn with_config_default_path<R, F>(logs: &mut Logs, f: F) -> Option<R>
 where
-    F: FnOnce(&Config) -> R,
+    F: FnOnce(&mut Logs, &Config) -> R,
 {
-    with_config("/config/current/config", f)
+    with_config("/config/current/config", logs, f)
 }
 
 #[derive(Debug, Clone)]
@@ -82,27 +84,27 @@ fn from_map<V: Clone>(mp: &HashMap<String, V>, k: &str) -> anyhow::Result<V> {
 
 impl Config {
     fn resolve_url_maps(
+        logs: &mut Logs,
         rawmaps: Vec<RawUrlMap>,
         limits: &HashMap<String, Limit>,
         acls: &HashMap<String, ACLProfile>,
         wafprofiles: &HashMap<String, WAFProfile>,
-    ) -> (Vec<Matching<UrlMap>>, Option<UrlMap>, Vec<anyhow::Error>) {
+    ) -> (Vec<Matching<UrlMap>>, Option<UrlMap>) {
         let mut default: Option<UrlMap> = None;
         let mut entries: Vec<Matching<UrlMap>> = Vec::new();
-        let mut errs = Vec::new();
 
         for rawmap in rawmaps {
             let acl_profile: ACLProfile = match acls.get(&rawmap.acl_profile) {
                 Some(p) => p.clone(),
                 None => {
-                    errs.push(anyhow!("Unknown ACL profile {}", &rawmap.acl_profile));
+                    logs.warning(format!("Unknown ACL profile {}", &rawmap.acl_profile));
                     ACLProfile::default()
                 }
             };
             let waf_profile: WAFProfile = match wafprofiles.get(&rawmap.waf_profile) {
                 Some(p) => p.clone(),
                 None => {
-                    errs.push(anyhow!("Unknown WAF profile {}", &rawmap.waf_profile));
+                    logs.warning(format!("Unknown WAF profile {}", &rawmap.waf_profile));
                     WAFProfile::default()
                 }
             };
@@ -110,7 +112,7 @@ impl Config {
             for lid in rawmap.limit_ids {
                 match from_map(&limits, &lid) {
                     Ok(lm) => olimits.push(lm),
-                    Err(rr) => errs.push(rr),
+                    Err(rr) => logs.error(format!("{}", rr)),
                 }
             }
             // limits 0 are tried first, than in decreasing order of the limit field
@@ -128,11 +130,9 @@ impl Config {
                 default = Some(urlmap);
             } else {
                 match Regex::new(&rawmap.match_) {
-                    Err(rr) => errs.push(anyhow!(
+                    Err(rr) => logs.warning(format!(
                         "Invalid regex {} in entry {}: {}",
-                        &rawmap.match_,
-                        &mapname,
-                        rr
+                        &rawmap.match_, &mapname, rr
                     )),
                     Ok(matcher) => entries.push(Matching {
                         matcher,
@@ -142,10 +142,11 @@ impl Config {
             }
         }
 
-        (entries, default, errs)
+        (entries, default)
     }
 
     fn resolve(
+        logs: &mut Logs,
         last_mod: SystemTime,
         rawmaps: Vec<RawHostMap>,
         rawlimits: Vec<RawLimit>,
@@ -154,22 +155,18 @@ impl Config {
         rawwafprofiles: Vec<RawWAFProfile>,
         container_name: Option<String>,
         rawflows: Vec<RawFlowEntry>,
-    ) -> (Config, Vec<anyhow::Error>) {
+    ) -> Config {
         let mut default: Option<HostMap> = None;
         let mut urlmaps: Vec<Matching<HostMap>> = Vec::new();
-        let mut errs: Vec<anyhow::Error> = Vec::new();
 
-        let (limits, lerrs) = Limit::resolve(rawlimits);
-        errs.extend(lerrs);
-        let (wafprofiles, werrs) = WAFProfile::resolve(rawwafprofiles);
-        errs.extend(werrs);
+        let limits = Limit::resolve(logs, rawlimits);
+        let wafprofiles = WAFProfile::resolve(logs, rawwafprofiles);
         let acls = rawacls.into_iter().map(|a| (a.id.clone(), a)).collect();
 
         // build the entries while looking for the default entry
         for rawmap in rawmaps {
-            let (entries, default_entry, eerrs) =
-                Config::resolve_url_maps(rawmap.map, &limits, &acls, &wafprofiles);
-            errs.extend(eerrs);
+            let (entries, default_entry) =
+                Config::resolve_url_maps(logs, rawmap.map, &limits, &acls, &wafprofiles);
             let mapname = rawmap.name.clone();
             let hostmap = HostMap {
                 id: rawmap.id,
@@ -184,11 +181,9 @@ impl Config {
                 default = Some(hostmap);
             } else {
                 match Regex::new(&rawmap.match_) {
-                    Err(rr) => errs.push(anyhow!(
+                    Err(rr) => logs.error(format!(
                         "Invalid regex {} in entry {}: {}",
-                        &rawmap.match_,
-                        mapname,
-                        rr
+                        &rawmap.match_, mapname, rr
                     )),
                     Ok(matcher) => urlmaps.push(Matching {
                         matcher,
@@ -198,29 +193,24 @@ impl Config {
             }
         }
 
-        let (profiling, perrs) = ProfilingSection::resolve(rawprofiling);
-        errs.extend(perrs);
+        let profiling = ProfilingSection::resolve(logs, rawprofiling);
 
-        let (flows, ferrs) = flow_resolve(rawflows);
-        errs.extend(ferrs);
+        let flows = flow_resolve(logs, rawflows);
 
-        (
-            Config {
-                urlmaps,
-                default,
-                last_mod,
-                profiling,
-                container_name,
-                flows,
-            },
-            errs,
-        )
+        Config {
+            urlmaps,
+            default,
+            last_mod,
+            profiling,
+            container_name,
+            flows,
+        }
     }
 
     fn load_config_file<A: serde::de::DeserializeOwned>(
+        logs: &mut Logs,
         base: &Path,
         fname: &str,
-        errs: &mut Vec<anyhow::Error>,
     ) -> Vec<A> {
         let mut path = base.to_path_buf();
         path.push(fname);
@@ -228,7 +218,7 @@ impl Config {
         let file = match std::fs::File::open(path) {
             Ok(f) => f,
             Err(rr) => {
-                errs.push(anyhow!("when loading {}: {}", fullpath, rr));
+                logs.error(format!("when loading {}: {}", fullpath, rr));
                 return Vec::new();
             }
         };
@@ -237,7 +227,7 @@ impl Config {
                 Ok(vs) => vs,
                 Err(rr) => {
                     // if it is not a json array, abort early and do not resolve anything
-                    errs.push(anyhow!("when loading {}: {}", fullpath, rr));
+                    logs.error(format!("when loading {}: {}", fullpath, rr));
                     return Vec::new();
                 }
             };
@@ -245,49 +235,47 @@ impl Config {
         for value in values {
             // for each entry, try to resolve it as a raw configuration value, failing otherwise
             match serde_json::from_value(value) {
-                Err(rr) => errs.push(anyhow!("when loading {}: {}", fullpath, rr)),
+                Err(rr) => logs.error(format!("when loading {}: {}", fullpath, rr)),
                 Ok(v) => out.push(v),
             }
         }
         out
     }
 
-    pub fn reload(&self, basepath: &str) -> (Option<(Config, WAFSignatures)>, Vec<anyhow::Error>) {
-        let mut errs = Vec::new();
-
+    pub fn reload(&self, logs: &mut Logs, basepath: &str) -> Option<(Config, WAFSignatures)> {
         let last_mod = std::fs::metadata(basepath)
             .and_then(|x| x.modified())
             .unwrap_or_else(|rr| {
-                errs.push(anyhow!(
+                logs.error(format!(
                     "Could not get last modified time for {}: {}",
-                    basepath,
-                    rr
+                    basepath, rr
                 ));
                 SystemTime::now()
             });
         if self.last_mod == last_mod {
-            return (None, errs);
+            return None;
         }
 
         let mut bjson = PathBuf::from(basepath);
         bjson.push("json");
 
-        let urlmap = Config::load_config_file(&bjson, "urlmap.json", &mut errs);
-        let profiling = Config::load_config_file(&bjson, "profiling-lists.json", &mut errs);
-        let limits = Config::load_config_file(&bjson, "limits.json", &mut errs);
-        let acls = Config::load_config_file(&bjson, "acl-profiles.json", &mut errs);
-        let wafprofiles = Config::load_config_file(&bjson, "waf-profiles.json", &mut errs);
-        let wafsignatures = Config::load_config_file(&bjson, "waf-signatures.json", &mut errs);
-        let flows = Config::load_config_file(&bjson, "flow-control.json", &mut errs);
+        let urlmap = Config::load_config_file(logs, &bjson, "urlmap.json");
+        let profiling = Config::load_config_file(logs, &bjson, "profiling-lists.json");
+        let limits = Config::load_config_file(logs, &bjson, "limits.json");
+        let acls = Config::load_config_file(logs, &bjson, "acl-profiles.json");
+        let wafprofiles = Config::load_config_file(logs, &bjson, "waf-profiles.json");
+        let wafsignatures = Config::load_config_file(logs, &bjson, "waf-signatures.json");
+        let flows = Config::load_config_file(logs, &bjson, "flow-control.json");
 
         let container_name = std::fs::read_to_string("/etc/hostname")
             .ok()
             .map(|s| s.trim().to_string());
         let hsdb = resolve_signatures(wafsignatures).unwrap_or_else(|rr| {
-            errs.push(rr);
+            logs.error(format!("{}", rr));
             WAFSignatures::empty()
         });
-        let (config, cerrs) = Config::resolve(
+        let config = Config::resolve(
+            logs,
             last_mod,
             urlmap,
             limits,
@@ -297,8 +285,7 @@ impl Config {
             container_name,
             flows,
         );
-        errs.extend(cerrs);
-        (Some((config, hsdb)), errs)
+        Some((config, hsdb))
     }
 
     pub fn empty() -> Config {

@@ -4,8 +4,8 @@ use crate::curiefense::config::profiling::{
 use crate::curiefense::config::raw::Relation;
 use crate::curiefense::config::Config;
 use crate::curiefense::interface::Tags;
+use crate::curiefense::requestfields::RequestField;
 use crate::curiefense::utils::RequestInfo;
-use std::collections::HashMap;
 use std::net::IpAddr;
 
 fn check_relation<A, F>(rinfo: &RequestInfo, rel: Relation, elems: &[A], checker: F) -> bool
@@ -18,7 +18,7 @@ where
     }
 }
 
-fn check_pair(pr: &PairEntry, s: &HashMap<String, String>) -> bool {
+fn check_pair(pr: &PairEntry, s: &RequestField) -> bool {
     s.get(&pr.key)
         .map(|v| &pr.exact == v || pr.re.as_ref().map(|re| re.is_match(v)).unwrap_or(false))
         .unwrap_or(false)
@@ -124,8 +124,9 @@ pub fn tag_request(cfg: &Config, rinfo: &RequestInfo) -> Tags {
 mod tests {
     use super::*;
     use crate::curiefense::config::profiling::optimize_ipranges;
-    use crate::curiefense::config::utils::anchored_re;
-    use crate::curiefense::utils::map_request;
+    use crate::{map_request, RequestMeta};
+    use regex::Regex;
+    use std::collections::HashMap;
 
     fn mk_rinfo() -> RequestInfo {
         let raw_headers = [
@@ -140,11 +141,21 @@ mod tests {
             ("user-agent", "curl/7.58.0"),
             ("x-envoy-internal", "true"),
         ];
-        let headers: HashMap<String, String> = raw_headers
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect();
-        map_request("52.78.12.56".to_string(), headers)
+        let mut headers = HashMap::<String, String>::new();
+        let mut attrs = HashMap::<String, String>::new();
+
+        for (k, v) in raw_headers.iter() {
+            match k.strip_prefix(':') {
+                None => {
+                    headers.insert(k.to_string(), v.to_string());
+                }
+                Some(ak) => {
+                    attrs.insert(ak.to_string(), v.to_string());
+                }
+            }
+        }
+        let meta = RequestMeta::from_map(attrs).unwrap();
+        map_request("52.78.12.56".to_string(), headers, meta, None).unwrap()
     }
 
     fn t_check_entry(negated: bool, entry: ProfilingEntryE) -> bool {
@@ -154,7 +165,7 @@ mod tests {
     fn single_re(input: &str) -> SingleEntry {
         SingleEntry {
             exact: input.to_string(),
-            re: anchored_re(input).ok(),
+            re: Regex::new(input).ok(),
         }
     }
 
@@ -162,7 +173,7 @@ mod tests {
         PairEntry {
             key: key.to_string(),
             exact: input.to_string(),
-            re: anchored_re(input).ok(),
+            re: Regex::new(input).ok(),
         }
     }
 
@@ -191,7 +202,7 @@ mod tests {
     #[test]
     fn check_path_in_not_partial_match() {
         let r = t_check_entry(false, ProfilingEntryE::Path(single_re("adminl%20e")));
-        assert!(!r);
+        assert!(r);
     }
 
     #[test]

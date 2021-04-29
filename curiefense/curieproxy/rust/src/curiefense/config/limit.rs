@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
@@ -8,6 +8,7 @@ use crate::curiefense::config::utils::{
     RequestSelectorCondition, SelectorType,
 };
 use crate::curiefense::interface::Action;
+use crate::Logs;
 
 #[derive(Debug, Clone)]
 pub struct Limit {
@@ -74,19 +75,18 @@ impl Limit {
             },
         ))
     }
-    pub fn resolve(rawlimits: Vec<RawLimit>) -> (HashMap<String, Limit>, Vec<anyhow::Error>) {
+    pub fn resolve(logs: &mut Logs, rawlimits: Vec<RawLimit>) -> HashMap<String, Limit> {
         let mut out = HashMap::new();
-        let mut errs = Vec::new();
         for rl in rawlimits {
             let curid = rl.id.clone();
             match Limit::convert(rl) {
                 Ok((nm, lm)) => {
                     out.insert(nm, lm);
                 }
-                Err(rr) => errs.push(anyhow!("limit id {}: {}", curid, rr)),
+                Err(rr) => logs.error(format!("limit id {}: {}", curid, rr)),
             }
         }
-        (out, errs)
+        out
     }
 }
 
