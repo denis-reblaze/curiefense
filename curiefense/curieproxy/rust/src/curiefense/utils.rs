@@ -1,10 +1,12 @@
 use crate::Logs;
 use itertools::Itertools;
+use serde_json::json;
 use std::collections::HashMap;
 use std::net::IpAddr;
 
 pub mod url;
 
+use crate::curiefense::body::parse_body;
 use crate::curiefense::config::utils::{RequestSelector, RequestSelectorCondition};
 use crate::curiefense::interface::Tags;
 use crate::curiefense::maxmind::{get_asn, get_city, get_country};
@@ -57,22 +59,28 @@ fn map_query(query: &str) -> RequestField {
 
 /// parses the request uri, storing the path and query parts (if possible)
 /// returns the hashmap of arguments
-fn map_args(path: &str) -> QueryInfo {
+fn map_args(
+    logs: &mut Logs,
+    path: &str,
+    mcontent_type: Option<&str>,
+    mbody: Option<&[u8]>,
+) -> QueryInfo {
     // this is necessary to do this in this convoluted way so at not to borrow attrs
     let uri = urlencoding::decode(&path).ok();
-    match path.splitn(2, '?').collect_tuple() {
-        Some((qpath, query)) => QueryInfo {
-            qpath: qpath.to_string(),
-            query: query.to_string(),
-            uri,
-            args: map_query(query),
-        },
-        None => QueryInfo {
-            qpath: path.to_string(),
-            query: String::new(),
-            uri,
-            args: RequestField::new(),
-        },
+    let (qpath, query, mut args) = match path.splitn(2, '?').collect_tuple() {
+        Some((qpath, query)) => (qpath.to_string(), query.to_string(), map_query(query)),
+        None => (path.to_string(), String::new(), RequestField::new()),
+    };
+
+    if let Some(body) = mbody {
+        parse_body(logs, &mut args, mcontent_type, body);
+    }
+
+    QueryInfo {
+        qpath,
+        query,
+        uri,
+        args,
     }
 }
 
@@ -98,12 +106,72 @@ pub struct GeoIp {
     pub country_name: Option<String>,
 }
 
+impl GeoIp {
+    fn to_json(&self) -> HashMap<&'static str, serde_json::Value> {
+        let mut out = HashMap::new();
+        for k in &["location", "country", "continent", "city"] {
+            out.insert(*k, json!({}));
+        }
+
+        if let Some(city) = &self.city {
+            if let Some(location) = &city.location {
+                out.insert(
+                    "location",
+                    json!({
+                        "lat": location.latitude,
+                        "lon": location.longitude
+                    }),
+                );
+            }
+            if let Some(lcity) = &city.city {
+                match lcity.names.as_ref().and_then(|names| names.get("en")) {
+                    Some(name) => {
+                        out.insert("city", json!({ "name": name }));
+                    }
+                    None => {
+                        out.insert("city", json!({ "name": "-" }));
+                    }
+                }
+            }
+        }
+
+        if let Some(country) = self.country.as_ref() {
+            if let Some(lcountry) = &country.country {
+                out.insert(
+                    "country",
+                    json!({
+                        "eu": lcountry.is_in_european_union,
+                        "name": lcountry.names.as_ref().and_then(|names| names.get("en")),
+                        "iso": lcountry.iso_code
+                    }),
+                );
+            }
+            if let Some(continent) = &country.continent {
+                out.insert(
+                    "continent",
+                    json!({
+                        "name": continent.names.as_ref().and_then(|names| names.get("en")),
+                        "code": continent.code
+                    }),
+                );
+            }
+        }
+
+        if let Some(asn) = &self.asn {
+            out.insert("asn", json!(asn.autonomous_system_number));
+            out.insert("company", json!(asn.autonomous_system_organization));
+        }
+
+        out
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct RequestMeta {
     pub authority: Option<String>,
     pub method: String,
     pub path: String,
-    /// this field only exists for lua gradual lua interop
+    /// this field only exists for gradual Lua interop
     /// TODO: remove when complete
     pub extra: HashMap<String, String>,
 }
@@ -140,10 +208,14 @@ pub struct RequestInfo {
 
 impl RequestInfo {
     pub fn to_json(self, tags: Tags) -> serde_json::Value {
-        // TODO: ipnum, geo
+        // TODO: geo
+        let ipnum: Option<String> = self.rinfo.geoip.ip.as_ref().map(|i| match i {
+            IpAddr::V4(a) => u32::from_be_bytes(a.octets()).to_string(),
+            IpAddr::V6(a) => u128::from_be_bytes(a.octets()).to_string(),
+        });
         serde_json::json!({
             "headers": self.headers,
-            "cookies": self.headers,
+            "cookies": self.cookies,
             "args": self.rinfo.qinfo.args,
             "attrs": {
                 "uri": self.rinfo.qinfo.uri,
@@ -151,9 +223,10 @@ impl RequestInfo {
                 "query": self.rinfo.qinfo.query,
                 "ip": self.rinfo.geoip.ipstr,
                 "remote_addr": self.rinfo.geoip.ipstr,
-                "ipnum": self.rinfo.geoip.ip,
+                "ipnum": ipnum,
                 "tags": tags
-            }
+            },
+            "geo": self.rinfo.geoip.to_json()
         })
     }
 }
@@ -208,14 +281,20 @@ pub fn find_geoip(ipstr: String) -> GeoIp {
 }
 
 pub fn map_request(
+    logs: &mut Logs,
     ipstr: String,
     headers: HashMap<String, String>,
     meta: RequestMeta,
-    _mbody: Option<&[u8]>,
+    mbody: Option<&[u8]>,
 ) -> Result<RequestInfo, String> {
     let (headers, cookies) = map_headers(headers);
     let geoip = find_geoip(ipstr);
-    let qinfo = map_args(&meta.path);
+    let qinfo = map_args(
+        logs,
+        &meta.path,
+        headers.get("content-type").map(|s| s.as_str()),
+        mbody,
+    );
 
     let host = match meta.authority.as_ref().or_else(|| headers.get("host")) {
         Some(a) => a.clone(),
@@ -296,7 +375,8 @@ mod tests {
 
     #[test]
     fn test_map_args_full() {
-        let qinfo = map_args("/a/b/%20c?xa%20=12&bbbb=12%28&cccc");
+        let mut logs = Logs::new();
+        let qinfo = map_args(&mut logs, "/a/b/%20c?xa%20=12&bbbb=12%28&cccc", None, None);
 
         assert_eq!(qinfo.qpath, "/a/b/%20c");
         assert_eq!(qinfo.uri, Some("/a/b/ c?xa =12&bbbb=12(&cccc".to_string()));
@@ -311,7 +391,8 @@ mod tests {
 
     #[test]
     fn test_map_args_simple() {
-        let qinfo = map_args("/a/b");
+        let mut logs = Logs::new();
+        let qinfo = map_args(&mut logs, "/a/b", None, None);
 
         assert_eq!(qinfo.qpath, "/a/b");
         assert_eq!(qinfo.uri, Some("/a/b".to_string()));

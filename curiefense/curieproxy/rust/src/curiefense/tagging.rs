@@ -124,7 +124,7 @@ pub fn tag_request(cfg: &Config, rinfo: &RequestInfo) -> Tags {
 mod tests {
     use super::*;
     use crate::curiefense::config::profiling::optimize_ipranges;
-    use crate::{map_request, RequestMeta};
+    use crate::{Logs, map_request, RequestMeta};
     use regex::Regex;
     use std::collections::HashMap;
 
@@ -155,7 +155,8 @@ mod tests {
             }
         }
         let meta = RequestMeta::from_map(attrs).unwrap();
-        map_request("52.78.12.56".to_string(), headers, meta, None).unwrap()
+        let mut logs = Logs::new();
+        map_request(&mut logs, "52.78.12.56".to_string(), headers, meta, None).unwrap()
     }
 
     fn t_check_entry(negated: bool, entry: ProfilingEntryE) -> bool {

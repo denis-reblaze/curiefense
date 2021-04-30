@@ -87,8 +87,8 @@ fn inspect_request<GH: Grasshopper>(
     grasshopper: Option<GH>,
 ) -> Result<InspectionResult, String> {
     let rmeta: RequestMeta = RequestMeta::from_map(meta)?;
-    let reqinfo = map_request(ip, headers, rmeta, mbody)?;
     let mut logs = Logs::new();
+    let reqinfo = map_request(&mut logs, ip, headers, rmeta, mbody)?;
 
     let (dec, tags) =
         inspect_generic_request_map(configpath, grasshopper, &reqinfo, Tags::new(), &mut logs);
