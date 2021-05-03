@@ -3,6 +3,7 @@ use serde_json::Value;
 
 use crate::curiefense::logs::Logs;
 use crate::curiefense::requestfields::RequestField;
+use crate::curiefense::utils::url::parse_urlencoded_params_bytes;
 
 fn flatten_json(args: &mut RequestField, prefix: &mut Vec<String>, value: Value) {
   match value {
@@ -57,9 +58,16 @@ fn xml_body(logs: &mut Logs, _args: &mut RequestField, _body: &[u8]) -> Result<(
   Ok(())
 }
 
-fn forms_body(logs: &mut Logs, _args: &mut RequestField, _body: &[u8]) -> Result<(), ()> {
-  logs.warning("Form encoded body decoding is not yet implemented!".to_string());
-  Ok(())
+/// parses bodies that are url encoded forms, like query params
+fn forms_body(logs: &mut Logs, args: &mut RequestField, body: &[u8]) -> Result<(), ()> {
+  // TODO: body is traversed twice here, this is inefficient
+  if body.contains(&b'=') && body.iter().all(|x| *x > 0x20 && *x < 0x7f) {
+    parse_urlencoded_params_bytes(args, body);
+    Ok(())
+  } else {
+    logs.warning("Body is not forms encoded".to_string());
+    Err(())
+  }
 }
 
 fn multipart_form_encoded(
@@ -134,25 +142,42 @@ mod tests {
   fn json_simple_object() {
     let args = test_parse_ok(Some("application/json"), br#"{"a": "b", "c": "d"}"#);
     assert_eq!(args.len(), 2);
-    assert_eq!(args.get("a").map(|s| s.as_str()), Some("b"));
-    assert_eq!(args.get("c").map(|s| s.as_str()), Some("d"));
+    assert_eq!(args.get_str("a"), Some("b"));
+    assert_eq!(args.get_str("c"), Some("d"));
   }
 
   #[test]
   fn json_simple_array() {
     let args = test_parse_ok(Some("application/json"), br#"["a", "b"]"#);
     assert_eq!(args.len(), 2);
-    assert_eq!(args.get("0").map(|s| s.as_str()), Some("a"));
-    assert_eq!(args.get("1").map(|s| s.as_str()), Some("b"));
+    assert_eq!(args.get_str("0"), Some("a"));
+    assert_eq!(args.get_str("1"), Some("b"));
   }
 
   #[test]
   fn json_nested_objects() {
-    let args = test_parse_ok(Some("application/json"), br#"{"a": [true,null,{"z": 0}], "c": {"d": 12}}"#);
+    let args = test_parse_ok(
+      Some("application/json"),
+      br#"{"a": [true,null,{"z": 0}], "c": {"d": 12}}"#,
+    );
     assert_eq!(args.len(), 4);
-    assert_eq!(args.get("a_0").map(|s| s.as_str()), Some("true"));
-    assert_eq!(args.get("a_1").map(|s| s.as_str()), Some("null"));
-    assert_eq!(args.get("a_2_z").map(|s| s.as_str()), Some("0"));
-    assert_eq!(args.get("c_d").map(|s| s.as_str()), Some("12"));
+    assert_eq!(args.get_str("a_0"), Some("true"));
+    assert_eq!(args.get_str("a_1"), Some("null"));
+    assert_eq!(args.get_str("a_2_z"), Some("0"));
+    assert_eq!(args.get_str("c_d"), Some("12"));
+  }
+
+  #[test]
+  fn arguments_collision() {
+    let mut logs = Logs::new();
+    let mut args = RequestField::new();
+    args.add("a".to_string(), "query_arg".to_string());
+    parse_body(
+      &mut logs,
+      &mut args,
+      Some("application/json"),
+      br#"{"a": "body_arg"}"#,
+    );
+    assert_eq!(args.get_str("a"), Some("query_arg body_arg"));
   }
 }

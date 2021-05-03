@@ -1,3 +1,6 @@
+use crate::curiefense::requestfields::RequestField;
+use itertools::Itertools;
+
 #[inline]
 fn from_hex_digit(digit: u8) -> Option<u8> {
     match digit {
@@ -10,8 +13,12 @@ fn from_hex_digit(digit: u8) -> Option<u8> {
 
 /// decodes an url encoded string into a binary vector
 fn urldecode(input: &str) -> Vec<u8> {
+    urldecode_bytes(input.as_bytes())
+}
+
+fn urldecode_bytes(input: &[u8]) -> Vec<u8> {
     let mut out = Vec::new();
-    let mut bytes = input.as_bytes().iter().copied();
+    let mut bytes = input.iter().copied();
     while let Some(mut b) = bytes.next() {
         loop {
             if b == b'%' {
@@ -51,6 +58,32 @@ fn urldecode(input: &str) -> Vec<u8> {
 /// decodes an url encoded string into a string, which can contain REPLACEMENT CHARACTER on decoding failure
 pub fn urldecode_str(input: &str) -> String {
     String::from_utf8_lossy(&urldecode(input)).into_owned()
+}
+
+/// parses query parameters, that look like a=b&c=d
+pub fn parse_urlencoded_params(args: &mut RequestField, query: &str) {
+    for kv in query.split('&') {
+        let (k, v) = match kv.splitn(2, '=').collect_tuple() {
+            Some((k, v)) => (urldecode_str(k), urldecode_str(v)),
+            None => (urldecode_str(kv), String::new()),
+        };
+        args.add(k, v);
+    }
+}
+
+fn urldecode_bytes_str(input: &[u8]) -> String {
+    String::from_utf8_lossy(&urldecode_bytes(input)).into_owned()
+}
+
+/// parses query parameters, that look like a=b&c=d
+pub fn parse_urlencoded_params_bytes(args: &mut RequestField, query: &[u8]) {
+    for kv in query.split(|x| *x == b'&') {
+        let (k, v) = match kv.splitn(2, |x| *x == b'=').collect_tuple() {
+            Some((k, v)) => (urldecode_bytes_str(k), urldecode_bytes_str(v)),
+            None => (urldecode_bytes_str(kv), String::new()),
+        };
+        args.add(k, v);
+    }
 }
 
 #[cfg(test)]

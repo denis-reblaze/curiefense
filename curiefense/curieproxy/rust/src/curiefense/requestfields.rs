@@ -1,6 +1,6 @@
 use core::iter::FromIterator;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, hash_map};
+use std::collections::{hash_map, HashMap};
 
 /// a newtype for user supplied data that can collide
 /// more or less like a HashMap, but concatenates entries with a separator on insert
@@ -24,6 +24,10 @@ impl RequestField {
 
   pub fn get(&self, k: &str) -> Option<&String> {
     self.0.get(k)
+  }
+
+  pub fn get_str(&self, k: &str) -> Option<&str> {
+    self.0.get(k).map(|s| s.as_str())
   }
 
   pub fn len(&self) -> usize {

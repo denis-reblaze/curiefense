@@ -1,4 +1,3 @@
-use crate::Logs;
 use itertools::Itertools;
 use serde_json::json;
 use std::collections::HashMap;
@@ -11,7 +10,9 @@ use crate::curiefense::config::utils::{RequestSelector, RequestSelectorCondition
 use crate::curiefense::interface::Tags;
 use crate::curiefense::maxmind::{get_asn, get_city, get_country};
 use crate::curiefense::requestfields::RequestField;
+use crate::curiefense::utils::url::parse_urlencoded_params;
 use crate::Decision;
+use crate::Logs;
 
 pub fn cookie_map(cookies: &mut RequestField, cookie: &str) {
     // tries to split the cookie around "="
@@ -46,15 +47,11 @@ pub fn map_headers(rawheaders: HashMap<String, String>) -> (RequestField, Reques
     (headers, cookies)
 }
 
-/// parses query parameters
-fn map_query(query: &str) -> RequestField {
-    fn parse_kv(kv: &str) -> (String, String) {
-        match kv.splitn(2, '=').collect_tuple() {
-            Some((k, v)) => (url::urldecode_str(k), url::urldecode_str(v)),
-            None => (url::urldecode_str(kv), String::new()),
-        }
-    }
-    query.split('&').map(parse_kv).collect()
+/// parses query parameters, such as
+fn parse_query_params(query: &str) -> RequestField {
+    let mut rf = RequestField::new();
+    parse_urlencoded_params(&mut rf, query);
+    rf
 }
 
 /// parses the request uri, storing the path and query parts (if possible)
@@ -68,7 +65,11 @@ fn map_args(
     // this is necessary to do this in this convoluted way so at not to borrow attrs
     let uri = urlencoding::decode(&path).ok();
     let (qpath, query, mut args) = match path.splitn(2, '?').collect_tuple() {
-        Some((qpath, query)) => (qpath.to_string(), query.to_string(), map_query(query)),
+        Some((qpath, query)) => (
+            qpath.to_string(),
+            query.to_string(),
+            parse_query_params(query),
+        ),
         None => (path.to_string(), String::new(), RequestField::new()),
     };
 
@@ -292,7 +293,7 @@ pub fn map_request(
     let qinfo = map_args(
         logs,
         &meta.path,
-        headers.get("content-type").map(|s| s.as_str()),
+        headers.get_str("content-type"),
         mbody,
     );
 
