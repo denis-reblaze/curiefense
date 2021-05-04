@@ -8,7 +8,6 @@ use mlua::serde::LuaSerdeExt;
 
 use cidr::AnyIpCidr;
 use maxminddb::geoip2;
-use md5;
 use std::cmp::Ordering;
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -19,6 +18,7 @@ use sigset::{SigSet, SigSetError};
 //////////////// MAXMIND GEOIP ////////////////
 
 #[allow(clippy::upper_case_acronyms)]
+#[allow(clippy::enum_variant_names)]
 enum GeoIPError {
     DBNotLoadedError,
     AddrParseError(std::net::AddrParseError),
@@ -26,6 +26,7 @@ enum GeoIPError {
     LookupError(maxminddb::MaxMindDBError),
 }
 
+#[allow(clippy::upper_case_acronyms)]
 pub struct GeoIP {
     city_db: Option<maxminddb::Reader<Vec<u8>>>,
     country_db: Option<maxminddb::Reader<Vec<u8>>>,
@@ -178,6 +179,7 @@ impl mlua::UserData for GeoIP {
 
 //////////////// IP SET ////////////////
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug)]
 pub struct IPSet(AVLTreeMap<AnyIpCidr, String>);
 

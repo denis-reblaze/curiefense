@@ -35,6 +35,8 @@ use curiefense::waf::waf_check;
 /// * (opt) body
 /// * ip addr
 /// * (opt) grasshopper
+#[allow(clippy::type_complexity)]
+#[allow(clippy::unnecessary_wraps)]
 fn lua_inspect_request(
     _lua: &Lua,
     args: (
@@ -73,7 +75,7 @@ fn lua_inspect_request(
             Decision::Pass.to_json_raw(serde_json::Value::Null, Logs::new()),
             Some(rr),
         ),
-        Ok(ir) => ir.to_json(),
+        Ok(ir) => ir.into_json(),
     })
 }
 
@@ -231,7 +233,7 @@ fn inspect_generic_request_map<GH: Grasshopper>(
 
     if urlmap.acl_active {
         match check_acl(&tags, &urlmap.acl_profile) {
-            ACLResult::Bypass(dec) => {
+            AclResult::Bypass(dec) => {
                 if dec.allowed {
                     return (Decision::Pass, tags);
                 } else {
@@ -239,18 +241,18 @@ fn inspect_generic_request_map<GH: Grasshopper>(
                 }
             }
             // human blocked, always block, even if it is a bot
-            ACLResult::Match(BotHuman {
+            AclResult::Match(BotHuman {
                 bot: _,
                 human:
-                    Some(ACLDecision {
+                    Some(AclDecision {
                         allowed: false,
                         tags: dtags,
                     }),
             }) => return (acl_block(urlmap.acl_active, 5, &dtags), tags),
             // robot blocked, should be challenged
-            ACLResult::Match(BotHuman {
+            AclResult::Match(BotHuman {
                 bot:
-                    Some(ACLDecision {
+                    Some(AclDecision {
                         allowed: false,
                         tags: dtags,
                     }),
@@ -305,6 +307,7 @@ fn lua_result<R>(v: anyhow::Result<R>) -> LuaResult<(Option<R>, Option<String>)>
 }
 
 /// wraps a result into a go-like pair, PRINTING LOGS
+#[allow(clippy::unnecessary_wraps)]
 fn lua_log_result<F, R>(f: F) -> LuaResult<(Option<R>, Option<String>)>
 where
     F: FnOnce(&mut Logs) -> anyhow::Result<R>,

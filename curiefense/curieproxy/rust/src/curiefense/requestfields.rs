@@ -16,7 +16,7 @@ impl RequestField {
             .entry(key)
             .and_modify(|v| {
                 v.push(' ');
-                v.extend(value.chars())
+                v.push_str(&value);
             })
             .or_insert(value);
     }

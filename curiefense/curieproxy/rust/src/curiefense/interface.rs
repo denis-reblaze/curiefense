@@ -33,7 +33,7 @@ impl Decision {
             Decision::Pass => ("pass", None),
             Decision::Action(a) => ("custom_response", Some(a)),
         };
-        let request_map = rinfo.to_json(tags);
+        let request_map = rinfo.into_json(tags);
         let j = serde_json::json!({
             "request_map": request_map,
             "action": action_desc,

@@ -208,7 +208,7 @@ pub struct RequestInfo {
 }
 
 impl RequestInfo {
-    pub fn to_json(self, tags: Tags) -> serde_json::Value {
+    pub fn into_json(self, tags: Tags) -> serde_json::Value {
         // TODO: geo
         let ipnum: Option<String> = self.rinfo.geoip.ip.as_ref().map(|i| match i {
             IpAddr::V4(a) => u32::from_be_bytes(a.octets()).to_string(),
@@ -242,7 +242,7 @@ pub struct InspectionResult {
 }
 
 impl InspectionResult {
-    pub fn to_json(self) -> (String, Option<String>) {
+    pub fn into_json(self) -> (String, Option<String>) {
         // return the request map, but only if we have it !
         let resp = match self.rinfo {
             None => self
@@ -250,7 +250,7 @@ impl InspectionResult {
                 .to_json_raw(serde_json::Value::Null, self.logs),
             Some(rinfo) => {
                 self.decision
-                    .to_json(rinfo, self.tags.unwrap_or_else(|| Tags::new()), self.logs)
+                    .to_json(rinfo, self.tags.unwrap_or_else(Tags::new), self.logs)
             }
         };
         (resp, self.err)

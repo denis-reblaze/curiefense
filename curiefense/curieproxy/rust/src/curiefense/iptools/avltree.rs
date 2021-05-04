@@ -14,6 +14,7 @@ struct Node<K: Ord + Debug, V> {
     right: Tree<K, V>,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug)]
 pub struct AVLTreeMap<K: Ord + Debug, V> {
     root: Tree<K, V>,
@@ -149,8 +150,8 @@ where
 {
     pub fn new(key: K, value: V) -> Node<K, V> {
         Node {
-            key: key,
-            value: value,
+            key,
+            value,
             height: 1,
             left: None,
             right: None,

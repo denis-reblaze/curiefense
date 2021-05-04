@@ -28,10 +28,11 @@ pub struct RawUrlMap {
     pub limit_ids: Vec<String>,
 }
 
+#[serde(rename_all = "UPPERCASE")]
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
 pub enum Relation {
-    AND,
-    OR,
+    And,
+    Or,
 }
 
 /// this is partial, as a ton of data is not needed
@@ -209,7 +210,7 @@ impl std::default::Default for RawActionParams {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ACLProfile {
+pub struct AclProfile {
     pub id: String,
     pub name: String,
     pub allow: HashSet<String>,
@@ -220,9 +221,9 @@ pub struct ACLProfile {
     pub force_deny: HashSet<String>,
 }
 
-impl ACLProfile {
+impl AclProfile {
     pub fn default() -> Self {
-        ACLProfile {
+        AclProfile {
             id: "__default__".to_string(),
             name: "default-acl".to_string(),
             allow: HashSet::new(),
@@ -236,7 +237,7 @@ impl ACLProfile {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct RawWAFProfile {
+pub struct RawWafProfile {
     pub id: String,
     pub name: String,
     pub ignore_alphanum: bool,
@@ -246,19 +247,19 @@ pub struct RawWAFProfile {
     pub max_headers_count: usize,
     pub max_cookies_count: usize,
     pub max_args_count: usize,
-    pub args: RawWAFProperties,
-    pub headers: RawWAFProperties,
-    pub cookies: RawWAFProperties,
+    pub args: RawWafProperties,
+    pub headers: RawWafProperties,
+    pub cookies: RawWafProperties,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct RawWAFProperties {
-    pub names: Vec<RawWAFEntryMatch>,
-    pub regex: Vec<RawWAFEntryMatch>,
+pub struct RawWafProperties {
+    pub names: Vec<RawWafEntryMatch>,
+    pub regex: Vec<RawWafEntryMatch>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct RawWAFEntryMatch {
+pub struct RawWafEntryMatch {
     pub key: String,
     pub reg: Option<String>,
     pub restrict: bool,
@@ -267,7 +268,7 @@ pub struct RawWAFEntryMatch {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct WAFSignature {
+pub struct WafSignature {
     pub id: String,
     pub name: String,
     pub msg: String,

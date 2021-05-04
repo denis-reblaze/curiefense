@@ -13,8 +13,8 @@ where
     F: Fn(&RequestInfo, &A) -> bool,
 {
     match rel {
-        Relation::AND => elems.iter().all(|sub| checker(rinfo, sub)),
-        Relation::OR => elems.iter().any(|sub| checker(rinfo, sub)),
+        Relation::And => elems.iter().all(|sub| checker(rinfo, sub)),
+        Relation::Or => elems.iter().any(|sub| checker(rinfo, sub)),
     }
 }
 
@@ -276,7 +276,7 @@ mod tests {
             ("192.168.1.23", true),
             ("192.170.2.45", false),
         ];
-        check_iprange(Relation::AND, &entries, &samples);
+        check_iprange(Relation::And, &entries, &samples);
     }
 
     #[test]
@@ -288,7 +288,7 @@ mod tests {
             ("192.168.1.23", true),
             ("192.170.2.45", false),
         ];
-        check_iprange(Relation::AND, &entries, &samples);
+        check_iprange(Relation::And, &entries, &samples);
     }
 
     #[test]
@@ -300,7 +300,7 @@ mod tests {
             ("192.168.1.23", false),
             ("192.170.2.45", false),
         ];
-        check_iprange(Relation::AND, &entries, &samples);
+        check_iprange(Relation::And, &entries, &samples);
     }
 
     #[test]
@@ -312,7 +312,7 @@ mod tests {
             ("192.168.1.23", true),
             ("192.170.2.45", false),
         ];
-        check_iprange(Relation::OR, &entries, &samples);
+        check_iprange(Relation::Or, &entries, &samples);
     }
 
     #[test]
@@ -330,6 +330,6 @@ mod tests {
             ("192.168.1.23", false),
             ("192.170.2.45", false),
         ];
-        check_iprange(Relation::OR, &entries, &samples);
+        check_iprange(Relation::Or, &entries, &samples);
     }
 }

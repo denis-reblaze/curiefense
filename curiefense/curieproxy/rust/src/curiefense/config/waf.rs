@@ -1,5 +1,5 @@
 use crate::curiefense::config::raw::{
-    RawWAFEntryMatch, RawWAFProfile, RawWAFProperties, WAFSignature,
+    RawWafEntryMatch, RawWafProfile, RawWafProperties, WafSignature,
 };
 use crate::Logs;
 
@@ -19,33 +19,33 @@ pub struct Section<A> {
 
 // TODO: undefined data structures
 #[derive(Debug, Clone)]
-pub struct WAFProfile {
+pub struct WafProfile {
     pub id: String,
     pub name: String,
     pub ignore_alphanum: bool,
-    pub sections: Section<WAFSection>,
+    pub sections: Section<WafSection>,
 }
 
-impl WAFProfile {
+impl WafProfile {
     pub fn default() -> Self {
-        WAFProfile {
+        WafProfile {
             id: "__default__".to_string(),
             name: "default waf".to_string(),
             ignore_alphanum: true,
             sections: Section {
-                headers: WAFSection {
+                headers: WafSection {
                     max_count: 42,
                     max_length: 1024,
                     names: HashMap::new(),
                     regex: Vec::new(),
                 },
-                args: WAFSection {
+                args: WafSection {
                     max_count: 512,
                     max_length: 1024,
                     names: HashMap::new(),
                     regex: Vec::new(),
                 },
-                cookies: WAFSection {
+                cookies: WafSection {
                     max_count: 42,
                     max_length: 1024,
                     names: HashMap::new(),
@@ -57,15 +57,15 @@ impl WAFProfile {
 }
 
 #[derive(Debug, Clone)]
-pub struct WAFSection {
+pub struct WafSection {
     pub max_count: usize,
     pub max_length: usize,
-    pub names: HashMap<String, WAFEntryMatch>,
-    pub regex: Vec<(Regex, WAFEntryMatch)>,
+    pub names: HashMap<String, WafEntryMatch>,
+    pub regex: Vec<(Regex, WafEntryMatch)>,
 }
 
 #[derive(Debug, Clone)]
-pub struct WAFEntryMatch {
+pub struct WafEntryMatch {
     pub reg: Option<Regex>,
     pub restrict: bool,
     pub exclusions: HashSet<String>,
@@ -110,25 +110,25 @@ where
     }
 }
 
-pub struct WAFSignatures {
+pub struct WafSignatures {
     pub db: VectoredDatabase,
-    pub ids: Vec<WAFSignature>,
+    pub ids: Vec<WafSignature>,
 }
 
-impl WAFSignatures {
+impl WafSignatures {
     pub fn empty() -> Self {
         let pattern: Pattern = pattern! { "^TEST$" };
-        WAFSignatures {
+        WafSignatures {
             db: pattern.build().unwrap(),
             ids: Vec::new(),
         }
     }
 }
 
-fn mk_entry_match(em: RawWAFEntryMatch) -> anyhow::Result<(String, WAFEntryMatch)> {
+fn mk_entry_match(em: RawWafEntryMatch) -> anyhow::Result<(String, WafEntryMatch)> {
     Ok((
         em.key,
-        WAFEntryMatch {
+        WafEntryMatch {
             restrict: em.restrict,
             exclusions: em
                 .exclusions
@@ -142,13 +142,13 @@ fn mk_entry_match(em: RawWAFEntryMatch) -> anyhow::Result<(String, WAFEntryMatch
 }
 
 fn mk_section(
-    props: RawWAFProperties,
+    props: RawWafProperties,
     max_length: usize,
     max_count: usize,
-) -> anyhow::Result<WAFSection> {
-    let mnames: anyhow::Result<HashMap<String, WAFEntryMatch>> =
+) -> anyhow::Result<WafSection> {
+    let mnames: anyhow::Result<HashMap<String, WafEntryMatch>> =
         props.names.into_iter().map(mk_entry_match).collect();
-    let mregex: anyhow::Result<Vec<(Regex, WAFEntryMatch)>> = props
+    let mregex: anyhow::Result<Vec<(Regex, WafEntryMatch)>> = props
         .regex
         .into_iter()
         .map(|e| {
@@ -157,7 +157,7 @@ fn mk_section(
             Ok((re, v))
         })
         .collect();
-    Ok(WAFSection {
+    Ok(WafSection {
         max_count,
         max_length,
         names: mnames?,
@@ -165,10 +165,10 @@ fn mk_section(
     })
 }
 
-fn convert_entry(entry: RawWAFProfile) -> anyhow::Result<(String, WAFProfile)> {
+fn convert_entry(entry: RawWafProfile) -> anyhow::Result<(String, WafProfile)> {
     Ok((
         entry.id.clone(),
-        WAFProfile {
+        WafProfile {
             id: entry.id,
             name: entry.name,
             ignore_alphanum: entry.ignore_alphanum,
@@ -189,8 +189,8 @@ fn convert_entry(entry: RawWAFProfile) -> anyhow::Result<(String, WAFProfile)> {
     ))
 }
 
-impl WAFProfile {
-    pub fn resolve(logs: &mut Logs, raw: Vec<RawWAFProfile>) -> HashMap<String, WAFProfile> {
+impl WafProfile {
+    pub fn resolve(logs: &mut Logs, raw: Vec<RawWafProfile>) -> HashMap<String, WafProfile> {
         let mut out = HashMap::new();
         for rp in raw {
             let id = rp.id.clone();
@@ -205,17 +205,17 @@ impl WAFProfile {
     }
 }
 
-fn convert_signature(entry: &WAFSignature) -> anyhow::Result<Pattern> {
+fn convert_signature(entry: &WafSignature) -> anyhow::Result<Pattern> {
     Pattern::with_flags(
         &entry.operand,
         CompileFlags::MULTILINE | CompileFlags::DOTALL | CompileFlags::CASELESS,
     )
 }
 
-pub fn resolve_signatures(raws: Vec<WAFSignature>) -> anyhow::Result<WAFSignatures> {
+pub fn resolve_signatures(raws: Vec<WafSignature>) -> anyhow::Result<WafSignatures> {
     let patterns: anyhow::Result<Vec<Pattern>> = raws.iter().map(convert_signature).collect();
     let ptrns: Patterns = Patterns::from_iter(patterns?);
-    Ok(WAFSignatures {
+    Ok(WafSignatures {
         db: ptrns.build::<Vectored>()?,
         ids: raws,
     })

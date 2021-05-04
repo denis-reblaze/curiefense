@@ -144,8 +144,8 @@ pub fn optimize_ipranges(rel: Relation, unoptimized: Vec<ProfilingEntry>) -> Vec
         other.push(ProfilingEntry {
             negated: false,
             entry: ProfilingEntryE::Range4(match rel {
-                Relation::AND => intersection(p4),
-                Relation::OR => union(p4),
+                Relation::And => intersection(p4),
+                Relation::Or => union(p4),
             }),
         });
     }
@@ -153,8 +153,8 @@ pub fn optimize_ipranges(rel: Relation, unoptimized: Vec<ProfilingEntry>) -> Vec
         other.push(ProfilingEntry {
             negated: true,
             entry: ProfilingEntryE::Range4(match rel {
-                Relation::AND => union(n4),
-                Relation::OR => intersection(n4),
+                Relation::And => union(n4),
+                Relation::Or => intersection(n4),
             }),
         });
     }
@@ -162,8 +162,8 @@ pub fn optimize_ipranges(rel: Relation, unoptimized: Vec<ProfilingEntry>) -> Vec
         other.push(ProfilingEntry {
             negated: false,
             entry: ProfilingEntryE::Range6(match rel {
-                Relation::AND => intersection(p6),
-                Relation::OR => union(p6),
+                Relation::And => intersection(p6),
+                Relation::Or => union(p6),
             }),
         });
     }
@@ -171,8 +171,8 @@ pub fn optimize_ipranges(rel: Relation, unoptimized: Vec<ProfilingEntry>) -> Vec
         other.push(ProfilingEntry {
             negated: true,
             entry: ProfilingEntryE::Range6(match rel {
-                Relation::AND => union(n6),
-                Relation::OR => intersection(n6),
+                Relation::And => union(n6),
+                Relation::Or => intersection(n6),
             }),
         });
     }

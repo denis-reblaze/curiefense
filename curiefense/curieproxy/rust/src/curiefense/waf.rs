@@ -3,24 +3,24 @@ use libinjection::{sqli, xss};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 
-use crate::curiefense::config::raw::WAFSignature;
+use crate::curiefense::config::raw::WafSignature;
 use crate::curiefense::config::waf::{
-    Section, SectionIdx, WAFEntryMatch, WAFProfile, WAFSection, WAFSignatures,
+    Section, SectionIdx, WafEntryMatch, WafProfile, WafSection, WafSignatures,
 };
 use crate::curiefense::interface::{Action, ActionType};
 use crate::curiefense::requestfields::RequestField;
 use crate::RequestInfo;
 
 #[derive(Debug, Clone)]
-pub struct WAFMatched {
+pub struct WafMatched {
     pub section: SectionIdx,
     pub name: String,
     pub value: String,
 }
 
-impl WAFMatched {
+impl WafMatched {
     fn new(section: SectionIdx, name: String, value: String) -> Self {
-        WAFMatched {
+        WafMatched {
             section,
             name,
             value,
@@ -29,25 +29,25 @@ impl WAFMatched {
 }
 
 #[derive(Debug, Clone)]
-pub struct WAFMatch {
-    pub matched: WAFMatched,
-    pub ids: Vec<WAFSignature>,
+pub struct WafMatch {
+    pub matched: WafMatched,
+    pub ids: Vec<WafSignature>,
 }
 
 #[derive(Debug, Clone)]
-pub enum WAFBlock {
+pub enum WafBlock {
     TooManyEntries(SectionIdx),
     EntryTooLarge(SectionIdx, String),
-    Mismatch(WAFMatched),
-    SQLi(WAFMatched, String), // fingerprint
-    XSS(WAFMatched),
-    Policies(Vec<WAFMatch>),
+    Mismatch(WafMatched),
+    SqlInjection(WafMatched, String), // fingerprint
+    Xss(WafMatched),
+    Policies(Vec<WafMatch>),
 }
 
-impl WAFBlock {
+impl WafBlock {
     pub fn to_action(&self) -> Action {
         let reason = match self {
-            WAFBlock::Policies(ids) => ids
+            WafBlock::Policies(ids) => ids
                 .first()
                 .and_then(|e| {
                     e.ids.first().map(|sig| {
@@ -66,20 +66,20 @@ impl WAFBlock {
                     })
                 })
                 .unwrap_or(Value::Null),
-            WAFBlock::TooManyEntries(idx) => json!({
+            WafBlock::TooManyEntries(idx) => json!({
                 "section": idx,
                 "value": {
                     "msg": "Too many entries"
                 }
             }),
-            WAFBlock::EntryTooLarge(idx, nm) => json!({
+            WafBlock::EntryTooLarge(idx, nm) => json!({
                 "section": idx,
                 "name": nm,
                 "value": {
                     "msg": "Entry too large"
                 }
             }),
-            WAFBlock::SQLi(wmatch, fp) => json!({
+            WafBlock::SqlInjection(wmatch, fp) => json!({
                 "section": wmatch.section,
                 "name": wmatch.name,
                 "value": wmatch.value,
@@ -88,7 +88,7 @@ impl WAFBlock {
                     "fingerprint": fp
                 }
             }),
-            WAFBlock::XSS(wmatch) => json!({
+            WafBlock::Xss(wmatch) => json!({
                 "section": wmatch.section,
                 "name": wmatch.name,
                 "value": wmatch.value,
@@ -96,7 +96,7 @@ impl WAFBlock {
                     "msg": "XSS"
                 }
             }),
-            WAFBlock::Mismatch(wmatch) => json!({
+            WafBlock::Mismatch(wmatch) => json!({
                 "section": wmatch.section,
                 "name": wmatch.name,
                 "value": wmatch.value,
@@ -140,9 +140,9 @@ impl Default for Omitted {
 /// * handle excluded waf policies
 pub fn waf_check(
     rinfo: &RequestInfo,
-    profile: &WAFProfile,
-    hsdb: std::sync::RwLockReadGuard<Option<WAFSignatures>>,
-) -> Result<(), WAFBlock> {
+    profile: &WafProfile,
+    hsdb: std::sync::RwLockReadGuard<Option<WafSignatures>>,
+) -> Result<(), WafBlock> {
     use SectionIdx::*;
     let mut omit = Default::default();
 
@@ -184,18 +184,18 @@ pub fn waf_check(
 /// checks a section (headers, args, cookies) against the policy
 fn section_check(
     idx: SectionIdx,
-    section: &WAFSection,
+    section: &WafSection,
     params: &RequestField,
     ignore_alphanum: bool,
     omit: &mut Omitted,
-) -> Result<(), WAFBlock> {
+) -> Result<(), WafBlock> {
     if params.len() > section.max_count {
-        return Err(WAFBlock::TooManyEntries(idx));
+        return Err(WafBlock::TooManyEntries(idx));
     }
 
     for (name, value) in params.iter() {
         if value.len() >= section.max_length {
-            return Err(WAFBlock::EntryTooLarge(idx, name.clone()));
+            return Err(WafBlock::EntryTooLarge(idx, name.clone()));
         }
 
         // automatically ignored
@@ -205,7 +205,7 @@ fn section_check(
         }
 
         // logic for checking an entry
-        let mut check_entry = |name_entry: &WAFEntryMatch| {
+        let mut check_entry = |name_entry: &WafEntryMatch| {
             let matched = if let Some(re) = &name_entry.reg {
                 re.is_match(value)
             } else {
@@ -214,7 +214,7 @@ fn section_check(
             if matched {
                 omit.entries.at(idx).insert(name.clone());
             } else if name_entry.restrict {
-                return Err(WAFBlock::Mismatch(WAFMatched::new(
+                return Err(WafBlock::Mismatch(WafMatched::new(
                     idx,
                     name.clone(),
                     value.clone(),
@@ -250,7 +250,7 @@ fn injection_check(
     params: &RequestField,
     omit: &Omitted,
     hca_keys: &mut HashMap<String, (SectionIdx, String)>,
-) -> Result<(), WAFBlock> {
+) -> Result<(), WafBlock> {
     for (name, value) in params.iter() {
         if !omit.entries.get(idx).contains(name) {
             if !omit
@@ -262,15 +262,15 @@ fn injection_check(
             {
                 if let Some((b, fp)) = sqli(value) {
                     if b {
-                        return Err(WAFBlock::SQLi(
-                            WAFMatched::new(idx, name.clone(), value.clone()),
+                        return Err(WafBlock::SqlInjection(
+                            WafMatched::new(idx, name.clone(), value.clone()),
                             fp,
                         ));
                     }
                 }
                 if let Some(b) = xss(value) {
                     if b {
-                        return Err(WAFBlock::XSS(WAFMatched::new(
+                        return Err(WafBlock::Xss(WafMatched::new(
                             idx,
                             name.clone(),
                             value.clone(),
@@ -288,9 +288,9 @@ fn injection_check(
 
 fn hyperscan(
     hca_keys: HashMap<String, (SectionIdx, String)>,
-    hsdb: std::sync::RwLockReadGuard<Option<WAFSignatures>>,
+    hsdb: std::sync::RwLockReadGuard<Option<WafSignatures>>,
     exclusions: &Section<HashMap<String, HashSet<String>>>,
-) -> anyhow::Result<Option<WAFBlock>> {
+) -> anyhow::Result<Option<WafBlock>> {
     let sigs = match &*hsdb {
         None => return Err(anyhow::anyhow!("Hyperscan database not loaded")),
         Some(x) => x,
@@ -329,8 +329,8 @@ fn hyperscan(
             Matching::Continue
         })?;
         if !ids.is_empty() {
-            matches.push(WAFMatch {
-                matched: WAFMatched::new(sid, name, k),
+            matches.push(WafMatch {
+                matched: WafMatched::new(sid, name, k),
                 ids,
             })
         }
@@ -338,6 +338,6 @@ fn hyperscan(
     Ok(if matches.is_empty() {
         None
     } else {
-        Some(WAFBlock::Policies(matches))
+        Some(WafBlock::Policies(matches))
     })
 }

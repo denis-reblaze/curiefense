@@ -1,7 +1,7 @@
 use crate::curiefense::config::limit::Limit;
-use crate::curiefense::config::raw::ACLProfile;
+use crate::curiefense::config::raw::AclProfile;
 use crate::curiefense::config::utils::Matching;
-use crate::curiefense::config::waf::WAFProfile;
+use crate::curiefense::config::waf::WafProfile;
 
 /// the default entry is statically encoded so that it is certain it exists
 #[derive(Debug, Clone)]
@@ -17,8 +17,8 @@ pub struct HostMap {
 pub struct UrlMap {
     pub name: String,
     pub acl_active: bool,
-    pub acl_profile: ACLProfile,
+    pub acl_profile: AclProfile,
     pub waf_active: bool,
-    pub waf_profile: WAFProfile,
+    pub waf_profile: WafProfile,
     pub limits: Vec<Limit>,
 }

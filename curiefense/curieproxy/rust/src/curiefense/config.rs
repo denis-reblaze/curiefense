@@ -21,14 +21,14 @@ use hostmap::{HostMap, UrlMap};
 use limit::{limit_order, Limit};
 use profiling::ProfilingSection;
 use raw::{
-    ACLProfile, RawFlowEntry, RawHostMap, RawLimit, RawProfilingSection, RawUrlMap, RawWAFProfile,
+    AclProfile, RawFlowEntry, RawHostMap, RawLimit, RawProfilingSection, RawUrlMap, RawWafProfile,
 };
 use utils::Matching;
-use waf::{resolve_signatures, WAFProfile, WAFSignatures};
+use waf::{resolve_signatures, WafProfile, WafSignatures};
 
 lazy_static! {
     pub static ref CONFIG: RwLock<Config> = RwLock::new(Config::empty());
-    pub static ref HSDB: RwLock<Option<WAFSignatures>> = RwLock::new(None);
+    pub static ref HSDB: RwLock<Option<WafSignatures>> = RwLock::new(None);
 }
 
 pub fn with_config<R, F>(basepath: &str, logs: &mut Logs, f: F) -> Option<R>
@@ -82,30 +82,31 @@ fn from_map<V: Clone>(mp: &HashMap<String, V>, k: &str) -> anyhow::Result<V> {
         .ok_or_else(|| anyhow!("id not found: {}", k))
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Config {
     fn resolve_url_maps(
         logs: &mut Logs,
         rawmaps: Vec<RawUrlMap>,
         limits: &HashMap<String, Limit>,
-        acls: &HashMap<String, ACLProfile>,
-        wafprofiles: &HashMap<String, WAFProfile>,
+        acls: &HashMap<String, AclProfile>,
+        wafprofiles: &HashMap<String, WafProfile>,
     ) -> (Vec<Matching<UrlMap>>, Option<UrlMap>) {
         let mut default: Option<UrlMap> = None;
         let mut entries: Vec<Matching<UrlMap>> = Vec::new();
 
         for rawmap in rawmaps {
-            let acl_profile: ACLProfile = match acls.get(&rawmap.acl_profile) {
+            let acl_profile: AclProfile = match acls.get(&rawmap.acl_profile) {
                 Some(p) => p.clone(),
                 None => {
                     logs.warning(format!("Unknown ACL profile {}", &rawmap.acl_profile));
-                    ACLProfile::default()
+                    AclProfile::default()
                 }
             };
-            let waf_profile: WAFProfile = match wafprofiles.get(&rawmap.waf_profile) {
+            let waf_profile: WafProfile = match wafprofiles.get(&rawmap.waf_profile) {
                 Some(p) => p.clone(),
                 None => {
                     logs.warning(format!("Unknown WAF profile {}", &rawmap.waf_profile));
-                    WAFProfile::default()
+                    WafProfile::default()
                 }
             };
             let mut olimits: Vec<Limit> = Vec::new();
@@ -151,8 +152,8 @@ impl Config {
         rawmaps: Vec<RawHostMap>,
         rawlimits: Vec<RawLimit>,
         rawprofiling: Vec<RawProfilingSection>,
-        rawacls: Vec<ACLProfile>,
-        rawwafprofiles: Vec<RawWAFProfile>,
+        rawacls: Vec<AclProfile>,
+        rawwafprofiles: Vec<RawWafProfile>,
         container_name: Option<String>,
         rawflows: Vec<RawFlowEntry>,
     ) -> Config {
@@ -160,7 +161,7 @@ impl Config {
         let mut urlmaps: Vec<Matching<HostMap>> = Vec::new();
 
         let limits = Limit::resolve(logs, rawlimits);
-        let wafprofiles = WAFProfile::resolve(logs, rawwafprofiles);
+        let wafprofiles = WafProfile::resolve(logs, rawwafprofiles);
         let acls = rawacls.into_iter().map(|a| (a.id.clone(), a)).collect();
 
         // build the entries while looking for the default entry
@@ -242,7 +243,7 @@ impl Config {
         out
     }
 
-    pub fn reload(&self, logs: &mut Logs, basepath: &str) -> Option<(Config, WAFSignatures)> {
+    pub fn reload(&self, logs: &mut Logs, basepath: &str) -> Option<(Config, WafSignatures)> {
         let last_mod = std::fs::metadata(basepath)
             .and_then(|x| x.modified())
             .unwrap_or_else(|rr| {
@@ -272,7 +273,7 @@ impl Config {
             .map(|s| s.trim().to_string());
         let hsdb = resolve_signatures(wafsignatures).unwrap_or_else(|rr| {
             logs.error(format!("{}", rr));
-            WAFSignatures::empty()
+            WafSignatures::empty()
         });
         let config = Config::resolve(
             logs,

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 use uuid::Uuid;
 
-use crate::curiefense::acl::{check_acl, ACLResult};
+use crate::curiefense::acl::{check_acl, AclResult};
 use crate::curiefense::config::{with_config_default_path, CONFIG, HSDB};
 use crate::curiefense::flow::flow_check;
 use crate::curiefense::interface::Tags;
@@ -243,7 +243,7 @@ pub fn session_limit_check(session_id: &str) -> anyhow::Result<Decision> {
     })
 }
 
-pub fn session_acl_check(session_id: &str) -> anyhow::Result<ACLResult> {
+pub fn session_acl_check(session_id: &str) -> anyhow::Result<AclResult> {
     let uuid: Uuid = session_id.parse()?;
 
     with_urlmap(uuid, |urlmap| {
