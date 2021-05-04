@@ -7,6 +7,8 @@
 ///  * multipart/form-data
 ///  * urlencoded forms
 ///
+/// The main function, parse_body, is the only exported function.
+///
 use multipart::server::Multipart;
 use serde_json::Value;
 use std::io::Read;

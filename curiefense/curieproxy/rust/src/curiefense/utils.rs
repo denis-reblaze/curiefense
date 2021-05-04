@@ -75,9 +75,10 @@ fn map_args(
 
     if let Some(body) = mbody {
         if let Err(rr) = parse_body(logs, &mut args, mcontent_type, body) {
+            // if the body could not be parsed, store it in an argument, as if it was text
             logs.error(rr);
             args.add(
-                "INVALID_BODY".to_string(),
+                "RAW_BODY".to_string(),
                 String::from_utf8_lossy(body).to_string(),
             );
         }
