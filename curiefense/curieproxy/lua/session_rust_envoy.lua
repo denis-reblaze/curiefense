@@ -47,7 +47,7 @@ function inspect(handle)
     if response then
         local response_table = cjson.decode(response)
         handle:logDebug("decision " .. response)
-        utils.log_native_message(handle, response_table["logs"])
+        utils.log_native_messages(handle, response_table["logs"])
         request_map = response_table["request_map"]
         request_map.handle = handle
         if response_table["action"] == "custom_response" then
