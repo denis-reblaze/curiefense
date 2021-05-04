@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 mod curiefense;
 
-use curiefense::acl::{check_acl, ACLDecision, ACLResult, BotHuman};
+use curiefense::acl::{check_acl, AclDecision, AclResult, BotHuman};
 use curiefense::config::hostmap::{HostMap, UrlMap};
 use curiefense::config::{with_config, Config, HSDB};
 use curiefense::flow::flow_check;
@@ -28,7 +28,7 @@ use curiefense::utils::{map_request, InspectionResult, RequestInfo};
 use curiefense::waf::waf_check;
 
 /// Lua interface to the inspection function
-/// 
+///
 /// args are
 /// * meta (contains keys "method", "path", and optionally "authority")
 /// * headers

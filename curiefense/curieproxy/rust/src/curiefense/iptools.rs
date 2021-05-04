@@ -18,6 +18,7 @@ use sigset::{SigSet, SigSetError};
 
 //////////////// MAXMIND GEOIP ////////////////
 
+#[allow(clippy::upper_case_acronyms)]
 enum GeoIPError {
     DBNotLoadedError,
     AddrParseError(std::net::AddrParseError),

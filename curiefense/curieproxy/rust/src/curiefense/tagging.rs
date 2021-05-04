@@ -124,7 +124,7 @@ pub fn tag_request(cfg: &Config, rinfo: &RequestInfo) -> Tags {
 mod tests {
     use super::*;
     use crate::curiefense::config::profiling::optimize_ipranges;
-    use crate::{Logs, map_request, RequestMeta};
+    use crate::{map_request, Logs, RequestMeta};
     use regex::Regex;
     use std::collections::HashMap;
 

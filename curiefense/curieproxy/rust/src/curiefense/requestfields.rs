@@ -8,43 +8,42 @@ use std::collections::{hash_map, HashMap};
 pub struct RequestField(pub HashMap<String, String>);
 
 impl RequestField {
-  pub fn new() -> Self {
-    RequestField(HashMap::new())
-  }
-  pub fn add(&mut self, key: String, value: String) {
-    self
-      .0
-      .entry(key)
-      .and_modify(|v| {
-        v.push(' ');
-        v.extend(value.chars())
-      })
-      .or_insert(value);
-  }
+    pub fn new() -> Self {
+        RequestField(HashMap::new())
+    }
+    pub fn add(&mut self, key: String, value: String) {
+        self.0
+            .entry(key)
+            .and_modify(|v| {
+                v.push(' ');
+                v.extend(value.chars())
+            })
+            .or_insert(value);
+    }
 
-  pub fn get(&self, k: &str) -> Option<&String> {
-    self.0.get(k)
-  }
+    pub fn get(&self, k: &str) -> Option<&String> {
+        self.0.get(k)
+    }
 
-  pub fn get_str(&self, k: &str) -> Option<&str> {
-    self.0.get(k).map(|s| s.as_str())
-  }
+    pub fn get_str(&self, k: &str) -> Option<&str> {
+        self.0.get(k).map(|s| s.as_str())
+    }
 
-  pub fn len(&self) -> usize {
-    self.0.len()
-  }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 
-  pub fn iter(&self) -> hash_map::Iter<'_, String, String> {
-    self.0.iter()
-  }
+    pub fn iter(&self) -> hash_map::Iter<'_, String, String> {
+        self.0.iter()
+    }
 }
 
 impl FromIterator<(String, String)> for RequestField {
-  fn from_iter<I: IntoIterator<Item = (String, String)>>(iter: I) -> Self {
-    let mut out = RequestField::new();
-    for (k, v) in iter {
-      out.add(k, v);
+    fn from_iter<I: IntoIterator<Item = (String, String)>>(iter: I) -> Self {
+        let mut out = RequestField::new();
+        for (k, v) in iter {
+            out.add(k, v);
+        }
+        out
     }
-    out
-  }
 }

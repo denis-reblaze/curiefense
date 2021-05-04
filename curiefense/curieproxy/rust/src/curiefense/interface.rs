@@ -1,6 +1,6 @@
-use crate::{Logs, RequestInfo};
 use crate::curiefense::config::raw::{RawAction, RawActionType};
 use crate::curiefense::requestfields::RequestField;
+use crate::{Logs, RequestInfo};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 /// this file contains all the data type that are used when interfacing with a proxy

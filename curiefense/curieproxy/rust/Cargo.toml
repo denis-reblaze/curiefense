@@ -25,6 +25,8 @@ redis = "0.19"
 md5 = "0.7"
 libinjection = "0.2"
 uuid = { version = "0.8", features = ["serde", "v4"] }
+multipart = "0.17.1"
+xmlparser = "0.13.3"
 
 # iptools dependencies
 rand = "0.8.3"

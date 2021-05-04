@@ -290,12 +290,7 @@ pub fn map_request(
 ) -> Result<RequestInfo, String> {
     let (headers, cookies) = map_headers(headers);
     let geoip = find_geoip(ipstr);
-    let qinfo = map_args(
-        logs,
-        &meta.path,
-        headers.get_str("content-type"),
-        mbody,
-    );
+    let qinfo = map_args(logs, &meta.path, headers.get_str("content-type"), mbody);
 
     let host = match meta.authority.as_ref().or_else(|| headers.get("host")) {
         Some(a) => a.clone(),
