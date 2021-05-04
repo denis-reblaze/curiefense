@@ -74,7 +74,13 @@ fn map_args(
     };
 
     if let Some(body) = mbody {
-        parse_body(logs, &mut args, mcontent_type, body);
+        if let Err(rr) = parse_body(logs, &mut args, mcontent_type, body) {
+            logs.error(rr);
+            args.add(
+                "INVALID_BODY".to_string(),
+                String::from_utf8_lossy(body).to_string(),
+            );
+        }
     }
 
     QueryInfo {
