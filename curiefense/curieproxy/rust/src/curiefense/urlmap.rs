@@ -17,19 +17,15 @@ pub fn match_urlmap<'a>(
         .iter()
         .find(|e| e.matcher.is_match(&ri.rinfo.host))
         .map(|m| &m.inner)
-        .or_else(|| {
-            logs.warning("could not find default urlmap".to_string());
-            cfg.default.as_ref()
-        })?;
+        .or_else(|| cfg.default.as_ref())?;
+    logs.debug(format!("Selected hostmap {}", hostmap.name));
     // find the first matching urlmap, or use the default, if it exists
     let urlmap: &UrlMap = hostmap
         .entries
         .iter()
         .find(|e| e.matcher.is_match(&ri.rinfo.qinfo.qpath))
         .map(|m| &m.inner)
-        .or_else(|| {
-            logs.warning("could not find default urlmap entry".to_string());
-            hostmap.default.as_ref()
-        })?;
+        .or_else(|| hostmap.default.as_ref())?;
+    logs.debug(format!("Selected hostmap entry {}", urlmap.name));
     Some((hostmap.name.clone(), urlmap))
 }
