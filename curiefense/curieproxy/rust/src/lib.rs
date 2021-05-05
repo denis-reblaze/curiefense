@@ -286,11 +286,9 @@ fn inspect_generic_request_map<GH: Grasshopper>(
         match waf_result {
             Ok(()) => Decision::Pass,
             Err(wb) => {
-                if urlmap.waf_active {
-                    Decision::Action(wb.to_action())
-                } else {
-                    Decision::Pass
-                }
+                let mut action = wb.to_action();
+                action.block_mode = urlmap.waf_active;
+                Decision::Action(action)
             }
         },
         tags,
