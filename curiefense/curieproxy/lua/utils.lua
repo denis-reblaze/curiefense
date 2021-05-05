@@ -223,7 +223,7 @@ function build_request_map(headers, metadata, map, handle, client_addr)
     map_headers(headers, map)
     map_metadata(metadata, map)
     map_ip(client_addr, map)
-    s(handle, map)
+    map_args(handle, map)
 
     map.attrs.session_sequence_key = string.format(
         "%s%s%s",
