@@ -85,6 +85,7 @@ fn xml_path(stack: &[(String, u64)]) -> String {
   out
 }
 
+/// pop the stack and checks for errors when closing an element
 fn close_xml_element(
   args: &mut RequestField,
   stack: &mut Vec<(String, u64)>,

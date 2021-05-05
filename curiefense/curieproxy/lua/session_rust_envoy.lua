@@ -36,6 +36,10 @@ function inspect(handle)
         body_content = hbody:getBytes(0, hbody:length())
     end
 
+    -- the meta table contains the following elements:
+    --   * path : the full request uri
+    --   * method : the HTTP verb
+    --   * authority : optionally, the HTTP2 authority field
     local response, err = curiefense.inspect_request(
         meta, headers, body_content, ip_str, grasshopper
     )
