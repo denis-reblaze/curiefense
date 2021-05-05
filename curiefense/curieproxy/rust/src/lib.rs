@@ -231,48 +231,46 @@ fn inspect_generic_request_map<GH: Grasshopper>(
         return (limit_check, tags);
     }
 
-    if urlmap.acl_active {
-        match check_acl(&tags, &urlmap.acl_profile) {
-            AclResult::Bypass(dec) => {
-                if dec.allowed {
-                    return (Decision::Pass, tags);
-                } else {
-                    return (acl_block(urlmap.acl_active, 0, &dec.tags), tags);
-                }
+    match check_acl(&tags, &urlmap.acl_profile) {
+        AclResult::Bypass(dec) => {
+            if dec.allowed {
+                return (Decision::Pass, tags);
+            } else {
+                return (acl_block(urlmap.acl_active, 0, &dec.tags), tags);
             }
-            // human blocked, always block, even if it is a bot
-            AclResult::Match(BotHuman {
-                bot: _,
-                human:
-                    Some(AclDecision {
-                        allowed: false,
-                        tags: dtags,
-                    }),
-            }) => return (acl_block(urlmap.acl_active, 5, &dtags), tags),
-            // robot blocked, should be challenged
-            AclResult::Match(BotHuman {
-                bot:
-                    Some(AclDecision {
-                        allowed: false,
-                        tags: dtags,
-                    }),
-                human: _,
-            }) => {
-                // if grasshopper is available, run these tests
-                if let Some(gh) = mgh {
-                    if !challenge_verified(&gh, &reqinfo) {
-                        return (
-                            match reqinfo.headers.get("user-agent") {
-                                None => acl_block(urlmap.acl_active, 3, &dtags),
-                                Some(ua) => challenge_phase01(&gh, ua, dtags),
-                            },
-                            tags,
-                        );
-                    }
-                }
-            }
-            _ => (),
         }
+        // human blocked, always block, even if it is a bot
+        AclResult::Match(BotHuman {
+            bot: _,
+            human:
+                Some(AclDecision {
+                    allowed: false,
+                    tags: dtags,
+                }),
+        }) => return (acl_block(urlmap.acl_active, 5, &dtags), tags),
+        // robot blocked, should be challenged
+        AclResult::Match(BotHuman {
+            bot:
+                Some(AclDecision {
+                    allowed: false,
+                    tags: dtags,
+                }),
+            human: _,
+        }) => {
+            // if grasshopper is available, run these tests
+            if let Some(gh) = mgh {
+                if !challenge_verified(&gh, &reqinfo) {
+                    return (
+                        match reqinfo.headers.get("user-agent") {
+                            None => acl_block(urlmap.acl_active, 3, &dtags),
+                            Some(ua) => challenge_phase01(&gh, ua, dtags),
+                        },
+                        tags,
+                    );
+                }
+            }
+        }
+        _ => (),
     }
     let waf_result = match HSDB.read() {
         Ok(rd) => waf_check(&reqinfo, &urlmap.waf_profile, rd),
