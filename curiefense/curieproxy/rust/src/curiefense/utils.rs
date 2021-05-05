@@ -231,9 +231,9 @@ impl RequestInfo {
                 "query": self.rinfo.qinfo.query,
                 "ip": self.rinfo.geoip.ipstr,
                 "remote_addr": self.rinfo.geoip.ipstr,
-                "ipnum": ipnum,
-                "tags": tags
+                "ipnum": ipnum
             },
+            "tags": tags,
             "geo": self.rinfo.geoip.to_json()
         })
     }
