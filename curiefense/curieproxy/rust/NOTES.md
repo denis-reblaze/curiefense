@@ -2,33 +2,41 @@
 
 An initial implementation of all filtering components had been written. The following is currently handled in Lua:
 
- * request mapping
+ * getting the information required by the filtering engine:
+    - 
  * request replies
  * logging
 
 ## Things to fix
 
- * pervasive testing, making sure the behaviour is in line with what is expected
- * implement asynchronous methods so as not to block envoy -> unfortunately hard than expected
+ * implement asynchronous methods so as not to block envoy -> unfortunately much harder than expected, will probably need a custom executor to work properly
  * performance profiling
  * code structure / refactorings / etc.
 
-# Stateless API
+# Main API
 
-The stateless API can be used to perform filtering operations.
+The main API can be used to perform filtering operations.
 
 ## Functions
 
-### `inspect_request_map`
+### `inspect_request`
 
-Takes two arguments:
+Takes five arguments:
 
- * a JSON-encoded string representing the *request_map*
- * a Lua table containing the *grasshopper* functions (such as the imported grasshopper module), or `nil`
+ * *meta*, a Lua table containing the following entries:
+
+    - `path`: the "path" part of the HTTP request, containing the full, raw URI (ie. something like `/a/b?c=d&e=f`);
+    - `method`: the HTTP verb (such as `GET`, `POST`, etc.);
+    - `authority`: optionnaly, the `:authority` HTTP2 header, if available.
+    
+ * *headers*, a Lua table containing the HTTP headers (keys are the header names, values the header values).
+ * *body*, optionnaly, the HTTP request body. Note that large bodies will have a performance impact, and should be size-limited before calling this function.
+ * *ip*, the string-encoded IP address in canonical format.
+ * a Lua table containing the *grasshopper* functions (such as the imported grasshopper module), or `nil` if not available.
 
 It will perform all the curieproxy checks, and return a pair, with:
 
- * a Decision (see below),
+ * a JSON-encoded Decision (see below),
  * a list of strings, containing all encountered errors
 
 # Session API
@@ -182,39 +190,210 @@ Example, when actions needs to be taken:
 
 ```json
 {
-   "Action" : {
+   "action" : "custom_response",
+   "logs" : [
+      {
+         "elapsed_micros" : 20,
+         "level" : "debug",
+         "message" : "body parsing start"
+      },
+      {
+         "elapsed_micros" : 23,
+         "level" : "debug",
+         "message" : "parsing content type: multipart/form-data; boundary=------------------------07502956c60abf2d"
+      },
+      {
+         "elapsed_micros" : 67,
+         "level" : "debug",
+         "message" : "Selected hostmap default entry"
+      },
+      {
+         "elapsed_micros" : 70,
+         "level" : "debug",
+         "message" : "Selected hostmap entry test path"
+      }
+   ],
+   "request_map" : {
+      "args" : {
+         "a" : "b",
+         "baz" : "qux",
+         "c" : "cmd.exe",
+         "foo" : "bar"
+      },
+      "attrs" : {
+         "ip" : "172.19.0.1",
+         "ipnum" : "2886926337",
+         "path" : "/test/",
+         "query" : "a=b&c=cmd.exe",
+         "remote_addr" : "172.19.0.1",
+         "uri" : "/test/?a=b&c=cmd.exe"
+      },
+      "cookies" : {},
+      "geo" : {
+         "city" : {},
+         "continent" : {},
+         "country" : {},
+         "location" : {}
+      },
+      "headers" : {
+         "accept" : "*/*",
+         "content-length" : "236",
+         "content-type" : "multipart/form-data; boundary=------------------------07502956c60abf2d",
+         "user-agent" : "curl/7.68.0",
+         "x-envoy-internal" : "true",
+         "x-forwarded-for" : "172.19.0.1",
+         "x-forwarded-proto" : "http",
+         "x-request-id" : "e56d8114-df7e-4e9d-b0c0-2ac9cf302118"
+      },
+      "tags" : [
+         "urlmap-entry:test-path",
+         "container:a84fe3412aab",
+         "aclname:demo-acl",
+         "api",
+         "aclid:34511ea458a8",
+         "wafid:default-waf",
+         "ip:172-19-0-1",
+         "asn:nil",
+         "urlmap:default-entry",
+         "geo:nil",
+         "all"
+      ]
+   },
+   "response" : {
       "atype" : "block",
       "ban" : false,
-      "reason" : {
-         "sig_subcategory" : "generic",
-         "section" : "args",
-         "initiator" : "waf",
-         "sig_operand" : "/adxmlrpc.php",
-         "sig_id" : "100062",
-         "sig_msg" : "RFI/LFI/OSCI",
-         "sig_category" : "generic",
-         "name" : "lol",
-         "sig_severity" : 5,
-         "value" : "lalalala/adxmlrpc.phpB"
-      },
-      "status" : 403,
-      "headers" : null,
+      "block_mode" : true,
       "content" : "Access denied",
-      "extra_tags" : null
+      "extra_tags" : null,
+      "headers" : null,
+      "reason" : {
+         "initiator" : "waf",
+         "name" : "content-type",
+         "section" : "headers",
+         "sig_category" : "sqli",
+         "sig_id" : "100031",
+         "sig_msg" : "SQLi Attempt (Escape Technique Captured)",
+         "sig_operand" : "(\"'|'\"|--)[\\s\\<\\>;-]",
+         "sig_severity" : 5,
+         "sig_subcategory" : "escape-character",
+         "value" : "multipart/form-data; boundary=------------------------07502956c60abf2d"
+      },
+      "status" : 403
    }
 }
 ```
 
 The fields have the following meaning:
 
- * `atype`: type of the action, can be `block`, `monitor`, or `alter_headers` ;
- * `ban`, a boolean, indicating whether banning had been performed ;
- * `reason`, an arbitrary value, for logging purposes,
- * `status`, http status of the response ;
- * `headers`, an optional object with strings values, for headers to be appended to the request before passing it upstream ;
- * `content`, body content of the response,
- * `extra_tags`, undefined (might be removed in the future).
+ * `action`: can be either `pass` or `custom_response` ;
+ * `response`: set when in `custom_response` mode, contains the data that is necessary for logging the reason a request was blocked (or flagged by an inactive WAF/ACL checker) ;
+ * `request_map`: the request map, for logging purposes ;
+ * `logs`: contains a list of logs generated by the Rust code.
 
-## Sample code, parallel Rust/Lua execution
+# Misc notes
 
-Sample code is now [in the repo](https://github.com/curiefense/curiefense/blob/wasm_test/curiefense/curieproxy/lua/session.lua).
+## Arguments, cookies, headers collisions
+
+The same header, or argument can appear multiple times in an HTTP request. For example, the following URI might be used:
+
+```
+/path?a=1&a=2
+```
+
+Other situations are:
+
+  * multiple headers have the same name ;
+  * multiple cookies have the same name ;
+  * URI parameters clash with each other ;
+  * URI parameters clash with body parameters ;
+  * body parameters clash with each other.
+
+When this happens, values are concatenated with a space separator. In the previous example, we would end up with the `a` parameter being equal to `1 2`.
+
+## Body parsing behavior
+
+Body parsing uses the body that is passed by calling code, as if it was a binary buffer.
+The `Content-Type` header is checked, and the following decisions are made:
+
+  * if it starts with `multipart/form-data; boundary=`, try multipart form-data decoding ;
+  * if it ends with `/json`, try JSON decoding ;
+  * if it ends with `/xml`, try XML decoding ;
+  * if it is equal to `application/x-www-form-urlencoded`, try form-encoded decoding ;
+  * if it is absent, or none of the previous tests were successful, try to decode as JSON, and, if it fails, as form-encoded.
+
+If all failed, the body is decoded as an UTF8 string (using invalid codepoints where decoding failed), and made available as the `RAW_BODY` argument.
+
+Multipart form-data and form-encoded formats do not have a special logic, as they encode simple key/values associations.
+
+### JSON body parsing
+
+JSON values are not simple key/values associations. For these reasons, scalar values anywhere in the JSON value are associated with argument names that represent the "path" to these values. Here are some examples:
+
+```json
+{"a": [true,null,{"z": 0.2}], "c": {"d": 12}}
+```
+
+Will encode as:
+
+```
+a_0=true
+a_1=null
+a_2_z=0.2
+c_d=12
+```
+
+"Path" to the scalar values are made of the key values for objects, and indices for arrays, joined by the `_` character.
+When there is no path (the JSON payload is a scalar), the path is set to `JSON_ROOT`.
+
+Runtime performance of the JSON body parser might be negatively impacted by the size of the document, but also by its structure. Structures like:
+
+```json
+{"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA":[1,2,3,4,5,6]}
+```
+
+Will produce the following arguments:
+```
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_1=1
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_2=2
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_3=3
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_4=4
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_5=5
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_6=6
+```
+
+Memory usage can grow up quadratically with the original document size.
+
+### XML body parsing
+
+The XML code assumes the text encoding is UTF8, and will fail for other encodings.
+Just as the JSON encoding, there is a notion of "path" to a value.
+XML is however more complicated, as there are two kinds of values: text between elements, and parameters within elements.
+
+Pathes are built by concatenating the local names of elements and the index of the position the element appears within an element. For example, the following document:
+
+```xml
+<a> a <b foo="bar">xxx</b> z </a>
+```
+
+Will be decoded as:
+
+```
+a1=a
+a2bfoo=bar
+a2b1=xxx
+a3=z
+```
+
+This example highlights how the relative ordering of elements is encoded in the argument name.
+There are however several subtleties.
+
+First of all, text elements are trimmed for spaces, and are not stored as an argument when they are empty, with the exception of of leaf elements.
+Indeed, without this exception, a document like `<a><b><c/></b></a>` would not produce any argument.
+Here, `<c/>` is s leaf element, and the `a1b1c1` will be associated with the empty strings.
+
+`CDATA` directives are not trimmed for spaces.
+
+XML entities have a special treatment. They are stored with argument names of the form `_XMLENTITY_[TYPE]_[NAME]`,
+where type can be `VALUE` for entity values, `SYSTEMID` for external system id entities, and `PUBLICID` for external public id entities.
+
+The same memory problems that are present in the JSON parser. Another potential problem comes with matching rules for XML documents. As the index of elements is encoded, most rules will be of the type "regex" for arguments names, resulting in linear scanning of the arguments list.
