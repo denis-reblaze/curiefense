@@ -55,29 +55,26 @@ impl Logs {
         }
     }
 
-    pub fn log(&mut self, level: LogLevel, message: String) {
+    pub fn log<S: ToString>(&mut self, level: LogLevel, message: S) {
         let now = Instant::now();
         self.logs.push(Log {
             elapsed_micros: now.duration_since(self.start).as_micros() as u64,
-            level: level,
-            message,
+            message: message.to_string(),
+            level,
         })
     }
 
-    pub fn debug(&mut self, message: String) {
+    pub fn debug<S: ToString>(&mut self, message: S) {
         self.log(LogLevel::Debug, message);
     }
-    pub fn info(&mut self, message: String) {
+    pub fn info<S: ToString>(&mut self, message: S) {
         self.log(LogLevel::Info, message);
     }
-    pub fn warning(&mut self, message: String) {
+    pub fn warning<S: ToString>(&mut self, message: S) {
         self.log(LogLevel::Warning, message);
     }
-    pub fn error(&mut self, message: String) {
+    pub fn error<S: ToString>(&mut self, message: S) {
         self.log(LogLevel::Error, message);
-    }
-    pub fn aerror(&mut self, message: anyhow::Error) {
-        self.log(LogLevel::Error, format!("{}", message));
     }
 
     pub fn to_stringvec(&self) -> Vec<String> {

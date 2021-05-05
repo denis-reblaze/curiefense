@@ -18,6 +18,14 @@ use crate::curiefense::logs::Logs;
 use crate::curiefense::requestfields::RequestField;
 use crate::curiefense::utils::url::parse_urlencoded_params_bytes;
 
+fn json_path(prefix: &[String]) -> String {
+    if prefix.is_empty() {
+        "JSON_ROOT".to_string()
+    } else {
+        prefix.join("_")
+    }
+}
+
 /// flatten a JSON tree into the RequestField key/value store
 /// key values are build by joining all path names with "_", where path names are:
 ///   * keys for objects ;
@@ -45,19 +53,19 @@ fn flatten_json(args: &mut RequestField, prefix: &mut Vec<String>, value: Value)
             prefix.pop();
         }
         Value::String(str) => {
-            args.add(prefix.join("_"), str);
+            args.add(json_path(prefix), str);
         }
         Value::Bool(b) => {
             args.add(
-                prefix.join("_"),
+                json_path(prefix),
                 (if b { "true" } else { "false" }).to_string(),
             );
         }
         Value::Number(n) => {
-            args.add(prefix.join("_"), format!("{}", n));
+            args.add(json_path(prefix), format!("{}", n));
         }
         Value::Null => {
-            args.add(prefix.join("_"), "null".to_string());
+            args.add(json_path(prefix), "null".to_string());
         }
     }
 }
@@ -239,7 +247,7 @@ pub fn parse_body(
     mcontent_type: Option<&str>,
     body: &[u8],
 ) -> Result<(), String> {
-    logs.debug("body parsing start".to_string());
+    logs.debug("body parsing started");
 
     if let Some(content_type) = mcontent_type {
         logs.debug(format!("parsing content type: {}", content_type));
@@ -308,6 +316,15 @@ mod tests {
     #[test]
     fn json_empty_body() {
         test_parse(Some("application/json"), br#"{}"#, &[]);
+    }
+
+    #[test]
+    fn json_scalar() {
+        test_parse(
+            Some("application/json"),
+            br#""scalar""#,
+            &[("JSON_ROOT", "scalar")],
+        );
     }
 
     #[test]

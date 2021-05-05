@@ -81,6 +81,8 @@ fn map_args(
                 "RAW_BODY".to_string(),
                 String::from_utf8_lossy(body).to_string(),
             );
+        } else {
+            logs.debug("body parsed");
         }
     }
 
@@ -295,9 +297,13 @@ pub fn map_request(
     meta: RequestMeta,
     mbody: Option<&[u8]>,
 ) -> Result<RequestInfo, String> {
+    logs.debug("map_request starts");
     let (headers, cookies) = map_headers(headers);
+    logs.debug("headers mapped");
     let geoip = find_geoip(ipstr);
+    logs.debug("geoip computed");
     let qinfo = map_args(logs, &meta.path, headers.get_str("content-type"), mbody);
+    logs.debug("args mapped");
 
     let host = match meta.authority.as_ref().or_else(|| headers.get("host")) {
         Some(a) => a.clone(),

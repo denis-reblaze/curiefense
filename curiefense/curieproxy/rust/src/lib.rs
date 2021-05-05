@@ -88,8 +88,10 @@ fn inspect_request<GH: Grasshopper>(
     ip: String,
     grasshopper: Option<GH>,
 ) -> Result<InspectionResult, String> {
-    let rmeta: RequestMeta = RequestMeta::from_map(meta)?;
     let mut logs = Logs::new();
+    logs.debug("Inspection init");
+    let rmeta: RequestMeta = RequestMeta::from_map(meta)?;
+
     let reqinfo = map_request(&mut logs, ip, headers, rmeta, mbody)?;
 
     let (dec, tags) =
@@ -139,7 +141,7 @@ pub fn inspect_request_map(_lua: &Lua, args: (String, Option<LuaTable>)) -> LuaR
     let updated_request_map = match update_tags(jvalue, tags) {
         Ok(v) => v,
         Err(rr) => {
-            logs.error(format!("{}", rr));
+            logs.error(rr);
             serde_json::Value::Null
         }
     };
@@ -184,6 +186,7 @@ fn inspect_generic_request_map<GH: Grasshopper>(
 ) -> (Decision, Tags) {
     let mut tags = itags;
 
+    logs.debug("Inspection starts");
     // do all config queries in the lambda once
     // there is a lot of copying taking place, to minimize the lock time
     // this decision should be backed with benchmarks
@@ -198,6 +201,7 @@ fn inspect_generic_request_map<GH: Grasshopper>(
             return (Decision::Pass, Tags::new());
         }
     };
+    logs.debug("request tagged");
     tags.extend(ntags);
     tags.insert_qualified("urlmap", &nm);
     tags.insert_qualified("urlmap-entry", &urlmap.name);
@@ -206,11 +210,12 @@ fn inspect_generic_request_map<GH: Grasshopper>(
     tags.insert_qualified("wafid", &urlmap.waf_profile.name);
 
     match flow_check(&flows, &reqinfo, &tags) {
-        Err(rr) => logs.aerror(rr),
+        Err(rr) => logs.error(rr),
         Ok(Decision::Pass) => {}
         // TODO, check for monitor
         Ok(a) => return (a, tags),
     }
+    logs.debug("flow checks done");
 
     if let Some(dec) = mgh.as_ref().and_then(|gh| {
         reqinfo
@@ -230,6 +235,7 @@ fn inspect_generic_request_map<GH: Grasshopper>(
         // limit hit!
         return (limit_check, tags);
     }
+    logs.debug("limit checks done");
 
     match check_acl(&tags, &urlmap.acl_profile) {
         AclResult::Bypass(dec) => {
@@ -272,6 +278,8 @@ fn inspect_generic_request_map<GH: Grasshopper>(
         }
         _ => (),
     }
+    logs.debug("ACL checks done");
+
     let waf_result = match HSDB.read() {
         Ok(rd) => waf_check(&reqinfo, &urlmap.waf_profile, rd),
         Err(rr) => {
@@ -279,6 +287,7 @@ fn inspect_generic_request_map<GH: Grasshopper>(
             Ok(())
         }
     };
+    logs.debug("WAF checks done");
 
     (
         match waf_result {

@@ -113,7 +113,7 @@ pub fn flow_resolve(
     // entries are created with steps in order
     for rawentry in rawentries {
         match FlowEntry::convert(rawentry) {
-            Err(rr) => logs.warning(format!("{}", rr)),
+            Err(rr) => logs.warning(rr),
             Ok(entry) => {
                 let nsteps = entry.sequence.len();
                 for (stepid, step) in entry.sequence.into_iter().enumerate() {

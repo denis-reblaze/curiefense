@@ -349,7 +349,7 @@ impl ProfilingSection {
 
         for rp in rawprofiling.into_iter().filter(|s| s.active) {
             match convert_section(logs, rp) {
-                Err(rr) => logs.error(format!("{}", rr)),
+                Err(rr) => logs.error(rr),
                 Ok(profile) => out.push(profile),
             }
         }

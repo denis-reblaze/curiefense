@@ -43,18 +43,18 @@ where
         Err(rr) =>
         // read failed :(
         {
-            logs.error(format!("{}", rr));
+            logs.error(rr);
             return None;
         }
     };
     let r = f(logs, &newconfig);
     match CONFIG.write() {
         Ok(mut w) => *w = newconfig,
-        Err(rr) => logs.error(format!("{}", rr)),
+        Err(rr) => logs.error(rr),
     };
     match HSDB.write() {
         Ok(mut dbw) => *dbw = Some(newhsdb),
-        Err(rr) => logs.error(format!("{}", rr)),
+        Err(rr) => logs.error(rr),
     };
     Some(r)
 }
@@ -113,7 +113,7 @@ impl Config {
             for lid in rawmap.limit_ids {
                 match from_map(&limits, &lid) {
                     Ok(lm) => olimits.push(lm),
-                    Err(rr) => logs.error(format!("{}", rr)),
+                    Err(rr) => logs.error(rr),
                 }
             }
             // limits 0 are tried first, than in decreasing order of the limit field
@@ -272,7 +272,7 @@ impl Config {
             .ok()
             .map(|s| s.trim().to_string());
         let hsdb = resolve_signatures(wafsignatures).unwrap_or_else(|rr| {
-            logs.error(format!("{}", rr));
+            logs.error(rr);
             WafSignatures::empty()
         });
         let config = Config::resolve(
