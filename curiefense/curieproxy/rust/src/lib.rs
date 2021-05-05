@@ -310,8 +310,8 @@ where
 {
     let mut logs = Logs::new();
     let v = f(&mut logs);
-    for log in logs.0 {
-        println!("TODO: {:?}", log);
+    for log in logs.logs {
+        println!("{}", log.to_string());
     }
     Ok(match v {
         Ok(x) => (Some(x), None),
@@ -492,12 +492,12 @@ mod tests {
     fn config_load() {
         let mut logs = Logs::new();
         let cfg = with_config("../config", &mut logs, |_, c| c.clone());
-        for r in logs.0.iter() {
-            println!("ERR: {:?}", r);
+        for r in logs.logs.iter() {
+            println!("{}", r.to_string());
         }
         assert!(cfg.is_some());
-        assert!(logs.0.len() == 2);
-        assert!(format!("{}", logs.0[0].message).contains("profiling-lists.json"));
-        assert!(format!("{}", logs.0[1].message).contains("rbz-cloud-platforms"));
+        assert!(logs.logs.len() == 2);
+        assert!(format!("{}", logs.logs[0].message).contains("profiling-lists.json"));
+        assert!(format!("{}", logs.logs[1].message).contains("rbz-cloud-platforms"));
     }
 }

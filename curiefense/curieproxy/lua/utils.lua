@@ -578,7 +578,7 @@ end
 function log_native_messages(handle, logs)
     for _, log in ipairs(logs) do
         level = log["level"]
-        msg = log["message"]
+        msg = log["elapsed_micros"] .. "µs " .. log["message"]
         if level == "debug" then
             handle:logDebug(msg)
         elseif level == "info" then

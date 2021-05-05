@@ -23,7 +23,7 @@ impl Decision {
             "request_map": request_map,
             "action": action_desc,
             "response": response,
-            "logs": logs.0
+            "logs": logs.logs
         });
         serde_json::to_string(&j).unwrap_or_else(|_| "{}".to_string())
     }
@@ -38,7 +38,7 @@ impl Decision {
             "request_map": request_map,
             "action": action_desc,
             "response": response,
-            "logs": logs.0
+            "logs": logs.logs
         });
         serde_json::to_string(&j).unwrap_or_else(|_| "{}".to_string())
     }
