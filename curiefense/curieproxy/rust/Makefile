@@ -9,11 +9,11 @@ ctarget/registry: ctarget
 ctarget/target: ctarget
 	mkdir -p ctarget/target
 
-ctarget/target/release/libcuriefense.so: container ctarget/registry ctarget/target
+ctarget/target/release/libcuriefense_lua.so: container ctarget/registry ctarget/target
 	docker run -v `pwd`:/home/builder/rust -v `pwd`/ctarget/registry:/home/builder/.cargo/registry  -w /home/builder/rust  -t curiefense/rustbuild:latest /home/builder/.cargo/bin/cargo build --release --target-dir ctarget/target
 
-../lua/shared-objects/curiefense.so: ctarget/target/release/libcuriefense.so
-	cp ctarget/target/release/libcuriefense.so ../lua/shared-objects/curiefense.so
+../lua/shared-objects/curiefense.so: ctarget/target/release/libcuriefense_lua.so
+	cp ctarget/target/release/libcuriefense_lua.so ../lua/shared-objects/curiefense.so
 
 .PHONY: all container test test-nodeps
 
