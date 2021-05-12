@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::curiefense::config::flow::{FlowElement, SequenceKey};
 use crate::curiefense::config::utils::RequestSelector;
 use crate::curiefense::interface::Tags;
+use crate::curiefense::redis::REDISCNX;
 use crate::curiefense::utils::{check_selector_cond, select_string, RequestInfo};
 use crate::Decision;
 
@@ -86,7 +87,7 @@ pub fn flow_check(
         Some(elems) => {
             let mut bad = Decision::Pass;
             // do not establish the connection if unneeded
-            let mut cnx: redis::Connection = crate::curiefense::redis::redis_conn()?;
+            let mut cnx: REDISCNX = crate::curiefense::redis::redis_conn()?;
             for elem in elems.iter().filter(|e| flow_match(reqinfo, tags, e)) {
                 let redis_key = build_redis_key(reqinfo, &elem.key, &elem.id, &elem.name);
                 if check_flow(&mut cnx, &redis_key, elem.step, elem.ttl, elem.is_last)? {
