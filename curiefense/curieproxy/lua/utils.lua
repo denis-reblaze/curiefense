@@ -586,9 +586,9 @@ function log_native_messages(handle, logs)
         elseif level == "warning" then
             handle:logWarn(msg)
         elseif level == "error" then
-            handle:logError(msg)
+            handle:logErr(msg)
         else
-            handle:logError("Can't log this message: " .. cjson.encode(logs))
+            handle:logErr("Can't log this message: " .. cjson.encode(logs))
         end
     end
 end
