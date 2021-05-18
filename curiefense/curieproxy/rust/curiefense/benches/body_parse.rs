@@ -26,8 +26,8 @@ fn json_values(c: &mut Criterion) {
     });
 }
 
-fn create_string_map(sz: usize) -> String {
-    let mp: HashMap<String, String> = (1..sz)
+fn create_json_string_map(sz: usize) -> String {
+    let mp: HashMap<String, String> = (0..sz)
         .map(|x| {
             let xs = format!("{}", x);
             (xs.clone(), xs)
@@ -40,11 +40,31 @@ fn json_string_map(c: &mut Criterion) {
     let mut group = c.benchmark_group("json string map");
     for sz in [1, 100, 10000].iter() {
         group.bench_with_input(BenchmarkId::from_parameter(sz), sz, |b, &size| {
-            let mp = create_string_map(size);
+            let mp = create_json_string_map(size);
             b.iter(|| body_test(Some("text/json"), black_box(mp.as_bytes())))
         });
     }
 }
 
+fn create_xml_string_map(sz: usize) -> String {
+    let mut out = "<toplevel>".to_string();
+    for i in 0..sz {
+        out += &format!("<b{}>{}</b{}>", i, i, i);
+    }
+    out += "</toplevel>";
+    out
+}
+
+fn xml_string_map(c: &mut Criterion) {
+    let mut group = c.benchmark_group("XML string map");
+    for sz in [1, 100, 10000].iter() {
+        group.bench_with_input(BenchmarkId::from_parameter(sz), sz, |b, &size| {
+            let mp = create_xml_string_map(size);
+            b.iter(|| body_test(Some("text/xml"), black_box(mp.as_bytes())))
+        });
+    }
+}
+
 criterion_group!(json, json_values, json_string_map);
-criterion_main!(json);
+criterion_group!(xml, xml_string_map);
+criterion_main!(json, xml);
