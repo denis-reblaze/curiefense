@@ -38,7 +38,7 @@ fn create_string_map(sz: usize) -> String {
 
 fn json_string_map(c: &mut Criterion) {
     let mut group = c.benchmark_group("json string map");
-    for sz in [1, 10, 100, 1000, 10000].iter() {
+    for sz in [1, 100, 10000].iter() {
         group.bench_with_input(BenchmarkId::from_parameter(sz), sz, |b, &size| {
             let mp = create_string_map(size);
             b.iter(|| body_test(Some("text/json"), black_box(mp.as_bytes())))
