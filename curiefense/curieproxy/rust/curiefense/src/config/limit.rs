@@ -4,8 +4,7 @@ use std::collections::HashMap;
 
 use crate::config::raw::{RawLimit, RawLimitSelector};
 use crate::config::utils::{
-    decode_request_selector_condition, resolve_selector_raw, RequestSelector,
-    RequestSelectorCondition, SelectorType,
+    decode_request_selector_condition, resolve_selector_raw, RequestSelector, RequestSelectorCondition, SelectorType,
 };
 use crate::interface::Action;
 use crate::logs::Logs;
@@ -31,9 +30,7 @@ pub fn resolve_selector_map(sel: HashMap<String, String>) -> anyhow::Result<Requ
     resolve_selector_raw(&key, &val)
 }
 
-pub fn resolve_selectors(
-    rawsel: RawLimitSelector,
-) -> anyhow::Result<Vec<RequestSelectorCondition>> {
+pub fn resolve_selectors(rawsel: RawLimitSelector) -> anyhow::Result<Vec<RequestSelectorCondition>> {
     let mk_selectors = |tp: SelectorType, mp: HashMap<String, String>| {
         mp.into_iter()
             .map(move |(v, cond)| decode_request_selector_condition(tp, &v, &cond))
@@ -47,8 +44,7 @@ pub fn resolve_selectors(
 
 impl Limit {
     fn convert(rawlimit: RawLimit) -> anyhow::Result<(String, Limit)> {
-        let mkey: anyhow::Result<Vec<RequestSelector>> =
-            rawlimit.key.into_iter().map(resolve_selector_map).collect();
+        let mkey: anyhow::Result<Vec<RequestSelector>> = rawlimit.key.into_iter().map(resolve_selector_map).collect();
         let key = mkey.with_context(|| "when converting the key entry")?;
         let pairwith = resolve_selector_map(rawlimit.pairwith).ok();
         Ok((
@@ -56,20 +52,11 @@ impl Limit {
             Limit {
                 id: rawlimit.id,
                 name: rawlimit.name,
-                limit: rawlimit
-                    .limit
-                    .parse()
-                    .with_context(|| "when converting the limit")?,
-                ttl: rawlimit
-                    .ttl
-                    .parse()
-                    .with_context(|| "when converting the ttl")?,
-                action: Action::resolve(&rawlimit.action)
-                    .with_context(|| "when resolving the action entry")?,
-                exclude: resolve_selectors(rawlimit.exclude)
-                    .with_context(|| "when resolving the exclude entry")?,
-                include: resolve_selectors(rawlimit.include)
-                    .with_context(|| "when resolving the include entry")?,
+                limit: rawlimit.limit.parse().with_context(|| "when converting the limit")?,
+                ttl: rawlimit.ttl.parse().with_context(|| "when converting the ttl")?,
+                action: Action::resolve(&rawlimit.action).with_context(|| "when resolving the action entry")?,
+                exclude: resolve_selectors(rawlimit.exclude).with_context(|| "when resolving the exclude entry")?,
+                include: resolve_selectors(rawlimit.include).with_context(|| "when resolving the include entry")?,
                 pairwith,
                 key,
             },
@@ -126,10 +113,7 @@ mod tests {
         let mut lvec = vec![l3, l2, l1, l4];
         lvec.sort_unstable_by(limit_order);
         let names: Vec<String> = lvec.into_iter().map(|l| l.name).collect();
-        let expected: Vec<String> = ["l1", "l2", "l3", "l4"]
-            .iter()
-            .map(|x| x.to_string())
-            .collect();
+        let expected: Vec<String> = ["l1", "l2", "l3", "l4"].iter().map(|x| x.to_string()).collect();
         assert_eq!(names, expected);
     }
 }

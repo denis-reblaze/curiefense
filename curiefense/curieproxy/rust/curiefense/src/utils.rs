@@ -32,8 +32,8 @@ pub fn cookie_map(cookies: &mut RequestField, cookie: &str) {
 ///
 /// Returns (headers, cookies)
 pub fn map_headers(rawheaders: HashMap<String, String>) -> (RequestField, RequestField) {
-    let mut cookies = RequestField::new();
-    let mut headers = RequestField::new();
+    let mut cookies = RequestField::default();
+    let mut headers = RequestField::default();
     for (k, v) in rawheaders {
         let lk = k.to_lowercase();
         if k == "cookie" {
@@ -48,38 +48,26 @@ pub fn map_headers(rawheaders: HashMap<String, String>) -> (RequestField, Reques
 
 /// parses query parameters, such as
 fn parse_query_params(query: &str) -> RequestField {
-    let mut rf = RequestField::new();
+    let mut rf = RequestField::default();
     parse_urlencoded_params(&mut rf, query);
     rf
 }
 
 /// parses the request uri, storing the path and query parts (if possible)
 /// returns the hashmap of arguments
-fn map_args(
-    logs: &mut Logs,
-    path: &str,
-    mcontent_type: Option<&str>,
-    mbody: Option<&[u8]>,
-) -> QueryInfo {
+fn map_args(logs: &mut Logs, path: &str, mcontent_type: Option<&str>, mbody: Option<&[u8]>) -> QueryInfo {
     // this is necessary to do this in this convoluted way so at not to borrow attrs
     let uri = urlencoding::decode(&path).ok();
     let (qpath, query, mut args) = match path.splitn(2, '?').collect_tuple() {
-        Some((qpath, query)) => (
-            qpath.to_string(),
-            query.to_string(),
-            parse_query_params(query),
-        ),
-        None => (path.to_string(), String::new(), RequestField::new()),
+        Some((qpath, query)) => (qpath.to_string(), query.to_string(), parse_query_params(query)),
+        None => (path.to_string(), String::new(), RequestField::default()),
     };
 
     if let Some(body) = mbody {
         if let Err(rr) = parse_body(logs, &mut args, mcontent_type, body) {
             // if the body could not be parsed, store it in an argument, as if it was text
             logs.error(rr);
-            args.add(
-                "RAW_BODY".to_string(),
-                String::from_utf8_lossy(body).to_string(),
-            );
+            args.add("RAW_BODY".to_string(), String::from_utf8_lossy(body).to_string());
         } else {
             logs.debug("body parsed");
         }
@@ -253,13 +241,8 @@ impl InspectionResult {
     pub fn into_json(self) -> (String, Option<String>) {
         // return the request map, but only if we have it !
         let resp = match self.rinfo {
-            None => self
-                .decision
-                .to_json_raw(serde_json::Value::Null, self.logs),
-            Some(rinfo) => {
-                self.decision
-                    .to_json(rinfo, self.tags.unwrap_or_else(Tags::new), self.logs)
-            }
+            None => self.decision.to_json_raw(serde_json::Value::Null, self.logs),
+            Some(rinfo) => self.decision.to_json(rinfo, self.tags.unwrap_or_default(), self.logs),
         };
         (resp, self.err)
     }
@@ -269,14 +252,7 @@ pub fn find_geoip(ipstr: String) -> GeoIp {
     let ip = ipstr.parse().ok();
     let country = ip.and_then(get_country);
     fn get_country_x(c: &maxminddb::geoip2::Country) -> Option<String> {
-        Some(
-            c.country
-                .as_ref()?
-                .names
-                .as_ref()?
-                .get("en")?
-                .to_lowercase(),
-        )
+        Some(c.country.as_ref()?.names.as_ref()?.get("en")?.to_lowercase())
     }
     let country_name = country.as_ref().and_then(get_country_x);
     GeoIp {
@@ -362,11 +338,7 @@ pub fn select_string(reqinfo: &RequestInfo, sel: &RequestSelector) -> Option<Str
     })
 }
 
-pub fn check_selector_cond(
-    reqinfo: &RequestInfo,
-    tags: &Tags,
-    sel: &RequestSelectorCondition,
-) -> bool {
+pub fn check_selector_cond(reqinfo: &RequestInfo, tags: &Tags, sel: &RequestSelectorCondition) -> bool {
     match sel {
         RequestSelectorCondition::Tag(t) => tags.contains(t),
         RequestSelectorCondition::N(sel, re) => match selector(reqinfo, sel) {
@@ -383,7 +355,7 @@ mod tests {
 
     #[test]
     fn test_map_args_full() {
-        let mut logs = Logs::new();
+        let mut logs = Logs::default();
         let qinfo = map_args(&mut logs, "/a/b/%20c?xa%20=12&bbbb=12%28&cccc", None, None);
 
         assert_eq!(qinfo.qpath, "/a/b/%20c");
@@ -399,13 +371,13 @@ mod tests {
 
     #[test]
     fn test_map_args_simple() {
-        let mut logs = Logs::new();
+        let mut logs = Logs::default();
         let qinfo = map_args(&mut logs, "/a/b", None, None);
 
         assert_eq!(qinfo.qpath, "/a/b");
         assert_eq!(qinfo.uri, Some("/a/b".to_string()));
         assert_eq!(qinfo.query, "");
 
-        assert_eq!(qinfo.args, RequestField::new());
+        assert_eq!(qinfo.args, RequestField::default());
     }
 }

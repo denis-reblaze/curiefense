@@ -1,6 +1,4 @@
-use crate::config::raw::{
-    RawWafEntryMatch, RawWafProfile, RawWafProperties, WafSignature,
-};
+use crate::config::raw::{RawWafEntryMatch, RawWafProfile, RawWafProperties, WafSignature};
 use crate::logs::Logs;
 
 use hyperscan::prelude::{pattern, Builder, CompileFlags, Pattern, Patterns, VectoredDatabase};
@@ -141,13 +139,8 @@ fn mk_entry_match(em: RawWafEntryMatch) -> anyhow::Result<(String, WafEntryMatch
     ))
 }
 
-fn mk_section(
-    props: RawWafProperties,
-    max_length: usize,
-    max_count: usize,
-) -> anyhow::Result<WafSection> {
-    let mnames: anyhow::Result<HashMap<String, WafEntryMatch>> =
-        props.names.into_iter().map(mk_entry_match).collect();
+fn mk_section(props: RawWafProperties, max_length: usize, max_count: usize) -> anyhow::Result<WafSection> {
+    let mnames: anyhow::Result<HashMap<String, WafEntryMatch>> = props.names.into_iter().map(mk_entry_match).collect();
     let mregex: anyhow::Result<Vec<(Regex, WafEntryMatch)>> = props
         .regex
         .into_iter()
@@ -173,16 +166,8 @@ fn convert_entry(entry: RawWafProfile) -> anyhow::Result<(String, WafProfile)> {
             name: entry.name,
             ignore_alphanum: entry.ignore_alphanum,
             sections: Section {
-                headers: mk_section(
-                    entry.headers,
-                    entry.max_header_length,
-                    entry.max_headers_count,
-                )?,
-                cookies: mk_section(
-                    entry.cookies,
-                    entry.max_cookie_length,
-                    entry.max_cookies_count,
-                )?,
+                headers: mk_section(entry.headers, entry.max_header_length, entry.max_headers_count)?,
+                cookies: mk_section(entry.cookies, entry.max_cookie_length, entry.max_cookies_count)?,
                 args: mk_section(entry.args, entry.max_arg_length, entry.max_args_count)?,
             },
         },

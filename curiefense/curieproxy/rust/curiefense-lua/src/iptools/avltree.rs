@@ -43,10 +43,7 @@ where
     K: Ord + Debug,
 {
     pub fn new() -> AVLTreeMap<K, V> {
-        AVLTreeMap {
-            root: None,
-            size: 0,
-        }
+        AVLTreeMap { root: None, size: 0 }
     }
 
     pub fn dump(&self) {
@@ -56,11 +53,7 @@ where
         }
     }
     pub fn insert(&mut self, key: K, value: V) -> bool {
-        fn ins<K: Ord + Debug, V>(
-            p_tree: &mut Tree<K, V>,
-            key: K,
-            value: V,
-        ) -> (Option<InsertSide>, isize) {
+        fn ins<K: Ord + Debug, V>(p_tree: &mut Tree<K, V>, key: K, value: V) -> (Option<InsertSide>, isize) {
             match p_tree {
                 None => {
                     *p_tree = Some(Box::new(Node::new(key, value)));
@@ -197,10 +190,7 @@ where
             }
             bf => {
                 self.dump(0);
-                panic!(
-                    "Internal error: AVLTree balance factor={}. Should be in [-2;2]",
-                    bf
-                );
+                panic!("Internal error: AVLTree balance factor={}. Should be in [-2;2]", bf);
             }
         }
     }

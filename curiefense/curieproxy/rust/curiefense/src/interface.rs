@@ -1,6 +1,6 @@
 use crate::config::raw::{RawAction, RawActionType};
-use crate::requestfields::RequestField;
 use crate::logs::Logs;
+use crate::requestfields::RequestField;
 use crate::utils::RequestInfo;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -60,11 +60,13 @@ fn tagify(tag: &str) -> String {
     tag.to_lowercase().chars().map(filter_char).collect()
 }
 
-impl Tags {
-    pub fn new() -> Self {
+impl Default for Tags {
+    fn default() -> Self {
         Tags(HashSet::new())
     }
+}
 
+impl Tags {
     pub fn insert(&mut self, value: &str) -> bool {
         self.0.insert(tagify(value))
     }
@@ -151,12 +153,7 @@ impl Action {
                 action.ban = true;
             }
             RawActionType::RequestHeader => action.atype = ActionType::AlterHeaders,
-            _ => {
-                return Err(anyhow::anyhow!(
-                    "Unsupported action type {:?}",
-                    rawaction.type_
-                ))
-            }
+            _ => return Err(anyhow::anyhow!("Unsupported action type {:?}", rawaction.type_)),
         };
         action.block_mode = action.atype.is_blocking();
         Ok(action)
@@ -224,12 +221,7 @@ pub fn challenge_phase01<GH: Grasshopper>(gh: &GH, ua: &str, tags: Vec<String>) 
         headers: Some(hdrs),
         status: 247,
         content,
-        extra_tags: Some(
-            ["challenge_phase01"]
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
-        ),
+        extra_tags: Some(["challenge_phase01"].iter().map(|s| s.to_string()).collect()),
     })
 }
 
@@ -242,11 +234,7 @@ fn extract_zebra(headers: &RequestField) -> Option<String> {
     None
 }
 
-pub fn challenge_phase02<GH: Grasshopper>(
-    gh: &GH,
-    uri: &str,
-    headers: &RequestField,
-) -> Option<Decision> {
+pub fn challenge_phase02<GH: Grasshopper>(gh: &GH, uri: &str, headers: &RequestField) -> Option<Decision> {
     if !uri.starts_with("/7060ac19f50208cbb6b45328ef94140a612ee92387e015594234077b4d1e64f1/") {
         return None;
     }
@@ -268,11 +256,6 @@ pub fn challenge_phase02<GH: Grasshopper>(
         headers: Some(nheaders),
         status: 248,
         content: "{}".to_string(),
-        extra_tags: Some(
-            ["challenge_phase02"]
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
-        ),
+        extra_tags: Some(["challenge_phase02"].iter().map(|s| s.to_string()).collect()),
     }))
 }

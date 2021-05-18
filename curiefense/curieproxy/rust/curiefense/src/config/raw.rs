@@ -28,8 +28,8 @@ pub struct RawUrlMap {
     pub limit_ids: Vec<String>,
 }
 
-#[serde(rename_all = "UPPERCASE")]
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum Relation {
     And,
     Or,
@@ -92,12 +92,8 @@ impl<'de> Deserialize<'de> for RawProfilingSSectionEntry {
             where
                 V: SeqAccess<'de>,
             {
-                let tp = seq
-                    .next_element()?
-                    .ok_or_else(|| de::Error::invalid_length(0, &self))?;
-                let vl = seq
-                    .next_element()?
-                    .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                let tp = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                let vl = seq.next_element()?.ok_or_else(|| de::Error::invalid_length(1, &self))?;
                 // comment might not be present
                 let comment = seq.next_element()?;
 

@@ -1,6 +1,4 @@
-use crate::config::profiling::{
-    PairEntry, ProfilingEntry, ProfilingEntryE, ProfilingSSection, SingleEntry,
-};
+use crate::config::profiling::{PairEntry, ProfilingEntry, ProfilingEntryE, ProfilingSSection, SingleEntry};
 use crate::config::raw::Relation;
 use crate::config::Config;
 use crate::interface::Tags;
@@ -31,12 +29,7 @@ fn check_single(pr: &SingleEntry, s: &str) -> bool {
 fn check_entry(rinfo: &RequestInfo, sub: &ProfilingEntry) -> bool {
     let c = match &sub.entry {
         ProfilingEntryE::Ip(addr) => rinfo.rinfo.geoip.ip.map(|i| &i == addr).unwrap_or(false),
-        ProfilingEntryE::Network(net) => rinfo
-            .rinfo
-            .geoip
-            .ip
-            .map(|i| net.contains(&i))
-            .unwrap_or(false),
+        ProfilingEntryE::Network(net) => rinfo.rinfo.geoip.ip.map(|i| net.contains(&i)).unwrap_or(false),
         ProfilingEntryE::Range4(net4) => match rinfo.rinfo.geoip.ip {
             Some(IpAddr::V4(ip4)) => net4.contains(&ip4),
             _ => false,
@@ -81,30 +74,16 @@ fn check_subsection(rinfo: &RequestInfo, sub: &ProfilingSSection) -> bool {
 }
 
 pub fn tag_request(cfg: &Config, rinfo: &RequestInfo) -> Tags {
-    let mut tags = Tags::new();
+    let mut tags = Tags::default();
     tags.insert("all");
     for psection in &cfg.profiling {
-        if check_relation(
-            rinfo,
-            psection.relation,
-            &psection.sections,
-            check_subsection,
-        ) {
+        if check_relation(rinfo, psection.relation, &psection.sections, check_subsection) {
             tags.extend(psection.tags.clone());
         }
     }
     tags.insert_qualified("ip", &rinfo.rinfo.geoip.ipstr);
-    tags.insert_qualified(
-        "geo",
-        rinfo.rinfo.geoip.country_name.as_deref().unwrap_or("nil"),
-    );
-    match rinfo
-        .rinfo
-        .geoip
-        .asn
-        .as_ref()
-        .and_then(|g| g.autonomous_system_number)
-    {
+    tags.insert_qualified("geo", rinfo.rinfo.geoip.country_name.as_deref().unwrap_or("nil"));
+    match rinfo.rinfo.geoip.asn.as_ref().and_then(|g| g.autonomous_system_number) {
         None => {
             tags.insert_qualified("asn", "nil");
         }
@@ -157,7 +136,7 @@ mod tests {
             }
         }
         let meta = RequestMeta::from_map(attrs).unwrap();
-        let mut logs = Logs::new();
+        let mut logs = Logs::default();
         map_request(&mut logs, "52.78.12.56".to_string(), headers, meta, None).unwrap()
     }
 
@@ -222,10 +201,7 @@ mod tests {
 
     #[test]
     fn check_headers_match() {
-        let r = t_check_entry(
-            false,
-            ProfilingEntryE::Header(double_re("user-agent", "^curl.*")),
-        );
+        let r = t_check_entry(false, ProfilingEntryE::Header(double_re("user-agent", "^curl.*")));
         assert!(r);
     }
 
@@ -253,10 +229,7 @@ mod tests {
 
     fn check_iprange(rel: Relation, input: &[&str], samples: &[(&str, bool)]) {
         let entries = mk_profilingentries(input);
-        let ssection = ProfilingSSection {
-            entries,
-            relation: rel,
-        };
+        let ssection = ProfilingSSection { entries, relation: rel };
         let optimized = optimize(&ssection);
 
         let mut ri = mk_rinfo();
@@ -319,12 +292,7 @@ mod tests {
 
     #[test]
     fn ipranges_larger_union() {
-        let entries = [
-            "192.168.0.0/24",
-            "192.168.2.0/24",
-            "10.1.0.0/16",
-            "10.4.0.0/16",
-        ];
+        let entries = ["192.168.0.0/24", "192.168.2.0/24", "10.1.0.0/16", "10.4.0.0/16"];
         let samples = [
             ("10.4.4.1", true),
             ("10.2.2.1", false),

@@ -56,10 +56,7 @@ fn flatten_json(args: &mut RequestField, prefix: &mut Vec<String>, value: Value)
             args.add(json_path(prefix), str);
         }
         Value::Bool(b) => {
-            args.add(
-                json_path(prefix),
-                (if b { "true" } else { "false" }).to_string(),
-            );
+            args.add(json_path(prefix), (if b { "true" } else { "false" }).to_string());
         }
         Value::Number(n) => {
             args.add(json_path(prefix), format!("{}", n));
@@ -72,8 +69,7 @@ fn flatten_json(args: &mut RequestField, prefix: &mut Vec<String>, value: Value)
 
 /// alpha quality code: should work with a stream of json items, not deserialize all at once
 fn json_body(args: &mut RequestField, body: &[u8]) -> Result<(), String> {
-    let value: Value =
-        serde_json::from_slice(body).map_err(|rr| format!("Invalid JSON body: {}", rr))?;
+    let value: Value = serde_json::from_slice(body).map_err(|rr| format!("Invalid JSON body: {}", rr))?;
 
     let mut prefix = Vec::new();
     flatten_json(args, &mut prefix, value);
@@ -101,10 +97,7 @@ fn close_xml_element(
 ) -> Result<(), String> {
     match stack.pop() {
         None => {
-            return Err(format!(
-                "Invalid XML, extraneous element end: {:?}",
-                close_name
-            ));
+            return Err(format!("Invalid XML, extraneous element end: {:?}", close_name));
         }
         Some((openname, idx)) => {
             if let Some(local) = close_name {
@@ -151,17 +144,13 @@ fn xml_body(args: &mut RequestField, body: &[u8]) -> Result<(), String> {
             Token::DtdStart { .. } => (),
             Token::DtdEnd { .. } => (),
             Token::EmptyDtd { .. } => (),
-            Token::EntityDeclaration {
-                name, definition, ..
-            } => match definition {
-                EntityDefinition::EntityValue(span) => args.add(
-                    "_XMLENTITY_VALUE_".to_string() + name.as_str(),
-                    span.to_string(),
-                ),
-                EntityDefinition::ExternalId(ExternalId::System(span)) => args.add(
-                    "_XMLENTITY_SYSTEMID_".to_string() + name.as_str(),
-                    span.to_string(),
-                ),
+            Token::EntityDeclaration { name, definition, .. } => match definition {
+                EntityDefinition::EntityValue(span) => {
+                    args.add("_XMLENTITY_VALUE_".to_string() + name.as_str(), span.to_string())
+                }
+                EntityDefinition::ExternalId(ExternalId::System(span)) => {
+                    args.add("_XMLENTITY_SYSTEMID_".to_string() + name.as_str(), span.to_string())
+                }
                 EntityDefinition::ExternalId(ExternalId::Public(p1, p2)) => args.add(
                     "_XMLENTITY_PUBLICID_".to_string() + name.as_str(),
                     p1.to_string() + "/" + p2.as_str(),
@@ -179,9 +168,7 @@ fn xml_body(args: &mut RequestField, body: &[u8]) -> Result<(), String> {
                 //  <foo>
                 ElementEnd::Open => (),
                 //  </foo>
-                ElementEnd::Close(_, local) => {
-                    close_xml_element(args, &mut stack, Some(local.as_str()))?
-                }
+                ElementEnd::Close(_, local) => close_xml_element(args, &mut stack, Some(local.as_str()))?,
             },
             Token::Attribute { local, value, .. } => {
                 let path = xml_path(&stack) + local.as_str();
@@ -221,11 +208,7 @@ fn forms_body(args: &mut RequestField, body: &[u8]) -> Result<(), String> {
 /// reuses the multipart crate to parse these bodies
 ///
 /// will not work properly with binary data
-fn multipart_form_encoded(
-    boundary: &str,
-    args: &mut RequestField,
-    body: &[u8],
-) -> Result<(), String> {
+fn multipart_form_encoded(boundary: &str, args: &mut RequestField, body: &[u8]) -> Result<(), String> {
     let mut multipart = Multipart::with_body(body, boundary);
     multipart
         .foreach_entry(|mut entry| {
@@ -278,8 +261,8 @@ mod tests {
     use crate::logs::LogLevel;
 
     fn test_parse_ok(mcontent_type: Option<&str>, body: &[u8]) -> RequestField {
-        let mut logs = Logs::new();
-        let mut args = RequestField::new();
+        let mut logs = Logs::default();
+        let mut args = RequestField::default();
         parse_body(&mut logs, &mut args, mcontent_type, body).unwrap();
         for lg in logs.logs {
             if lg.level > LogLevel::Debug {
@@ -290,8 +273,8 @@ mod tests {
     }
 
     fn test_parse_bad(mcontent_type: Option<&str>, body: &[u8]) {
-        let mut logs = Logs::new();
-        let mut args = RequestField::new();
+        let mut logs = Logs::default();
+        let mut args = RequestField::default();
         assert!(parse_body(&mut logs, &mut args, mcontent_type, body).is_err());
     }
 
@@ -320,11 +303,7 @@ mod tests {
 
     #[test]
     fn json_scalar() {
-        test_parse(
-            Some("application/json"),
-            br#""scalar""#,
-            &[("JSON_ROOT", "scalar")],
-        );
+        test_parse(Some("application/json"), br#""scalar""#, &[("JSON_ROOT", "scalar")]);
     }
 
     #[test]
@@ -352,11 +331,7 @@ mod tests {
 
     #[test]
     fn json_simple_array() {
-        test_parse(
-            Some("application/json"),
-            br#"["a", "b"]"#,
-            &[("0", "a"), ("1", "b")],
-        );
+        test_parse(Some("application/json"), br#"["a", "b"]"#, &[("0", "a"), ("1", "b")]);
     }
 
     #[test]
@@ -364,27 +339,16 @@ mod tests {
         test_parse(
             Some("application/json"),
             br#"{"a": [true,null,{"z": 0.2}], "c": {"d": 12}}"#,
-            &[
-                ("a_0", "true"),
-                ("a_1", "null"),
-                ("a_2_z", "0.2"),
-                ("c_d", "12"),
-            ],
+            &[("a_0", "true"), ("a_1", "null"), ("a_2_z", "0.2"), ("c_d", "12")],
         );
     }
 
     #[test]
     fn arguments_collision() {
-        let mut logs = Logs::new();
-        let mut args = RequestField::new();
+        let mut logs = Logs::default();
+        let mut args = RequestField::default();
         args.add("a".to_string(), "query_arg".to_string());
-        parse_body(
-            &mut logs,
-            &mut args,
-            Some("application/json"),
-            br#"{"a": "body_arg"}"#,
-        )
-        .unwrap();
+        parse_body(&mut logs, &mut args, Some("application/json"), br#"{"a": "body_arg"}"#).unwrap();
         assert_eq!(args.get_str("a"), Some("query_arg body_arg"));
     }
 
@@ -428,11 +392,7 @@ mod tests {
 
     #[test]
     fn xml_nested_empty() {
-        test_parse(
-            Some("text/xml"),
-            br#"<a><b><c></c></b></a>"#,
-            &[("a1b1c1", "")],
-        );
+        test_parse(Some("text/xml"), br#"<a><b><c></c></b></a>"#, &[("a1b1c1", "")]);
     }
 
     #[test]
@@ -449,10 +409,7 @@ mod tests {
         test_parse(
             Some("application/xml"),
             br#"<!DOCTYPE foo [ <!ENTITY myentity "my entity value" > ]><a>xx</a>"#,
-            &[
-                ("a1", "xx"),
-                ("_XMLENTITY_VALUE_myentity", "my entity value"),
-            ],
+            &[("a1", "xx"), ("_XMLENTITY_VALUE_myentity", "my entity value")],
         );
     }
 
@@ -461,10 +418,7 @@ mod tests {
         test_parse(
             Some("application/xml"),
             br#"<!DOCTYPE foo [ <!ENTITY ext SYSTEM "http://website.com" > ]><a>xx</a>"#,
-            &[
-                ("a1", "xx"),
-                ("_XMLENTITY_SYSTEMID_ext", "http://website.com"),
-            ],
+            &[("a1", "xx"), ("_XMLENTITY_SYSTEMID_ext", "http://website.com")],
         );
     }
 

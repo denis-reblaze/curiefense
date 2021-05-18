@@ -6,8 +6,7 @@ use serde_json::{from_value, Value};
 use std::net::IpAddr;
 
 use crate::config::raw::{
-    ProfilingEntryType, RawProfilingSSection, RawProfilingSSectionEntry, RawProfilingSection,
-    Relation,
+    ProfilingEntryType, RawProfilingSSection, RawProfilingSSectionEntry, RawProfilingSection, Relation,
 };
 use crate::interface::Tags;
 use crate::logs::Logs;
@@ -182,10 +181,7 @@ pub fn optimize_ipranges(rel: Relation, unoptimized: Vec<ProfilingEntry>) -> Vec
 
 impl ProfilingSection {
     // what an ugly function :(
-    pub fn resolve(
-        logs: &mut Logs,
-        rawprofiling: Vec<RawProfilingSection>,
-    ) -> Vec<ProfilingSection> {
+    pub fn resolve(logs: &mut Logs, rawprofiling: Vec<RawProfilingSection>) -> Vec<ProfilingSection> {
         /// build a profiling entry for "single" conditions
         fn single<F>(conv: F, val: Value) -> anyhow::Result<ProfilingEntry>
         where
@@ -231,8 +227,7 @@ impl ProfilingSection {
         where
             F: FnOnce(PairEntry) -> ProfilingEntryE,
         {
-            let (k, v): (String, String) = match from_value::<(String, String, Value)>(val.clone())
-            {
+            let (k, v): (String, String) = match from_value::<(String, String, Value)>(val.clone()) {
                 Err(_) => from_value(val)?,
                 Ok((k, v, _)) => (k, v),
             };
@@ -269,22 +264,14 @@ impl ProfilingSection {
         }
 
         // convert a json value
-        fn convert_entry(
-            logs: &mut Logs,
-            tp: ProfilingEntryType,
-            val: Value,
-        ) -> anyhow::Result<ProfilingEntry> {
+        fn convert_entry(logs: &mut Logs, tp: ProfilingEntryType, val: Value) -> anyhow::Result<ProfilingEntry> {
             match tp {
                 ProfilingEntryType::Ip => single(
                     |rawip| {
                         Ok(if rawip.contains('/') {
-                            ProfilingEntryE::Network(
-                                rawip.parse().with_context(|| format!("net: {}", rawip))?,
-                            )
+                            ProfilingEntryE::Network(rawip.parse().with_context(|| format!("net: {}", rawip))?)
                         } else {
-                            ProfilingEntryE::Ip(
-                                rawip.parse().with_context(|| format!("ip: {}", rawip))?,
-                            )
+                            ProfilingEntryE::Ip(rawip.parse().with_context(|| format!("ip: {}", rawip))?)
                         })
                     },
                     val,
@@ -297,22 +284,16 @@ impl ProfilingSection {
                 ProfilingEntryType::Uri => single_re(logs, ProfilingEntryE::Uri, val),
                 ProfilingEntryType::Country => single_re(logs, ProfilingEntryE::Country, val),
                 ProfilingEntryType::Method => single_re(logs, ProfilingEntryE::Method, val),
-                ProfilingEntryType::Asn => {
-                    single(|rawasn| Ok(ProfilingEntryE::Asn(rawasn.parse()?)), val)
-                }
+                ProfilingEntryType::Asn => single(|rawasn| Ok(ProfilingEntryE::Asn(rawasn.parse()?)), val),
             }
         }
-        fn convert_subsection(
-            logs: &mut Logs,
-            ss: RawProfilingSSection,
-        ) -> anyhow::Result<ProfilingSSection> {
+        fn convert_subsection(logs: &mut Logs, ss: RawProfilingSSection) -> anyhow::Result<ProfilingSSection> {
             // convert all entries individually
             let rentries: anyhow::Result<Vec<ProfilingEntry>> = ss
                 .entries
                 .into_iter()
                 .map(|RawProfilingSSectionEntry { tp, vl, comment }| {
-                    convert_entry(logs, tp, vl)
-                        .with_context(|| format!("Entry type={:?} comment={:?}", tp, comment))
+                    convert_entry(logs, tp, vl).with_context(|| format!("Entry type={:?} comment={:?}", tp, comment))
                 })
                 .collect();
             Ok(ProfilingSSection {
@@ -320,10 +301,7 @@ impl ProfilingSection {
                 entries: optimize_ipranges(ss.relation, rentries?),
             })
         }
-        fn convert_section(
-            logs: &mut Logs,
-            s: RawProfilingSection,
-        ) -> anyhow::Result<ProfilingSection> {
+        fn convert_section(logs: &mut Logs, s: RawProfilingSection) -> anyhow::Result<ProfilingSection> {
             let sname = &s.name;
             let sid = &s.id;
             let rsubsections: anyhow::Result<Vec<ProfilingSSection>> = s
@@ -332,12 +310,8 @@ impl ProfilingSection {
                 .into_iter()
                 .map(|ss| convert_subsection(logs, ss))
                 .collect();
-            let subsections: Vec<ProfilingSSection> = rsubsections.with_context(|| {
-                format!(
-                    "profiling configuration error in section id={}, name={}",
-                    sid, sname
-                )
-            })?;
+            let subsections: Vec<ProfilingSSection> = rsubsections
+                .with_context(|| format!("profiling configuration error in section id={}, name={}", sid, sname))?;
             Ok(ProfilingSection {
                 tags: Tags::from_vec(&s.tags),
                 relation: s.rule.relation,

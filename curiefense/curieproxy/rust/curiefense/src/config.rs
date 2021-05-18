@@ -20,9 +20,7 @@ use flow::{flow_resolve, FlowElement, SequenceKey};
 use hostmap::{HostMap, UrlMap};
 use limit::{limit_order, Limit};
 use profiling::ProfilingSection;
-use raw::{
-    AclProfile, RawFlowEntry, RawHostMap, RawLimit, RawProfilingSection, RawUrlMap, RawWafProfile,
-};
+use raw::{AclProfile, RawFlowEntry, RawHostMap, RawLimit, RawProfilingSection, RawUrlMap, RawWafProfile};
 use utils::Matching;
 use waf::{resolve_signatures, WafProfile, WafSignatures};
 
@@ -77,9 +75,7 @@ pub struct Config {
 }
 
 fn from_map<V: Clone>(mp: &HashMap<String, V>, k: &str) -> anyhow::Result<V> {
-    mp.get(k)
-        .cloned()
-        .ok_or_else(|| anyhow!("id not found: {}", k))
+    mp.get(k).cloned().ok_or_else(|| anyhow!("id not found: {}", k))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -135,10 +131,7 @@ impl Config {
                         "Invalid regex {} in entry {}: {}",
                         &rawmap.match_, &mapname, rr
                     )),
-                    Ok(matcher) => entries.push(Matching {
-                        matcher,
-                        inner: urlmap,
-                    }),
+                    Ok(matcher) => entries.push(Matching { matcher, inner: urlmap }),
                 };
             }
         }
@@ -166,8 +159,7 @@ impl Config {
 
         // build the entries while looking for the default entry
         for rawmap in rawmaps {
-            let (entries, default_entry) =
-                Config::resolve_url_maps(logs, rawmap.map, &limits, &acls, &wafprofiles);
+            let (entries, default_entry) = Config::resolve_url_maps(logs, rawmap.map, &limits, &acls, &wafprofiles);
             let mapname = rawmap.name.clone();
             let hostmap = HostMap {
                 id: rawmap.id,
@@ -182,10 +174,7 @@ impl Config {
                 default = Some(hostmap);
             } else {
                 match Regex::new(&rawmap.match_) {
-                    Err(rr) => logs.error(format!(
-                        "Invalid regex {} in entry {}: {}",
-                        &rawmap.match_, mapname, rr
-                    )),
+                    Err(rr) => logs.error(format!("Invalid regex {} in entry {}: {}", &rawmap.match_, mapname, rr)),
                     Ok(matcher) => urlmaps.push(Matching {
                         matcher,
                         inner: hostmap,
@@ -200,19 +189,15 @@ impl Config {
 
         Config {
             urlmaps,
+            profiling,
             default,
             last_mod,
-            profiling,
             container_name,
             flows,
         }
     }
 
-    fn load_config_file<A: serde::de::DeserializeOwned>(
-        logs: &mut Logs,
-        base: &Path,
-        fname: &str,
-    ) -> Vec<A> {
+    fn load_config_file<A: serde::de::DeserializeOwned>(logs: &mut Logs, base: &Path, fname: &str) -> Vec<A> {
         let mut path = base.to_path_buf();
         path.push(fname);
         let fullpath = path.to_str().unwrap_or(fname).to_string();
@@ -223,15 +208,14 @@ impl Config {
                 return Vec::new();
             }
         };
-        let values: Vec<serde_json::Value> =
-            match serde_json::from_reader(std::io::BufReader::new(file)) {
-                Ok(vs) => vs,
-                Err(rr) => {
-                    // if it is not a json array, abort early and do not resolve anything
-                    logs.error(format!("when loading {}: {}", fullpath, rr));
-                    return Vec::new();
-                }
-            };
+        let values: Vec<serde_json::Value> = match serde_json::from_reader(std::io::BufReader::new(file)) {
+            Ok(vs) => vs,
+            Err(rr) => {
+                // if it is not a json array, abort early and do not resolve anything
+                logs.error(format!("when loading {}: {}", fullpath, rr));
+                return Vec::new();
+            }
+        };
         let mut out = Vec::new();
         for value in values {
             // for each entry, try to resolve it as a raw configuration value, failing otherwise
@@ -247,10 +231,7 @@ impl Config {
         let last_mod = std::fs::metadata(basepath)
             .and_then(|x| x.modified())
             .unwrap_or_else(|rr| {
-                logs.error(format!(
-                    "Could not get last modified time for {}: {}",
-                    basepath, rr
-                ));
+                logs.error(format!("Could not get last modified time for {}: {}", basepath, rr));
                 SystemTime::now()
             });
         if self.last_mod == last_mod {

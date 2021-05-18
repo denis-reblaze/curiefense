@@ -7,10 +7,13 @@ use std::collections::{hash_map, HashMap};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RequestField(pub HashMap<String, String>);
 
-impl RequestField {
-    pub fn new() -> Self {
+impl Default for RequestField {
+    fn default() -> Self {
         RequestField(HashMap::new())
     }
+}
+
+impl RequestField {
     pub fn add(&mut self, key: String, value: String) {
         self.0
             .entry(key)
@@ -33,6 +36,10 @@ impl RequestField {
         self.0.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn iter(&self) -> hash_map::Iter<'_, String, String> {
         self.0.iter()
     }
@@ -40,7 +47,7 @@ impl RequestField {
 
 impl FromIterator<(String, String)> for RequestField {
     fn from_iter<I: IntoIterator<Item = (String, String)>>(iter: I) -> Self {
-        let mut out = RequestField::new();
+        let mut out = RequestField::default();
         for (k, v) in iter {
             out.add(k, v);
         }

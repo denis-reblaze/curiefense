@@ -1,13 +1,13 @@
-mod lua;
 mod iptools;
+mod lua;
 
 use crate::lua::Luagrasshopper;
 
+use anyhow::anyhow;
 use curiefense::interface::Tags;
-use curiefense::utils::RequestMeta;
 use curiefense::session::update_tags;
 use curiefense::session::JRequestMap;
-use anyhow::anyhow;
+use curiefense::utils::RequestMeta;
 use mlua::prelude::*;
 use serde_json::json;
 use std::collections::HashMap;
@@ -15,9 +15,7 @@ use std::collections::HashMap;
 use curiefense::acl::{check_acl, AclDecision, AclResult, BotHuman};
 use curiefense::config::{with_config, HSDB};
 use curiefense::flow::flow_check;
-use curiefense::interface::{
-    challenge_phase01, challenge_phase02, Action, ActionType, Decision, Grasshopper,
-};
+use curiefense::interface::{challenge_phase01, challenge_phase02, Action, ActionType, Decision, Grasshopper};
 use curiefense::limit::limit_check;
 use curiefense::logs::Logs;
 use curiefense::session;
@@ -51,14 +49,7 @@ fn lua_inspect_request(
 
     // TODO: solve the lifetime issue for the &[u8] to reduce duplication
     let res = match lua_body {
-        None => inspect_request(
-            "/config/current/config",
-            meta,
-            headers,
-            None,
-            str_ip,
-            grasshopper,
-        ),
+        None => inspect_request("/config/current/config", meta, headers, None, str_ip, grasshopper),
         Some(body) => inspect_request(
             "/config/current/config",
             meta,
@@ -71,7 +62,7 @@ fn lua_inspect_request(
 
     Ok(match res {
         Err(rr) => (
-            Decision::Pass.to_json_raw(serde_json::Value::Null, Logs::new()),
+            Decision::Pass.to_json_raw(serde_json::Value::Null, Logs::default()),
             Some(rr),
         ),
         Ok(ir) => ir.into_json(),
@@ -87,14 +78,13 @@ fn inspect_request<GH: Grasshopper>(
     ip: String,
     grasshopper: Option<GH>,
 ) -> Result<InspectionResult, String> {
-    let mut logs = Logs::new();
+    let mut logs = Logs::default();
     logs.debug("Inspection init");
     let rmeta: RequestMeta = RequestMeta::from_map(meta)?;
 
     let reqinfo = map_request(&mut logs, ip, headers, rmeta, mbody)?;
 
-    let (dec, tags) =
-        inspect_generic_request_map(configpath, grasshopper, &reqinfo, Tags::new(), &mut logs);
+    let (dec, tags) = inspect_generic_request_map(configpath, grasshopper, &reqinfo, Tags::default(), &mut logs);
     Ok(InspectionResult {
         decision: dec,
         tags: Some(tags),
@@ -114,7 +104,7 @@ pub fn inspect_request_map(_lua: &Lua, args: (String, Option<LuaTable>)) -> LuaR
     let jvalue: serde_json::Value = match serde_json::from_str(&encoded_request_map) {
         Ok(v) => v,
         Err(rr) => {
-            let mut logs = Logs::new();
+            let mut logs = Logs::default();
             logs.error(format!("Could not decode the request map: {}", rr));
             return Ok(Decision::Pass.to_json_raw(serde_json::Value::Null, logs));
         }
@@ -122,21 +112,15 @@ pub fn inspect_request_map(_lua: &Lua, args: (String, Option<LuaTable>)) -> LuaR
     let jmap: JRequestMap = match serde_json::from_value(jvalue.clone()) {
         Ok(v) => v,
         Err(rr) => {
-            let mut logs = Logs::new();
+            let mut logs = Logs::default();
             logs.error(format!("Could not decode the request map: {}", rr));
             return Ok(Decision::Pass.to_json_raw(jvalue, logs));
         }
     };
     let (rinfo, itags) = jmap.into_request_info();
 
-    let mut logs = Logs::new();
-    let (res, tags) = inspect_generic_request_map(
-        "/config/current/config",
-        grasshopper,
-        &rinfo,
-        itags,
-        &mut logs,
-    );
+    let mut logs = Logs::default();
+    let (res, tags) = inspect_generic_request_map("/config/current/config", grasshopper, &rinfo, itags, &mut logs);
     let updated_request_map = match update_tags(jvalue, tags) {
         Ok(v) => v,
         Err(rr) => {
@@ -167,9 +151,7 @@ fn acl_block(blocking: bool, code: i32, tags: &[String]) -> Decision {
 fn challenge_verified<GH: Grasshopper>(gh: &GH, reqinfo: &RequestInfo) -> bool {
     if let Some(rbzid) = reqinfo.cookies.get("rbzid") {
         if let Some(ua) = reqinfo.headers.get("user-agent") {
-            return gh
-                .parse_rbzid(&rbzid.replace('-', "="), ua)
-                .unwrap_or(false);
+            return gh.parse_rbzid(&rbzid.replace('-', "="), ua).unwrap_or(false);
         }
     }
     false
@@ -197,7 +179,7 @@ fn inspect_generic_request_map<GH: Grasshopper>(
     }) {
         Some((Some(stuff), itags, iflows)) => (stuff, itags, iflows),
         _ => {
-            return (Decision::Pass, Tags::new());
+            return (Decision::Pass, Tags::default());
         }
     };
     logs.debug("request tagged");
@@ -247,19 +229,17 @@ fn inspect_generic_request_map<GH: Grasshopper>(
         // human blocked, always block, even if it is a bot
         AclResult::Match(BotHuman {
             bot: _,
-            human:
-                Some(AclDecision {
-                    allowed: false,
-                    tags: dtags,
-                }),
+            human: Some(AclDecision {
+                allowed: false,
+                tags: dtags,
+            }),
         }) => return (acl_block(urlmap.acl_active, 5, &dtags), tags),
         // robot blocked, should be challenged
         AclResult::Match(BotHuman {
-            bot:
-                Some(AclDecision {
-                    allowed: false,
-                    tags: dtags,
-                }),
+            bot: Some(AclDecision {
+                allowed: false,
+                tags: dtags,
+            }),
             human: _,
         }) => {
             // if grasshopper is available, run these tests
@@ -316,7 +296,7 @@ fn lua_log_result<F, R>(f: F) -> LuaResult<(Option<R>, Option<String>)>
 where
     F: FnOnce(&mut Logs) -> anyhow::Result<R>,
 {
-    let mut logs = Logs::new();
+    let mut logs = Logs::default();
     let v = f(&mut logs);
     for log in logs.logs {
         println!("{}", log.to_string());
@@ -337,11 +317,7 @@ where
 }
 
 /// runs the underlying string using function, catching mlua errors
-fn wrap_session<F, R>(
-    lua: &Lua,
-    session_id: LuaValue,
-    f: F,
-) -> LuaResult<(Option<R>, Option<String>)>
+fn wrap_session<F, R>(lua: &Lua, session_id: LuaValue, f: F) -> LuaResult<(Option<R>, Option<String>)>
 where
     F: FnOnce(&str) -> anyhow::Result<R>,
 {
@@ -365,18 +341,12 @@ where
 }
 
 /// runs the underlying string using, Decision returning, function, catching mlua errors
-fn wrap_session_decision<F>(
-    lua: &Lua,
-    session_id: LuaValue,
-    f: F,
-) -> LuaResult<(Option<String>, Option<String>)>
+fn wrap_session_decision<F>(lua: &Lua, session_id: LuaValue, f: F) -> LuaResult<(Option<String>, Option<String>)>
 where
     F: FnOnce(&str) -> anyhow::Result<Decision>,
 {
     lua_result(with_str(lua, session_id, |s| {
-        f(s).and_then(|r| {
-            session::session_serialize_request_map(s).map(|v| r.to_json_raw(v, Logs::new()))
-        })
+        f(s).and_then(|r| session::session_serialize_request_map(s).map(|v| r.to_json_raw(v, Logs::default())))
     }))
 }
 
@@ -401,33 +371,25 @@ fn curiefense(lua: &Lua) -> LuaResult<LuaTable> {
     exports.set(
         "session_clean",
         lua.create_function(|lua: &Lua, session_id: LuaValue| {
-            wrap_session(lua, session_id, |s| {
-                session::clean_session(s).map(|()| true)
-            })
+            wrap_session(lua, session_id, |s| session::clean_session(s).map(|()| true))
         })?,
     )?;
     exports.set(
         "session_serialize_request_map",
         lua.create_function(|lua: &Lua, session_id: LuaValue| {
-            wrap_session_json(lua, session_id, |_, uuid| {
-                session::session_serialize_request_map(uuid)
-            })
+            wrap_session_json(lua, session_id, |_, uuid| session::session_serialize_request_map(uuid))
         })?,
     )?;
     exports.set(
         "session_match_urlmap",
         lua.create_function(|lua: &Lua, session_id: LuaValue| {
-            wrap_session_json(lua, session_id, |_, uuid| {
-                session::session_match_urlmap(uuid)
-            })
+            wrap_session_json(lua, session_id, |_, uuid| session::session_match_urlmap(uuid))
         })?,
     )?;
     exports.set(
         "session_tag_request",
         lua.create_function(|lua: &Lua, session_id: LuaValue| {
-            wrap_session_json(lua, session_id, |_, uuid| {
-                session::session_tag_request(uuid)
-            })
+            wrap_session_json(lua, session_id, |_, uuid| session::session_tag_request(uuid))
         })?,
     )?;
     exports.set(
@@ -456,38 +418,14 @@ fn curiefense(lua: &Lua) -> LuaResult<LuaTable> {
     )?;
 
     // iptools exports
-    exports.set(
-        "new_ip_set",
-        lua.create_function(iptools::new_ip_set)?,
-    )?;
-    exports.set(
-        "new_sig_set",
-        lua.create_function(iptools::new_sig_set)?,
-    )?;
-    exports.set(
-        "new_geoipdb",
-        lua.create_function(iptools::new_geoipdb)?,
-    )?;
-    exports.set(
-        "modhash",
-        lua.create_function(iptools::modhash)?,
-    )?;
-    exports.set(
-        "iptonum",
-        lua.create_function(iptools::iptonum)?,
-    )?;
-    exports.set(
-        "decodeurl",
-        lua.create_function(iptools::decodeurl)?,
-    )?;
-    exports.set(
-        "encodeurl",
-        lua.create_function(iptools::encodeurl)?,
-    )?;
-    exports.set(
-        "test_regex",
-        lua.create_function(iptools::test_regex)?,
-    )?;
+    exports.set("new_ip_set", lua.create_function(iptools::new_ip_set)?)?;
+    exports.set("new_sig_set", lua.create_function(iptools::new_sig_set)?)?;
+    exports.set("new_geoipdb", lua.create_function(iptools::new_geoipdb)?)?;
+    exports.set("modhash", lua.create_function(iptools::modhash)?)?;
+    exports.set("iptonum", lua.create_function(iptools::iptonum)?)?;
+    exports.set("decodeurl", lua.create_function(iptools::decodeurl)?)?;
+    exports.set("encodeurl", lua.create_function(iptools::encodeurl)?)?;
+    exports.set("test_regex", lua.create_function(iptools::test_regex)?)?;
 
     Ok(exports)
 }
@@ -498,14 +436,14 @@ mod tests {
 
     #[test]
     fn config_load() {
-        let mut logs = Logs::new();
+        let mut logs = Logs::default();
         let cfg = with_config("../../config", &mut logs, |_, c| c.clone());
         for r in logs.logs.iter() {
             println!("{}", r.to_string());
         }
         assert!(cfg.is_some());
         assert!(logs.logs.len() == 2);
-        assert!(format!("{}", logs.logs[0].message).contains("profiling-lists.json"));
-        assert!(format!("{}", logs.logs[1].message).contains("rbz-cloud-platforms"));
+        assert!(logs.logs[0].message.to_string().contains("profiling-lists.json"));
+        assert!(logs.logs[1].message.to_string().contains("rbz-cloud-platforms"));
     }
 }

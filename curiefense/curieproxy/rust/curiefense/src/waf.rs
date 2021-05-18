@@ -4,9 +4,7 @@ use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 
 use crate::config::raw::WafSignature;
-use crate::config::waf::{
-    Section, SectionIdx, WafEntryMatch, WafProfile, WafSection, WafSignatures,
-};
+use crate::config::waf::{Section, SectionIdx, WafEntryMatch, WafProfile, WafSection, WafSignatures};
 use crate::interface::{Action, ActionType};
 use crate::requestfields::RequestField;
 use crate::utils::RequestInfo;
@@ -20,11 +18,7 @@ pub struct WafMatched {
 
 impl WafMatched {
     fn new(section: SectionIdx, name: String, value: String) -> Self {
-        WafMatched {
-            section,
-            name,
-            value,
-        }
+        WafMatched { section, name, value }
     }
 }
 
@@ -214,11 +208,7 @@ fn section_check(
             if matched {
                 omit.entries.at(idx).insert(name.clone());
             } else if name_entry.restrict {
-                return Err(WafBlock::Mismatch(WafMatched::new(
-                    idx,
-                    name.clone(),
-                    value.clone(),
-                )));
+                return Err(WafBlock::Mismatch(WafMatched::new(idx, name.clone(), value.clone())));
             } else if !name_entry.exclusions.is_empty() {
                 omit.exclusions
                     .at(idx)
@@ -270,11 +260,7 @@ fn injection_check(
                 }
                 if let Some(b) = xss(value) {
                     if b {
-                        return Err(WafBlock::Xss(WafMatched::new(
-                            idx,
-                            name.clone(),
-                            value.clone(),
-                        )));
+                        return Err(WafBlock::Xss(WafMatched::new(idx, name.clone(), value.clone())));
                     }
                 }
             }
@@ -316,12 +302,7 @@ fn hyperscan(
             match sigs.ids.get(id as usize) {
                 None => println!("INVALID INDEX ??? {}", id),
                 Some(sig) => {
-                    if exclusions
-                        .get(sid)
-                        .get(&name)
-                        .map(|ex| ex.contains(&sig.id))
-                        != Some(true)
-                    {
+                    if exclusions.get(sid).get(&name).map(|ex| ex.contains(&sig.id)) != Some(true) {
                         ids.push(sig.clone());
                     }
                 }

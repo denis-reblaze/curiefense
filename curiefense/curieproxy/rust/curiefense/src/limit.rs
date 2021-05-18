@@ -41,12 +41,7 @@ fn redis_check_limit(
     pairvalue: Option<String>,
 ) -> RedisResult<bool> {
     let (mcurrent, mexpire): (Option<i64>, Option<i64>) = match &pairvalue {
-        None => redis::pipe()
-            .cmd("INCR")
-            .arg(key)
-            .cmd("TTL")
-            .arg(key)
-            .query(cnx)?,
+        None => redis::pipe().cmd("INCR").arg(key).cmd("TTL").arg(key).query(cnx)?,
         Some(pv) => redis::pipe()
             .cmd("SADD")
             .arg(key)
@@ -67,12 +62,7 @@ fn redis_check_limit(
     Ok(current > limit as i64)
 }
 
-pub fn limit_check(
-    url_map_name: &str,
-    reqinfo: &RequestInfo,
-    limits: &[Limit],
-    tags: &mut Tags,
-) -> Decision {
+pub fn limit_check(url_map_name: &str, reqinfo: &RequestInfo, limits: &[Limit], tags: &mut Tags) -> Decision {
     // early return to avoid redis connection
     if limits.is_empty() {
         return Decision::Pass;
@@ -119,10 +109,7 @@ pub fn limit_check(
             return limit_react(&mut redis, limit, key);
         }
 
-        let pairvalue = limit
-            .pairwith
-            .as_ref()
-            .and_then(|sel| select_string(reqinfo, sel));
+        let pairvalue = limit.pairwith.as_ref().and_then(|sel| select_string(reqinfo, sel));
 
         match redis_check_limit(&mut redis, &key, limit.limit, limit.ttl, pairvalue) {
             Err(rr) => println!("*** Redis problem: {}", rr),

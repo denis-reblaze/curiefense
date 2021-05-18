@@ -121,26 +121,24 @@ pub fn new_geoipdb(_: &Lua, _: ()) -> LuaResult<GeoIP> {
 
 impl mlua::UserData for GeoIP {
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_method_mut("load_asn_db", |_, this: &mut GeoIP, pth: String| match this
-            .load_asn(std::path::Path::new(&pth))
-        {
-            Ok(_) => Ok(true),
-            Err(_) => Ok(false),
+        methods.add_method_mut("load_asn_db", |_, this: &mut GeoIP, pth: String| {
+            match this.load_asn(std::path::Path::new(&pth)) {
+                Ok(_) => Ok(true),
+                Err(_) => Ok(false),
+            }
         });
-        methods.add_method_mut(
-            "load_country_db",
-            |_, this: &mut GeoIP, pth: String| match this.load_country(std::path::Path::new(&pth)) {
+        methods.add_method_mut("load_country_db", |_, this: &mut GeoIP, pth: String| {
+            match this.load_country(std::path::Path::new(&pth)) {
                 Ok(_) => Ok(true),
                 Err(_) => Ok(false),
-            },
-        );
-        methods.add_method_mut(
-            "load_city_db",
-            |_, this: &mut GeoIP, pth: String| match this.load_city(std::path::Path::new(&pth)) {
+            }
+        });
+        methods.add_method_mut("load_city_db", |_, this: &mut GeoIP, pth: String| {
+            match this.load_city(std::path::Path::new(&pth)) {
                 Ok(_) => Ok(true),
                 Err(_) => Ok(false),
-            },
-        );
+            }
+        });
         methods.add_method("lookup_asn", |lua: &Lua, this: &GeoIP, value: String| {
             let mut res = Vec::new();
             if let Ok((asn, org)) = this.lookup_asn(value) {
@@ -149,20 +147,17 @@ impl mlua::UserData for GeoIP {
             }
             Ok(mlua::MultiValue::from_vec(res))
         });
-        methods.add_method(
-            "lookup_country",
-            |lua: &Lua, this: &GeoIP, value: String| {
-                match this.lookup_country(value) {
-                    Ok(Some(country)) => {
-                        // Unlike for other lookup steps,
-                        // we are returning the whole City object.
-                        // We may want to do the same for ASN the lookup.
-                        Ok(lua.to_value(&country).ok())
-                    }
-                    _ => Ok(None),
+        methods.add_method("lookup_country", |lua: &Lua, this: &GeoIP, value: String| {
+            match this.lookup_country(value) {
+                Ok(Some(country)) => {
+                    // Unlike for other lookup steps,
+                    // we are returning the whole City object.
+                    // We may want to do the same for ASN the lookup.
+                    Ok(lua.to_value(&country).ok())
                 }
-            },
-        );
+                _ => Ok(None),
+            }
+        });
         methods.add_method("lookup_city", |lua: &Lua, this: &GeoIP, value: String| {
             match this.lookup_city(value) {
                 Ok(Some(city)) => {
@@ -227,23 +222,21 @@ impl IPSet {
 impl mlua::UserData for IPSet {
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
         methods.add_method("len", |_, this: &IPSet, _: ()| Ok(this.len()));
-        methods.add_method(
-            "contains",
-            |_, this: &IPSet, value: String| match AnyIpCidr::from_str(&value) {
+        methods.add_method("contains", |_, this: &IPSet, value: String| {
+            match AnyIpCidr::from_str(&value) {
                 Ok(a) => Ok(Some(this.contains(&a))),
                 Err(_) => Ok(None),
-            },
-        );
-        methods.add_method(
-            "get",
-            |_, this: &IPSet, value: String| match AnyIpCidr::from_str(&value) {
+            }
+        });
+        methods.add_method("get", |_, this: &IPSet, value: String| {
+            match AnyIpCidr::from_str(&value) {
                 Ok(a) => match this.get(&a) {
                     Some(v) => Ok(Some(v.clone())),
                     None => Ok(None),
                 },
                 Err(_) => Ok(None),
-            },
-        );
+            }
+        });
         methods.add_method_mut(
             "add",
             |_, this: &mut IPSet, (key, value): (String, String)| match AnyIpCidr::from_str(&key) {
@@ -267,29 +260,24 @@ pub fn new_sig_set(_: &Lua, _: ()) -> LuaResult<SigSet> {
 
 impl mlua::UserData for SigSet {
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_method_mut(
-            "add",
-            |_, this: &mut SigSet, (r, i): (String, String)| match this.add(r, i) {
+        methods.add_method_mut("add", |_, this: &mut SigSet, (r, i): (String, String)| {
+            match this.add(r, i) {
                 Ok(_) => Ok(Some(true)),
                 Err(_) => Ok(None),
-            },
-        );
-        methods.add_method_mut("compile", |_, this: &mut SigSet, _: ()| {
-            match this.compile() {
-                Ok(_) => Ok(Some(true)),
-                Err(SigSetError::RegexCompileError(_)) => Ok(Some(false)),
-                _ => Ok(None),
             }
+        });
+        methods.add_method_mut("compile", |_, this: &mut SigSet, _: ()| match this.compile() {
+            Ok(_) => Ok(Some(true)),
+            Err(SigSetError::RegexCompileError(_)) => Ok(Some(false)),
+            _ => Ok(None),
         });
         methods.add_method_mut("clear", |_, this: &mut SigSet, _: ()| {
             this.clear();
             Ok(())
         });
-        methods.add_method("is_match", |_, this: &SigSet, m: String| {
-            match this.is_match(&m) {
-                Ok(res) => Ok(Some(res)),
-                Err(_) => Ok(None),
-            }
+        methods.add_method("is_match", |_, this: &SigSet, m: String| match this.is_match(&m) {
+            Ok(res) => Ok(Some(res)),
+            Err(_) => Ok(None),
         });
         methods.add_method("is_match_id", |_, this: &SigSet, m: String| {
             match this.is_match_id(&m) {

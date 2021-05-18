@@ -6,8 +6,8 @@ use std::sync::RwLock;
 use uuid::Uuid;
 
 use crate::acl::{check_acl, AclResult};
-use crate::config::{with_config_default_path, Config, CONFIG, HSDB};
 use crate::config::hostmap::UrlMap;
+use crate::config::{with_config_default_path, Config, CONFIG, HSDB};
 use crate::flow::flow_check;
 use crate::interface::{Decision, Tags};
 use crate::limit::limit_check;
@@ -76,8 +76,8 @@ impl JRequestMap {
                 cookies: self.cookies,
                 headers: self.headers,
                 rinfo: RInfo {
-                    geoip,
                     meta,
+                    geoip,
                     qinfo,
                     host,
                 },
@@ -88,7 +88,7 @@ impl JRequestMap {
 }
 
 pub fn init_config() -> (bool, Vec<String>) {
-    let mut logs = Logs::new();
+    let mut logs = Logs::default();
     with_config_default_path(&mut logs, |_, _| {});
     let is_ok = logs.logs.is_empty();
     (is_ok, logs.to_stringvec())
@@ -128,13 +128,10 @@ pub fn session_serialize_request_map(session_id: &str) -> anyhow::Result<serde_j
 /// update the tags in the JSON-encoded request_map
 pub fn update_tags(rawjson: serde_json::Value, tags: Tags) -> anyhow::Result<serde_json::Value> {
     let mut raw = rawjson;
-    let tags_map: HashMap<String, u32> =
-        tags.as_hash_ref().iter().map(|k| (k.clone(), 1)).collect();
+    let tags_map: HashMap<String, u32> = tags.as_hash_ref().iter().map(|k| (k.clone(), 1)).collect();
 
     // update the tags
-    let attrs = raw
-        .get_mut("attrs")
-        .ok_or_else(|| anyhow::anyhow!("No attrs field"))?;
+    let attrs = raw.get_mut("attrs").ok_or_else(|| anyhow::anyhow!("No attrs field"))?;
     let attrs_o = attrs
         .as_object_mut()
         .ok_or_else(|| anyhow::anyhow!("Attrs was not an object"))?;
@@ -180,7 +177,7 @@ pub struct SessionUrlMap {
 
 /// returns a RawUrlMap object (minus the match field), and updates the internal structure for the url map
 pub fn session_match_urlmap(session_id: &str) -> anyhow::Result<SessionUrlMap> {
-    let mut logs = Logs::new();
+    let mut logs = Logs::default();
     let uuid: Uuid = session_id.parse()?;
     // this is done this way in order to release the config lock before writing the tags
     // this might not be optimal though, perhaps it is faster to keep the locks and avoir copies
@@ -220,8 +217,7 @@ pub fn session_match_urlmap(session_id: &str) -> anyhow::Result<SessionUrlMap> {
 pub fn session_tag_request(session_id: &str) -> anyhow::Result<bool> {
     let uuid: Uuid = session_id.parse()?;
 
-    let new_tags =
-        with_config(|cfg| with_request_info(uuid, |rinfo| Ok(tag_request(&cfg, &rinfo))))?;
+    let new_tags = with_config(|cfg| with_request_info(uuid, |rinfo| Ok(tag_request(&cfg, &rinfo))))?;
     with_tags_mut(uuid, |tgs| {
         tgs.extend(new_tags);
         Ok(())
@@ -284,10 +280,7 @@ where
 {
     match CONFIG.read() {
         Ok(cfg) => f(&cfg),
-        Err(rr) => Err(anyhow::anyhow!(
-            "Could not get configuration read lock {}",
-            rr
-        )),
+        Err(rr) => Err(anyhow::anyhow!("Could not get configuration read lock {}", rr)),
     }
 }
 
@@ -298,9 +291,7 @@ where
     let infos = RINFOS
         .read()
         .map_err(|rr| anyhow::anyhow!("Could not get RINFOS read lock {}", rr))?;
-    let rinfo = infos
-        .get(&uuid)
-        .ok_or_else(|| anyhow::anyhow!("Unknown session id"))?;
+    let rinfo = infos.get(&uuid).ok_or_else(|| anyhow::anyhow!("Unknown session id"))?;
     f(rinfo)
 }
 
@@ -311,9 +302,7 @@ where
     let maps = URLMAP
         .read()
         .map_err(|rr| anyhow::anyhow!("Could not get URLMAP read lock {}", rr))?;
-    let umap = maps
-        .get(&uuid)
-        .ok_or_else(|| anyhow::anyhow!("Unknown session id"))?;
+    let umap = maps.get(&uuid).ok_or_else(|| anyhow::anyhow!("Unknown session id"))?;
     f(umap)
 }
 
@@ -324,9 +313,7 @@ where
     let tags = TAGS
         .read()
         .map_err(|rr| anyhow::anyhow!("Could not get TAGS read lock {}", rr))?;
-    let tag = tags
-        .get(&uuid)
-        .ok_or_else(|| anyhow::anyhow!("Unknown session id"))?;
+    let tag = tags.get(&uuid).ok_or_else(|| anyhow::anyhow!("Unknown session id"))?;
     f(tag)
 }
 

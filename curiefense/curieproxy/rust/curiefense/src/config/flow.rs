@@ -57,13 +57,8 @@ pub struct FlowElement {
 
 impl FlowEntry {
     fn convert(rawentry: RawFlowEntry) -> anyhow::Result<FlowEntry> {
-        let mkey: anyhow::Result<Vec<RequestSelector>> =
-            rawentry.key.into_iter().map(resolve_selector_map).collect();
-        let msequence: anyhow::Result<Vec<FlowStep>> = rawentry
-            .sequence
-            .into_iter()
-            .map(FlowStep::convert)
-            .collect();
+        let mkey: anyhow::Result<Vec<RequestSelector>> = rawentry.key.into_iter().map(resolve_selector_map).collect();
+        let msequence: anyhow::Result<Vec<FlowStep>> = rawentry.sequence.into_iter().map(FlowStep::convert).collect();
         let sequence = msequence?;
 
         Ok(FlowEntry {
@@ -73,8 +68,7 @@ impl FlowEntry {
             name: rawentry.name,
             active: rawentry.active,
             ttl: rawentry.ttl,
-            action: Action::resolve(&rawentry.action)
-                .with_context(|| "when resolving the action entry")?,
+            action: Action::resolve(&rawentry.action).with_context(|| "when resolving the action entry")?,
             key: mkey?,
             sequence,
         })
@@ -83,11 +77,8 @@ impl FlowEntry {
 
 impl FlowStep {
     fn convert(rawstep: RawFlowStep) -> anyhow::Result<FlowStep> {
-        let sequence_key = SequenceKey(
-            rawstep.method
-                + rawstep.headers.get("host").expect("Missing host field")
-                + &rawstep.uri,
-        );
+        let sequence_key =
+            SequenceKey(rawstep.method + rawstep.headers.get("host").expect("Missing host field") + &rawstep.uri);
         let mut nheaders = rawstep.headers;
         nheaders.remove("host");
         let fake_selector = RawLimitSelector {
@@ -104,10 +95,7 @@ impl FlowStep {
     }
 }
 
-pub fn flow_resolve(
-    logs: &mut Logs,
-    rawentries: Vec<RawFlowEntry>,
-) -> HashMap<SequenceKey, Vec<FlowElement>> {
+pub fn flow_resolve(logs: &mut Logs, rawentries: Vec<RawFlowEntry>) -> HashMap<SequenceKey, Vec<FlowElement>> {
     let mut out: HashMap<SequenceKey, Vec<FlowElement>> = HashMap::new();
 
     // entries are created with steps in order
@@ -117,8 +105,7 @@ pub fn flow_resolve(
             Ok(entry) => {
                 let nsteps = entry.sequence.len();
                 for (stepid, step) in entry.sequence.into_iter().enumerate() {
-                    let vc: &mut Vec<FlowElement> =
-                        out.entry(step.sequence_key).or_insert_with(Vec::new);
+                    let vc: &mut Vec<FlowElement> = out.entry(step.sequence_key).or_insert_with(Vec::new);
                     vc.push(FlowElement {
                         id: entry.id.clone(),
                         action: entry.action.clone(),

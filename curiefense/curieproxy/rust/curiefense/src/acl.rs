@@ -37,8 +37,7 @@ pub fn check_acl(tags: &Tags, acl: &AclProfile) -> AclResult {
         .map(AclResult::Bypass)
         .or_else(|| subcheck(&acl.bypass, true).map(AclResult::Bypass))
         .unwrap_or_else(|| {
-            let botresult =
-                subcheck(&acl.allow_bot, true).or_else(|| subcheck(&acl.deny_bot, false));
+            let botresult = subcheck(&acl.allow_bot, true).or_else(|| subcheck(&acl.deny_bot, false));
             let humanresult = subcheck(&acl.allow, true).or_else(|| subcheck(&acl.deny, false));
 
             AclResult::Match(BotHuman {

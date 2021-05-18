@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use crate::config::flow::{FlowElement, SequenceKey};
 use crate::config::utils::RequestSelector;
 use crate::interface::{Decision, Tags};
-use crate::redis::REDISCNX;
 use crate::utils::{check_selector_cond, select_string, RequestInfo};
 
 fn session_sequence_key(ri: &RequestInfo) -> SequenceKey {
@@ -18,12 +17,7 @@ fn session_sequence_key(ri: &RequestInfo) -> SequenceKey {
     SequenceKey(ri.rinfo.meta.method.to_string() + host_part + &ri.rinfo.qinfo.qpath)
 }
 
-fn build_redis_key(
-    reqinfo: &RequestInfo,
-    key: &[RequestSelector],
-    entry_id: &str,
-    entry_name: &str,
-) -> String {
+fn build_redis_key(reqinfo: &RequestInfo, key: &[RequestSelector], entry_id: &str, entry_name: &str) -> String {
     let mut tohash = entry_id.to_string() + entry_name;
     for kpart in key.iter().filter_map(|r| select_string(reqinfo, r)) {
         tohash += &kpart;
@@ -38,9 +32,7 @@ fn flow_match(reqinfo: &RequestInfo, tags: &Tags, elem: &FlowElement) -> bool {
     if !(elem.include.is_empty() || elem.include.iter().any(|e| tags.contains(e))) {
         return false;
     }
-    elem.select
-        .iter()
-        .all(|e| check_selector_cond(reqinfo, tags, e))
+    elem.select.iter().all(|e| check_selector_cond(reqinfo, tags, e))
 }
 
 fn check_flow(
@@ -86,7 +78,7 @@ pub fn flow_check(
         Some(elems) => {
             let mut bad = Decision::Pass;
             // do not establish the connection if unneeded
-            let mut cnx: REDISCNX = crate::redis::redis_conn()?;
+            let mut cnx = crate::redis::redis_conn()?;
             for elem in elems.iter().filter(|e| flow_match(reqinfo, tags, e)) {
                 let redis_key = build_redis_key(reqinfo, &elem.key, &elem.id, &elem.name);
                 if check_flow(&mut cnx, &redis_key, elem.step, elem.ttl, elem.is_last)? {

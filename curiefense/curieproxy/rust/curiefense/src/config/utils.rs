@@ -62,9 +62,7 @@ pub fn resolve_selector(tp: SelectorType, v: &str) -> anyhow::Result<RequestSele
         SelectorType::Headers => Ok(RequestSelector::Header(v.to_string())),
         SelectorType::Cookies => Ok(RequestSelector::Cookie(v.to_string())),
         SelectorType::Args => Ok(RequestSelector::Args(v.to_string())),
-        SelectorType::Attrs => {
-            decode_attribute(v).ok_or_else(|| anyhow::anyhow!("Unknown attribute {}", v))
-        }
+        SelectorType::Attrs => decode_attribute(v).ok_or_else(|| anyhow::anyhow!("Unknown attribute {}", v)),
     }
 }
 

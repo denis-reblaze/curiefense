@@ -35,26 +35,23 @@ impl LogLevel {
     }
 }
 
-impl Log {
-    pub fn to_string(&self) -> String {
-        format!(
-            "{} {}µs {}",
-            self.level.short(),
-            self.elapsed_micros,
-            self.message
-        )
+impl std::fmt::Display for Log {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{} {}µs {}", self.level.short(), self.elapsed_micros, self.message)
     }
 }
 
-impl Logs {
-    pub fn new() -> Self {
+impl Default for Logs {
+    fn default() -> Self {
         Logs {
             start: Instant::now(),
             level: LogLevel::Debug,
             logs: Vec::new(),
         }
     }
+}
 
+impl Logs {
     pub fn log<S: ToString>(&mut self, level: LogLevel, message: S) {
         let now = Instant::now();
         self.logs.push(Log {

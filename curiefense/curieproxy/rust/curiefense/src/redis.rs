@@ -11,16 +11,14 @@ fn build_pool() -> anyhow::Result<r2d2::Pool<RedisConnectionManager>> {
     let server = std::env::var("REDIS_HOST").unwrap_or_else(|_| "redis".to_string());
     let manager = RedisConnectionManager::new(format!("redis://{}:6379/", server))?;
     let max_timeout = Duration::from_millis(100);
-    let pool = r2d2::Pool::builder()
-        .connection_timeout(max_timeout)
-        .build(manager)?;
+    let pool = r2d2::Pool::builder().connection_timeout(max_timeout).build(manager)?;
     Ok(pool)
 }
 
-pub type REDISCNX = r2d2::PooledConnection<RedisConnectionManager>;
+pub type RedisCnx = r2d2::PooledConnection<RedisConnectionManager>;
 
 /// creates a connection to a redis server
-pub fn redis_conn() -> anyhow::Result<REDISCNX> {
+pub fn redis_conn() -> anyhow::Result<RedisCnx> {
     let pool = match &*RPOOL {
         Err(rr) => return Err(anyhow::anyhow!("{}", rr)),
         Ok(pl) => pl.clone(),

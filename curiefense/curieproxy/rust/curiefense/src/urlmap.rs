@@ -1,6 +1,5 @@
-
-use crate::config::Config;
 use crate::config::hostmap::{HostMap, UrlMap};
+use crate::config::Config;
 use crate::logs::Logs;
 use crate::utils::RequestInfo;
 
@@ -10,11 +9,7 @@ use crate::utils::RequestInfo;
 /// note that the url is matched using the url-decoded path!
 ///
 /// returns the matching url map, along with the id of the selected host map
-pub fn match_urlmap<'a>(
-    ri: &RequestInfo,
-    cfg: &'a Config,
-    logs: &mut Logs,
-) -> Option<(String, &'a UrlMap)> {
+pub fn match_urlmap<'a>(ri: &RequestInfo, cfg: &'a Config, logs: &mut Logs) -> Option<(String, &'a UrlMap)> {
     // find the first matching hostmap, or use the default, if it exists
     let hostmap: &HostMap = cfg
         .urlmaps
