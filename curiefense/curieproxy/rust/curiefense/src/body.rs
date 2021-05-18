@@ -67,7 +67,15 @@ fn flatten_json(args: &mut RequestField, prefix: &mut Vec<String>, value: Value)
     }
 }
 
-/// alpha quality code: should work with a stream of json items, not deserialize all at once
+/// This should work with a stream of json items, not deserialize all at once
+/// 
+/// I tried qjsonrs, but it was approximatively 10x slower for small maps (but faster with larger maps)
+/// qjronsrs -> serde_json benches:
+///  * map/1 -> -98.83%
+///  * map/100 -> -43.516%
+///  * map/10000 -> +33.534%
+/// 
+/// next idea: adapting https://github.com/Geal/nom/blob/master/examples/json_iterator.rs
 fn json_body(args: &mut RequestField, body: &[u8]) -> Result<(), String> {
     let value: Value = serde_json::from_slice(body).map_err(|rr| format!("Invalid JSON body: {}", rr))?;
 
