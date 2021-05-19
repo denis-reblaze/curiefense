@@ -24,8 +24,8 @@ pub struct WafProfile {
     pub sections: Section<WafSection>,
 }
 
-impl WafProfile {
-    pub fn default() -> Self {
+impl Default for WafProfile {
+    fn default() -> Self {
         WafProfile {
             id: "__default__".to_string(),
             name: "default waf".to_string(),
