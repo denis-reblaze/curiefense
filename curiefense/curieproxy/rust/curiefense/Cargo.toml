@@ -50,3 +50,8 @@ harness = false
 name = "url_maps"
 path = "benches/url_maps.rs"
 harness = false
+
+[[bench]]
+name = "check_acl"
+path = "benches/check_acl.rs"
+harness = false

@@ -313,7 +313,7 @@ impl ProfilingSection {
             let subsections: Vec<ProfilingSSection> = rsubsections
                 .with_context(|| format!("profiling configuration error in section id={}, name={}", sid, sname))?;
             Ok(ProfilingSection {
-                tags: Tags::from_vec(&s.tags),
+                tags: Tags::from_slice(&s.tags),
                 relation: s.rule.relation,
                 sections: subsections,
             })

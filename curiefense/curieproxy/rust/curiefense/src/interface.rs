@@ -82,8 +82,8 @@ impl Tags {
         self.0.extend(other.0)
     }
 
-    pub fn from_vec(vec: &[String]) -> Self {
-        Tags(vec.iter().map(|s| tagify(&s)).collect())
+    pub fn from_slice(slice: &[String]) -> Self {
+        Tags(slice.iter().map(|s| tagify(&s)).collect())
     }
 
     pub fn contains(&self, s: &str) -> bool {

@@ -82,7 +82,7 @@ impl JRequestMap {
                     host,
                 },
             },
-            Tags::from_vec(&vtags),
+            Tags::from_slice(&vtags),
         )
     }
 }
