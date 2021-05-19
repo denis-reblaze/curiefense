@@ -40,7 +40,7 @@ fn create_json_string_map(sz: usize) -> String {
 }
 
 fn json_string_map(c: &mut Criterion) {
-    let mut group = c.benchmark_group("json string map");
+    let mut group = c.benchmark_group("JSON map");
     for sz in [1, 100, 10000].iter() {
         group.bench_with_input(BenchmarkId::from_parameter(sz), sz, |b, &size| {
             let mp = create_json_string_map(size);
@@ -59,7 +59,7 @@ fn create_xml_string_map(sz: usize) -> String {
 }
 
 fn xml_string_map(c: &mut Criterion) {
-    let mut group = c.benchmark_group("XML string map");
+    let mut group = c.benchmark_group("XML map");
     for sz in [1, 100, 10000].iter() {
         group.bench_with_input(BenchmarkId::from_parameter(sz), sz, |b, &size| {
             let mp = create_xml_string_map(size);
@@ -75,7 +75,7 @@ fn create_forms_string_map(sz: usize) -> String {
 }
 
 fn forms_string_map(c: &mut Criterion) {
-    let mut group = c.benchmark_group("forms encoded string map");
+    let mut group = c.benchmark_group("Forms map");
     for sz in [1, 100, 10000].iter() {
         group.bench_with_input(BenchmarkId::from_parameter(sz), sz, |b, &size| {
             let mp = create_forms_string_map(size);
