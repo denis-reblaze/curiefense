@@ -10,7 +10,7 @@ fn body_test(mcontent_type: Option<&str>, body: &[u8], expected_size: Option<usi
     let mut args = RequestField::default();
     parse_body(&mut logs, &mut args, mcontent_type, body).unwrap();
     if let Some(sz) = expected_size {
-      assert_eq!(args.len(), sz);
+        assert_eq!(args.len(), sz);
     }
 }
 
