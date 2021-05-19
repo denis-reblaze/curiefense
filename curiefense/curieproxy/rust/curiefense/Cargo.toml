@@ -45,3 +45,8 @@ criterion = "0.3"
 name = "body_parse"
 path = "benches/body_parse.rs"
 harness = false
+
+[[bench]]
+name = "url_maps"
+path = "benches/url_maps.rs"
+harness = false
