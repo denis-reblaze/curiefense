@@ -40,7 +40,7 @@ do
         IMG=${REPO}/$image
         echo "=================== $IMG:$DOCKER_TAG ====================="
         # shellcheck disable=SC2086
-        if tar -C "$image" -czh . | docker build -t "$IMG:$DOCKER_TAG" ${BUILD_OPT} -; then
+        if tar -C "$image" -ch --exclude='./curieproxy/rust' . | docker build -t "$IMG:$DOCKER_TAG" ${BUILD_OPT} -; then
             STB="ok"
             if [ -n "$PUSH" ]; then
                 if docker push "$IMG:$DOCKER_TAG"; then
