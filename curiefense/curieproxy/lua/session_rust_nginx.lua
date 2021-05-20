@@ -21,7 +21,7 @@ function inspect(handle)
 
     local rheaders, err = ngx.req.get_headers()
     if err == "truncated" then
-        handle.log(handle.ERR, err)
+        handle.log(handle.ERR, "truncated headers: " .. err)
     end
 
     for k, v in pairs(rheaders) do
