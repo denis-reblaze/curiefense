@@ -62,6 +62,5 @@ end
 function nginx_log_request(request_map)
   local handle = request_map.handle
   local str_map = get_log_str_map(request_map)
-  handle.log(handle.DEBUG, str_map)
-  handle.log(handle.ERR, "TODO: log_request")
+  handle.var.request_map = str_map;
 end
