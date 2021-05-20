@@ -6,19 +6,40 @@ local curiefense  = require "curiefense"
 local grasshopper = require "grasshopper"
 
 local accesslog   = require "lua.accesslog"
-local utils       = require "lua.utils"
+local utils       = require "lua.nativeutils"
 
 local sfmt = string.format
 
 local log_request = accesslog.envoy_log_request
-local map_request = utils.map_request
 local custom_response = utils.envoy_custom_response
 
 
+function detectip(xff, hops)
+    local len_xff = #xff
+    if hops < len_xff then
+        return xff[len_xff-(hops-1)]
+    else
+        return xff[1]
+    end
+end
+
+
+function extract_ip(headers, metadata)
+    local client_addr = "1.1.1.1"
+    local xff = headers:get("x-forwarded-for")
+    local hops = metadata:get("xff_trusted_hops") or "1"
+
+    hops = tonumber(hops)
+    local addrs = utils.map_fn(xff:split(","), utils.trim)
+
+    client_addr = detectip(addrs, hops) or client_addr
+
+    return client_addr
+end
+
+
 function inspect(handle)
-
-
-    local ip_str = utils.extract_ip(handle:headers(), handle:metadata())
+    local ip_str = extract_ip(handle:headers(), handle:metadata())
 
     local headers = {}
     local meta = {}
@@ -51,7 +72,7 @@ function inspect(handle)
     if response then
         local response_table = cjson.decode(response)
         handle:logDebug("decision " .. response)
-        utils.log_native_messages(handle, response_table["logs"])
+        utils.log_envoy_messages(handle, response_table["logs"])
         request_map = response_table["request_map"]
         request_map.handle = handle
         if response_table["action"] == "custom_response" then

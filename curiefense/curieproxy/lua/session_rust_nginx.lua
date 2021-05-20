@@ -6,38 +6,50 @@ local curiefense  = require "curiefense"
 local grasshopper = require "grasshopper"
 
 local accesslog   = require "lua.accesslog"
-local utils       = require "lua.utils"
+local utils       = require "lua.nativeutils"
 
 local sfmt = string.format
 
 local log_request = accesslog.nginx_log_request
-local map_request = utils.nginx_map_request
 local custom_response = utils.nginx_custom_response
 
 
 function inspect(handle)
+    local ip_str = handle.var.remote_addr
 
-    local request_map = map_request(handle)
+    local headers = {}
 
-    local request_map_as_json = cjson.encode({
-        headers = request_map.headers,
-        cookies = request_map.cookies,
-        attrs = request_map.attrs,
-        args = request_map.args,
-        geo = request_map.geo
-    })
+    local rheaders, err = ngx.req.get_headers()
+    if err == "truncated" then
+        handle.log(handle.ERR, err)
+    end
 
-    local response, err = curiefense.inspect_request_map(request_map_as_json, grasshopper)
+    for k, v in pairs(rheaders) do
+        headers[k] = v
+    end
+
+    handle.log(handle.INFO, cjson.encode(headers))
+
+    handle.req.read_body()
+    local body_content = handle.req.get_body_data()
+    local meta = { path=handle.var.request_uri, method=handle.req.get_method(), authority=nil }
+
+    -- the meta table contains the following elements:
+    --   * path : the full request uri
+    --   * method : the HTTP verb
+    --   * authority : optionally, the HTTP2 authority field
+    local response, err = curiefense.inspect_request(
+        meta, headers, body_content, ip_str, grasshopper
+    )
 
     if err then
-        for _, r in ipairs(err) do
-            handle:logErr(sfmt("curiefense.inspect_request_map error %s", r))
-        end
+        handle:log(handle.ERR, sfmt("curiefense.inspect_request_map error %s", err))
     end
 
     if response then
         local response_table = cjson.decode(response)
-        handle:logDebug("decision " .. response)
+        handle.log(handle.INFO, "decision " .. response)
+        utils.log_nginx_messages(handle, response_table["logs"])
         request_map = response_table["request_map"]
         request_map.handle = handle
         if response_table["action"] == "custom_response" then
@@ -46,5 +58,4 @@ function inspect(handle)
     end
 
     log_request(request_map)
-
 end

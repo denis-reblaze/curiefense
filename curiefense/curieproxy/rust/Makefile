@@ -1,4 +1,4 @@
-all: ctarget/target/release/libcuriefense.so
+all: ../lua/shared-objects/curiefense.hs5.so ../lua/shared-objects/curiefense.so
 
 ctarget:
 	mkdir ctarget
@@ -11,6 +11,9 @@ ctarget/target: ctarget
 
 ctarget/target/release/libcuriefense_lua.so: container ctarget/registry ctarget/target
 	docker run -v `pwd`:/home/builder/rust -v `pwd`/ctarget/registry:/home/builder/.cargo/registry  -w /home/builder/rust  -t curiefense/rustbuild:latest /home/builder/.cargo/bin/cargo build --release --target-dir ctarget/target
+
+../lua/shared-objects/curiefense.hs5.so:
+	cargo build --release && cp target/release/libcuriefense_lua.so ../lua/shared-objects/curiefense.hs5.so
 
 ../lua/shared-objects/curiefense.so: ctarget/target/release/libcuriefense_lua.so
 	cp ctarget/target/release/libcuriefense_lua.so ../lua/shared-objects/curiefense.so

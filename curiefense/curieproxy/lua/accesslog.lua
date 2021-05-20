@@ -9,9 +9,8 @@ local json_decode   = cjson.decode
 DMFN = "com.reblaze.curiefense"
 LOG_KEY = "request.info"
 
-function envoy_log_request(request_map)
+function get_log_str_map(request_map)
   -- handle is userData which is not serilizable
-  local request_handle = request_map.handle
   local entries = {
     ["geo"]     = "geo",
     ["headers"] = "headers",
@@ -50,9 +49,19 @@ function envoy_log_request(request_map)
 
 
   local str_map = json_encode(log_table)
-  -- request_handle:logDebug(str_map)
-
-  request_handle:streamInfo():dynamicMetadata():set(DMFN, LOG_KEY, str_map)
-
+  return str_map
 end
 
+function envoy_log_request(request_map)
+  local request_handle = request_map.handle
+  local str_map = get_log_str_map(request_map)
+  request_handle:logDebug(str_map)
+  request_handle:streamInfo():dynamicMetadata():set(DMFN, LOG_KEY, str_map)
+end
+
+function nginx_log_request(request_map)
+  local handle = request_map.handle
+  local str_map = get_log_str_map(request_map)
+  handle.log(handle.DEBUG, str_map)
+  handle.log(handle.ERR, "TODO: log_request")
+end
