@@ -402,14 +402,19 @@ The same memory problems that are present in the JSON parser. Another potential 
 
 ## Nginx missing data
 
+* the whole `metadata` field is not present
 * missing response `bodybytes`, `headersbytes`, but we have `$upstream_bytes_received`
-* I can't get the following nginx variables that are used to fill the `upstream` part: `$proxy_host`, `$upstream_addr`, `$proxy_port`
+* I can't get the following nginx variables that are used to fill the `upstream` part: `$proxy_host`, `$upstream_addr`, `$proxy_port`. They are all `nil` for some reason ...
 * other upstream missing data: `connectionfailure` `connectiontermination` `localaddress` `localaddressport` `overflow` `remotereset` `requesttimeout` `retrylimitexceeded` `transportfailurereason`
 * in `response`, the following data: `trailers`, `bodybytes`, `headersbytes`, `codedetails` (only `code` and `headers` are known)
-* the `port` top level key
-* in `tls`, the `localcertificate` part will probably never be available, but I need more data to fill the `peercertificate` part
+* in `tls`, the `localcertificate` part will probably never be available
+
+## Questions
+
+* the `port` top level key is equal to zero, what should it be?
 * `request.originalpath` seems to be empty in Kibana, is that expected? What should go there?
-* SSL: TODO, need examples
+* TLS: TODO, need examples
+* I believe `@timestamp` and `@version` are auto generated, is that right? What about `timestamp`?
 
 ## Nginx differences
 
@@ -421,81 +426,105 @@ Geo fields are empty because I am using a local address right now.
 
 ```json
 {
-   "downstream" : {
-      "directlocaladdress" : "172.19.0.2",
-      "directremoteaddressport" : "45760",
-      "localaddress" : "172.19.0.2",
-      "localaddressport" : "30083",
-      "remoteaddress" : "172.19.0.1",
-      "remoteaddressport" : "45760"
-   },
-   "host" : "www.example.com",
-   "metadata" : {},
-   "method" : "POST",
-   "path" : "/test/",
-   "port" : 0,
-   "request" : {
-      "arguments" : {
-         "a" : "a cmd.exe",
-         "x" : "12"
-      },
-      "bodybytes" : 9,
-      "cookies" : {},
-      "geo" : {
-         "city" : {},
-         "continent" : {},
-         "country" : {},
-         "location" : {}
-      },
-      "headers" : {
-         "accept" : "*/*",
-         "content-length" : "9",
-         "content-type" : "application/json",
-         "host" : "www.example.com",
-         "user-agent" : "curl/7.68.0"
-      },
-      "headersbytes" : 65,
-      "originalpath" : ""
-   },
-   "requestid" : "4522182f4628e6c999e0313c4928fcd4",
-   "response" : {
-      "bodybytes" : 0,
-      "codedetails" : "unknown",
-      "headers" : {
-         "connection" : "close",
-         "content-type" : "application/octet-stream"
-      },
-      "headersbytes" : 0
-   },
-   "scheme" : "https",
-   "tags" : [
-      "ip:172-19-0-1",
-      "all",
-      "urlmap:default-entry",
-      "aclid:34511ea458a8",
-      "wafid:default-waf",
-      "asn:nil",
-      "aclname:demo-acl",
-      "container:bb6302bbdd92",
-      "api",
-      "geo:nil",
-      "urlmap-entry:test-path"
-   ],
-   "tls" : {
-      "ciphersuite" : "ECDHE-RSA-AES256-GCM-SHA384",
-      "localcertificate" : {
-         "properties" : "TODO",
-         "propertiesaltnames" : {}
-      },
-      "peercertificate" : {
-         "properties" : "TODO",
-         "propertiesaltnames" : {}
-      },
-      "sessionid" : "43b1d2a36369ecbc7ea63b6c578478511663aa051dc48ac4f8f496e9271443c6",
-      "version" : "TLSv1.2"
-   },
-   "upstream" : {}
+  "block_reason": {
+    "initiator": "waf",
+    "name": "a",
+    "section": "args",
+    "sig_category": "generic",
+    "sig_id": "100135",
+    "sig_msg": "system resource",
+    "sig_operand": "cmd.exe",
+    "sig_severity": 5,
+    "sig_subcategory": "generic",
+    "value": "a cmd.exe"
+  },
+  "blocked": true,
+  "downstream": {
+    "directlocaladdress": "172.19.0.3",
+    "directremoteaddressport": 48082,
+    "localaddress": "172.19.0.3",
+    "localaddressport": 30083,
+    "remoteaddress": "172.19.0.1",
+    "remoteaddressport": 48082
+  },
+  "host": "www.example.com",
+  "metadata": {},
+  "method": "POST",
+  "path": "/test/",
+  "port": 0,
+  "request": {
+    "arguments": {
+      "a": "a cmd.exe",
+      "x": "12"
+    },
+    "attributes": {
+      "ip": "172.19.0.1",
+      "ipnum": "2886926337",
+      "path": "/test/",
+      "query": "a=a&a=cmd.exe",
+      "remote_addr": "172.19.0.1",
+      "uri": "/test/?a=a&a=cmd.exe"
+    },
+    "bodybytes": 9,
+    "cookies": {},
+    "geo": {
+      "city": {},
+      "continent": {},
+      "country": {},
+      "location": {}
+    },
+    "headers": {
+      "accept": "*/*",
+      "content-length": "9",
+      "content-type": "application/json",
+      "host": "www.example.com",
+      "user-agent": "curl/7.68.0"
+    },
+    "headersbytes": 65,
+    "originalpath": ""
+  },
+  "requestid": "58e9ce7f562a351852dc1f6a8e6a5630",
+  "response": {
+    "bodybytes": 0,
+    "code": 403,
+    "codedetails": "unknown",
+    "headers": {
+      "connection": "close",
+      "content-type": "application/octet-stream"
+    },
+    "headersbytes": 0
+  },
+  "scheme": "https",
+  "tags": [
+    "asn:nil",
+    "all",
+    "wafid:default-waf",
+    "geo:nil",
+    "urlmap:default-entry",
+    "aclid:34511ea458a8",
+    "aclname:demo-acl",
+    "api",
+    "ip:172-19-0-1",
+    "container:1ee49a1d1589",
+    "urlmap-entry:test-path"
+  ],
+  "tls": {
+    "ciphersuite": "ECDHE-RSA-AES256-GCM-SHA384",
+    "localcertificate": {
+      "properties": "",
+      "propertiesaltnames": {}
+    },
+    "peercertificate": {
+      "properties": "",
+      "propertiesaltnames": {}
+    },
+    "sessionid": "9bfde29368ef91d76016413c450a543fc0d3f4438ef7067d3801ba927fd41160",
+    "version": "TLSv1.2"
+  },
+  "upstream": {
+    "cluster": "?",
+    "remoteaddress": "?",
+    "remoteaddressport": "?"
+  }
 }
 ```
-
-As can be seen, the `upstream` field is currently empty :(

@@ -67,12 +67,14 @@ end
 -- log block stage processing
 function log(handle)
     local response = handle.ctx.response
+    handle.ctx.response = nil
     local request_map = response.request_map
 
     local body_len = handle.ctx.body_len
     local req_len = handle.var.request_length 
 
-
+    local raw_status = handle.var.status
+    local status = tonumber(raw_status) or raw_status
     local req = {
         tags=request_map["tags"],
         path=handle.var.uri,
@@ -83,7 +85,7 @@ function log(handle)
         requestid=handle.var.request_id,
         method=handle.var.request_method,
         response={
-          code=handle.var.request_status,
+          code=status,
           headers=handle.resp.get_headers(),
           trailers=nil,
           bodybytes=0,
@@ -93,17 +95,22 @@ function log(handle)
         scheme=handle.var.scheme,
         metadata={},
         port=0,
-        block_reason=response.reason,
-        blocked=response.block_mode,
+        block_reason=response.response.reason,
+        blocked=response.response.block_mode,
     }
 
+    local raw_server_port = handle.var.server_port
+    local raw_remote_port = handle.var.remote_port
+    local server_port = tonumber(raw_server_port) or raw_server_port
+    local remote_port = tonumber(raw_remote_port) or raw_remote_port
+
     req.downstream = {
-      localaddressport=handle.var.server_port,
+      localaddressport=server_port,
       remoteaddress=handle.var.remote_addr,
       localaddress=handle.var.server_addr,
-      remoteaddressport=handle.var.remote_port,
+      remoteaddressport=remote_port,
       directlocaladdress=handle.var.server_addr,
-      directremoteaddressport=handle.var.remote_port,
+      directremoteaddressport=remote_port,
     }
 
     req.upstream = {}
@@ -120,7 +127,7 @@ function log(handle)
         req.upstream.remoteaddressport = "?"
     end
 
-    -- TODO
+    -- TLS: TODO
     req.tls = {
           version= handle.var.ssl_protocol,
           snihostname= handle.var.ssl_preread_server_name,
@@ -148,9 +155,7 @@ function log(handle)
         headersbytes=req_len - body_len,
         bodybytes=body_len
     }
-    req.request.attributes=request_map["attributes"]
 
-    handle.log(handle.ERR, "DDDDD " .. cjson.encode(req.upstream))
-
+    req.request.attributes=request_map.attrs
     handle.var.request_map = cjson.encode(req)
 end
