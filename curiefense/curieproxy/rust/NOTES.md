@@ -397,3 +397,105 @@ XML entities have a special treatment. They are stored with argument names of th
 where type can be `VALUE` for entity values, `SYSTEMID` for external system id entities, and `PUBLICID` for external public id entities.
 
 The same memory problems that are present in the JSON parser. Another potential problem comes with matching rules for XML documents. As the index of elements is encoded, most rules will be of the type "regex" for arguments names, resulting in linear scanning of the arguments list.
+
+# Logging
+
+## Nginx missing data
+
+* missing response `bodybytes`, `headersbytes`, but we have `$upstream_bytes_received`
+* I can't get the following nginx variables that are used to fill the `upstream` part: `$proxy_host`, `$upstream_addr`, `$proxy_port`
+* other upstream missing data: `connectionfailure` `connectiontermination` `localaddress` `localaddressport` `overflow` `remotereset` `requesttimeout` `retrylimitexceeded` `transportfailurereason`
+* in `response`, the following data: `trailers`, `bodybytes`, `headersbytes`, `codedetails` (only `code` and `headers` are known)
+* the `port` top level key
+* in `tls`, the `localcertificate` part will probably never be available, but I need more data to fill the `peercertificate` part
+* `request.originalpath` seems to be empty in Kibana, is that expected? What should go there?
+* SSL: TODO, need examples
+
+## Nginx differences
+
+* `headersbyte`: includes the length of the first line of the HTTP request, it is not just the size of the headers. Is that the expected behaviour?
+
+## Current situation
+
+Geo fields are empty because I am using a local address right now.
+
+```json
+{
+   "downstream" : {
+      "directlocaladdress" : "172.19.0.2",
+      "directremoteaddressport" : "45760",
+      "localaddress" : "172.19.0.2",
+      "localaddressport" : "30083",
+      "remoteaddress" : "172.19.0.1",
+      "remoteaddressport" : "45760"
+   },
+   "host" : "www.example.com",
+   "metadata" : {},
+   "method" : "POST",
+   "path" : "/test/",
+   "port" : 0,
+   "request" : {
+      "arguments" : {
+         "a" : "a cmd.exe",
+         "x" : "12"
+      },
+      "bodybytes" : 9,
+      "cookies" : {},
+      "geo" : {
+         "city" : {},
+         "continent" : {},
+         "country" : {},
+         "location" : {}
+      },
+      "headers" : {
+         "accept" : "*/*",
+         "content-length" : "9",
+         "content-type" : "application/json",
+         "host" : "www.example.com",
+         "user-agent" : "curl/7.68.0"
+      },
+      "headersbytes" : 65,
+      "originalpath" : ""
+   },
+   "requestid" : "4522182f4628e6c999e0313c4928fcd4",
+   "response" : {
+      "bodybytes" : 0,
+      "codedetails" : "unknown",
+      "headers" : {
+         "connection" : "close",
+         "content-type" : "application/octet-stream"
+      },
+      "headersbytes" : 0
+   },
+   "scheme" : "https",
+   "tags" : [
+      "ip:172-19-0-1",
+      "all",
+      "urlmap:default-entry",
+      "aclid:34511ea458a8",
+      "wafid:default-waf",
+      "asn:nil",
+      "aclname:demo-acl",
+      "container:bb6302bbdd92",
+      "api",
+      "geo:nil",
+      "urlmap-entry:test-path"
+   ],
+   "tls" : {
+      "ciphersuite" : "ECDHE-RSA-AES256-GCM-SHA384",
+      "localcertificate" : {
+         "properties" : "TODO",
+         "propertiesaltnames" : {}
+      },
+      "peercertificate" : {
+         "properties" : "TODO",
+         "propertiesaltnames" : {}
+      },
+      "sessionid" : "43b1d2a36369ecbc7ea63b6c578478511663aa051dc48ac4f8f496e9271443c6",
+      "version" : "TLSv1.2"
+   },
+   "upstream" : {}
+}
+```
+
+As can be seen, the `upstream` field is currently empty :(

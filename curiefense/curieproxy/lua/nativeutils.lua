@@ -89,7 +89,6 @@ function nginx_custom_response(request_map, action_params)
 
     if block_mode then
         if action_params["content"] then handle.say(action_params["content"]) end
-        accesslog.nginx_log_request(request_map)
         handle.exit(ngx.HTTP_OK)
     end
 

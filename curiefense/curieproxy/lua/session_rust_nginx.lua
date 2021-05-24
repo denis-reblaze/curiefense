@@ -32,6 +32,11 @@ function inspect(handle)
 
     handle.req.read_body()
     local body_content = handle.req.get_body_data()
+    if body_content ~= nil then
+        handle.ctx.body_len = body_content:len()
+    else
+        handle.ctx.body_len = 0
+    end
     local meta = { path=handle.var.request_uri, method=handle.req.get_method(), authority=nil }
 
     -- the meta table contains the following elements:
@@ -43,12 +48,13 @@ function inspect(handle)
     )
 
     if err then
-        handle:log(handle.ERR, sfmt("curiefense.inspect_request_map error %s", err))
+        handle.log(handle.ERR, sfmt("curiefense.inspect_request_map error %s", err))
     end
 
     if response then
         local response_table = cjson.decode(response)
-        handle.log(handle.INFO, "decision " .. response)
+        handle.ctx.response = response_table
+        handle.log(handle.DEBUG, "decision: " .. response)
         utils.log_nginx_messages(handle, response_table["logs"])
         request_map = response_table["request_map"]
         request_map.handle = handle
@@ -56,6 +62,95 @@ function inspect(handle)
             custom_response(request_map, response_table["response"])
         end
     end
+end
 
-    log_request(request_map)
+-- log block stage processing
+function log(handle)
+    local response = handle.ctx.response
+    local request_map = response.request_map
+
+    local body_len = handle.ctx.body_len
+    local req_len = handle.var.request_length 
+
+
+    local req = {
+        tags=request_map["tags"],
+        path=handle.var.uri,
+        host=handle.var.host,
+        -- TODO: authority
+        -- authority= "34.66.199.37:30081",
+        tls= tls,
+        requestid=handle.var.request_id,
+        method=handle.var.request_method,
+        response={
+          code=handle.var.request_status,
+          headers=handle.resp.get_headers(),
+          trailers=nil,
+          bodybytes=0,
+          headersbytes=0,
+          codedetails="unknown"
+        },
+        scheme=handle.var.scheme,
+        metadata={},
+        port=0,
+        block_reason=response.reason,
+        blocked=response.block_mode,
+    }
+
+    req.downstream = {
+      localaddressport=handle.var.server_port,
+      remoteaddress=handle.var.remote_addr,
+      localaddress=handle.var.server_addr,
+      remoteaddressport=handle.var.remote_port,
+      directlocaladdress=handle.var.server_addr,
+      directremoteaddressport=handle.var.remote_port,
+    }
+
+    req.upstream = {}
+    req.upstream.cluster = handle.var.proxy_host
+    req.upstream.remoteaddress = handle.var.upstream_addr
+    req.upstream.remoteaddressport = handle.var.proxy_port
+    if not req.upstream.cluster then
+        req.upstream.cluster = "?"
+    end
+    if not req.upstream.remoteaddress then
+        req.upstream.remoteaddress = "?"
+    end
+    if not req.upstream.remoteaddressport then
+        req.upstream.remoteaddressport = "?"
+    end
+
+    -- TODO
+    req.tls = {
+          version= handle.var.ssl_protocol,
+          snihostname= handle.var.ssl_preread_server_name,
+          ciphersuite= handle.var.ssl_cipher,
+          peercertificate= {
+            dn=handle.var.ssl_client_s_dn,
+            properties= "",
+            propertiesaltnames= {}
+          },
+          localcertificate= {
+            dn=handle.var.ssl_client_s_dn,
+            properties= "",
+            propertiesaltnames= {}
+          },
+          sessionid= handle.var.ssl_session_id
+    }
+
+    req.request = {
+        originalpath="",
+        geo=request_map["geo"],
+        arguments=request_map["args"],
+        headers=request_map["headers"],
+        cookies=request_map["cookies"],
+        -- TODO: we are currently including the length of the first line of the HTTP request
+        headersbytes=req_len - body_len,
+        bodybytes=body_len
+    }
+    req.request.attributes=request_map["attributes"]
+
+    handle.log(handle.ERR, "DDDDD " .. cjson.encode(req.upstream))
+
+    handle.var.request_map = cjson.encode(req)
 end
