@@ -95,9 +95,17 @@ function log(handle)
         scheme=handle.var.scheme,
         metadata={},
         port=0,
-        block_reason=response.response.reason,
-        blocked=response.response.block_mode,
     }
+
+    if response.response ~= cjson.null then
+        req.block_reason=response.response.reason
+        req.blocked=response.response.block_mode
+    else
+        req.block_reason=nil
+        req.blocked=false
+    end
+
+    table.insert(req.tags, "curieaccesslog")
 
     local raw_server_port = handle.var.server_port
     local raw_remote_port = handle.var.remote_port
@@ -117,15 +125,6 @@ function log(handle)
     req.upstream.cluster = handle.var.proxy_host
     req.upstream.remoteaddress = handle.var.upstream_addr
     req.upstream.remoteaddressport = handle.var.proxy_port
-    if not req.upstream.cluster then
-        req.upstream.cluster = "?"
-    end
-    if not req.upstream.remoteaddress then
-        req.upstream.remoteaddress = "?"
-    end
-    if not req.upstream.remoteaddressport then
-        req.upstream.remoteaddressport = "?"
-    end
 
     -- TLS: TODO
     req.tls = {
@@ -155,6 +154,11 @@ function log(handle)
         headersbytes=req_len - body_len,
         bodybytes=body_len
     }
+
+    local tm = handle.utctime() -- format "yyyy-mm-dd hh:mm:ss"
+    local fracpart = tostring(handle.now()%1):sub(2,10)
+    local timestamp = tm:gsub(' ', 'T') .. fracpart .. 'Z'
+    req.timestamp = timestamp
 
     req.request.attributes=request_map.attrs
     handle.var.request_map = cjson.encode(req)

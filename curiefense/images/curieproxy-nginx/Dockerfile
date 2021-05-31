@@ -7,9 +7,15 @@ COPY curieproxy/lua/shared-objects/curiefense.hs5.so /usr/local/lib/lua/5.1/curi
 
 COPY curieproxy/config /bootstrap-config/config
 
-RUN apt-get install libhyperscan5
+RUN apt-get install -y libhyperscan5 socat
 RUN mkdir /config && chmod a+rwxt /config
 RUN rm -f /lua/session.lua && ln -s /lua/session_rust_nginx.lua /lua/session.lua
 RUN openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 -subj "/C=fr/O=curiefense/CN=testsystem" -keyout /etc/ssl/certificate.key -out /etc/ssl/certificate.crt
+
+RUN mkfifo /nginx-accesslogs
+
+COPY start.sh export-logs.sh /usr/bin/
+
+CMD /bin/bash /usr/bin/start.sh
 
 #CMD /usr/local/openresty/bin/openresty -sreload
