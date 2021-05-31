@@ -12,7 +12,7 @@ ctarget/target: ctarget
 	mkdir -p ctarget/target
 
 ctarget/target/release/libcuriefense_lua.so: container ctarget/registry ctarget/target
-	docker run -v `pwd`:/home/builder/rust -v `pwd`/ctarget/registry:/home/builder/.cargo/registry  -w /home/builder/rust  -t curiefense/rustbuild:latest /home/builder/.cargo/bin/cargo build --release --target-dir ctarget/target
+	docker run --rm -v `pwd`:/home/builder/rust -v `pwd`/ctarget/registry:/home/builder/.cargo/registry  -w /home/builder/rust  -t curiefense/rustbuild:latest /home/builder/.cargo/bin/cargo build --release --target-dir ctarget/target
 
 target/release/libcuriefense_lua.so: Cargo.toml curiefense/Cargo.toml curiefense-lua/Cargo.toml $(RSOURCES)
 	cargo build --release
