@@ -105,6 +105,7 @@ function log(handle)
         req.blocked=false
     end
 
+    -- this is necessary for logstash to choose the right pipeline
     table.insert(req.tags, "curieaccesslog")
 
     local raw_server_port = handle.var.server_port
@@ -126,7 +127,7 @@ function log(handle)
     req.upstream.remoteaddress = handle.var.upstream_addr
     req.upstream.remoteaddressport = handle.var.proxy_port
 
-    -- TLS: TODO
+    -- TLS: TODO, need to see the corresponding envoy input
     req.tls = {
           version= handle.var.ssl_protocol,
           snihostname= handle.var.ssl_preread_server_name,
@@ -155,6 +156,7 @@ function log(handle)
         bodybytes=body_len
     }
 
+    -- building the formatted timestamp (should it be added by logstash?)
     local tm = handle.utctime() -- format "yyyy-mm-dd hh:mm:ss"
     local fracpart = tostring(handle.now()%1):sub(2,10)
     local timestamp = tm:gsub(' ', 'T') .. fracpart .. 'Z'
