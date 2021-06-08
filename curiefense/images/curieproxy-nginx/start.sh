@@ -1,6 +1,5 @@
 #!/bin/bash
 
-bash /usr/bin/export-logs.sh &
+rsyslogd -n &
 
 /usr/local/openresty/bin/openresty -g "daemon off;"
-echo FOFOOFOFOFOFOOOO
