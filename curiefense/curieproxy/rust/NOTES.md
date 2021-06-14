@@ -225,7 +225,6 @@ Example, when actions needs to be taken:
          "ipnum" : "2886926337",
          "path" : "/test/",
          "query" : "a=b&c=cmd.exe",
-         "remote_addr" : "172.19.0.1",
          "uri" : "/test/?a=b&c=cmd.exe"
       },
       "cookies" : {},
@@ -462,7 +461,6 @@ Geo fields are empty because I am using a local address right now.
       "ipnum": "2886926337",
       "path": "/test/",
       "query": "a=a&a=cmd.exe",
-      "remote_addr": "172.19.0.1",
       "uri": "/test/?a=a&a=cmd.exe"
     },
     "bodybytes": 9,

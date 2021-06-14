@@ -21,7 +21,6 @@
     "query": "deny=1&b=2&c=3",
     "tags": {},
     "authority": "localhost:30081",
-    "remote_addr": "172.19.0.1",
     "uri": "\/direct\/?deny=1&b=2&c=3"
   },
   "headers": {

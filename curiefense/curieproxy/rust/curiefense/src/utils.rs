@@ -219,7 +219,6 @@ impl RequestInfo {
                 "path": self.rinfo.qinfo.qpath,
                 "query": self.rinfo.qinfo.query,
                 "ip": self.rinfo.geoip.ipstr,
-                "remote_addr": self.rinfo.geoip.ipstr,
                 "ipnum": ipnum
             },
             "tags": tags,
