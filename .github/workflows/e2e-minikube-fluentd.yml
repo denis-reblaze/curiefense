@@ -1,6 +1,9 @@
 name: Run e2e tests on minikube with fluentd
 
 on:
+  push:
+    branch:
+      - rust-rebased
   pull_request:
     paths:
       - "deploy/**"
