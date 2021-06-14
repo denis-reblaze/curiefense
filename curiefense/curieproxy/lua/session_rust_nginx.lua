@@ -87,10 +87,8 @@ function log(handle)
         response={
           code=status,
           headers=handle.resp.get_headers(),
-          trailers=nil,
-          bodybytes=0,
-          headersbytes=0,
-          codedetails="unknown"
+          codedetails="unknown",
+          nxgrequestlength=handle.var.request_length
         },
         scheme=handle.var.scheme,
         metadata={},
@@ -129,20 +127,16 @@ function log(handle)
 
     -- TLS: TODO, need to see the corresponding envoy input
     req.tls = {
-          version= handle.var.ssl_protocol,
-          snihostname= handle.var.ssl_preread_server_name,
-          ciphersuite= handle.var.ssl_cipher,
-          peercertificate= {
+          version=handle.var.ssl_protocol,
+          snihostname=handle.var.ssl_server_name,
+          fullciphersuite=handle.var.ssl_cipher,
+          peercertificate={
             dn=handle.var.ssl_client_s_dn,
-            properties= "",
-            propertiesaltnames= {}
+            properties=handle.var.ssl_client_s_dn,
+            propertiesaltnames=nil
           },
-          localcertificate= {
-            dn=handle.var.ssl_client_s_dn,
-            properties= "",
-            propertiesaltnames= {}
-          },
-          sessionid= handle.var.ssl_session_id
+          localcertificate=nil, -- no info from nginx :(
+          sessionid=handle.var.ssl_session_id,
     }
 
     req.request = {
@@ -151,7 +145,7 @@ function log(handle)
         arguments=request_map["args"],
         headers=request_map["headers"],
         cookies=request_map["cookies"],
-        -- TODO: we are currently including the length of the first line of the HTTP request
+        -- TODO: are we currently including the length of the first line of the HTTP request?
         headersbytes=req_len - body_len,
         bodybytes=body_len
     }
