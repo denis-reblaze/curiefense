@@ -85,6 +85,15 @@
                 ]
             },
             {
+                "name": "waf-short-headers",
+                "match": "^/waf-short-headers/",
+                "acl_profile": "__default__",
+                "acl_active": false,
+                "waf_profile": "e2e000000002",
+                "waf_active": true,
+                "limit_ids": []
+            },
+            {
                 "match": "/",
                 "name": "default",
                 "acl_profile": "__default__",

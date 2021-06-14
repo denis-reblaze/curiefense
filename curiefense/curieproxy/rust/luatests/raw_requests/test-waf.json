@@ -257,5 +257,35 @@
       ":path": "/waf/args/?d=AZDGSDQZE16Z",
       ":authority": "localhost:30081"
     }
+  },
+  {
+    "name": "overlong header",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf/",
+      ":authority": "localhost:30081",
+      "long-header": "Overlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_headerOverlong_header"
+    }
+  },
+  {
+    "name": "short headers ok",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf-short-headers/",
+      ":authority": "localhost:30081",
+      "short-header": "01234567890123456789012345678901234567890123456789"
+    }
+  },
+  {
+    "name": "short headers reject",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/waf-short-headers/",
+      ":authority": "localhost:30081",
+      "short-header": "01234567890123456789012345678901234567890123456789A"
+    }
   }
 ]

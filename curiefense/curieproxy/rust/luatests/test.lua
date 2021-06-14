@@ -131,7 +131,7 @@ function test_request_map(name, request_map)
 
   for _, k in ipairs({"acl_profile", "waf_profile", "acl_active", "waf_active"}) do
     if rust_urlmap[k] ~= urlmap_entry[k] then
-      error(sfmt("urlmap field %s error, expected=%s actual=%s", k, urlmap_entry[k], rust_urlmap[k]))
+      error(sfmt("urlmap field %s error:\nlua= %s\nrust=%s", k, cjson.encode(urlmap_entry), json_urlmap))
     end
   end
 
@@ -223,7 +223,7 @@ function test_request_map(name, request_map)
   elseif waf_code == WAFBlock and rwaf_result["action"] == "custom_response" then
     -- ok, both mark it as blocked
   else
-    print("waf_check mismatch")
+    print("waf_check mismatch for '" .. name .. "'")
     print("native code returned: " .. jrwaf_result)
     print("lua code " .. cjson.encode(waf_code) .. ", result: " .. cjson.encode(waf_result))
     error(":(")

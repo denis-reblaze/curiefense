@@ -188,7 +188,7 @@ fn section_check(
     }
 
     for (name, value) in params.iter() {
-        if value.len() >= section.max_length {
+        if value.len() > section.max_length {
             return Err(WafBlock::EntryTooLarge(idx, name.clone()));
         }
 

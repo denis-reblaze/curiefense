@@ -11,8 +11,11 @@ ctarget/registry: ctarget
 ctarget/target: ctarget
 	mkdir -p ctarget/target
 
-ctarget/target/release/libcuriefense_lua.so: container ctarget/registry ctarget/target
+ctarget/target/release/libcuriefense_lua.so: container ctarget/registry ctarget/target $(RSOURCES)
 	docker run --rm -v `pwd`:/home/builder/rust -v `pwd`/ctarget/registry:/home/builder/.cargo/registry  -w /home/builder/rust  -t curiefense/rustbuild:latest /home/builder/.cargo/bin/cargo build --release --target-dir ctarget/target
+
+ctarget/target/debug/libcuriefense_lua.so: container ctarget/registry ctarget/target $(RSOURCES)
+	docker run --rm -v `pwd`:/home/builder/rust -v `pwd`/ctarget/registry:/home/builder/.cargo/registry  -w /home/builder/rust  -t curiefense/rustbuild:latest /home/builder/.cargo/bin/cargo build --target-dir ctarget/target
 
 target/release/libcuriefense_lua.so: Cargo.toml curiefense/Cargo.toml curiefense-lua/Cargo.toml $(RSOURCES)
 	cargo build --release
@@ -28,11 +31,11 @@ target/release/libcuriefense_lua.so: Cargo.toml curiefense/Cargo.toml curiefense
 container:
 	tar c Dockerfile  |  docker build -t curiefense/rustbuild -f Dockerfile -
 
-test: ctarget/target/release/libcuriefense.so test-nodeps
+test: ctarget/target/debug/libcuriefense_lua.so test-nodeps
 	echo DONE
 
 test-nodeps:
-	docker run -v `pwd`/ctarget/target/release/libcuriefense.so:/usr/local/lib/lua/5.1/curiefense.so \
+	docker run -v `pwd`/ctarget/target/debug/libcuriefense_lua.so:/usr/local/lib/lua/5.1/curiefense.so \
 						 -v `pwd`/../lua:/home/builder/lua \
 						 -v `pwd`/../lua/shared-objects/luahs.so:/usr/local/lib/lua/5.1/luahs.so \
 						 -v `pwd`/../lua/shared-objects/libinjection.so:/usr/local/lib/lua/5.1/libinjection.so \
