@@ -29,7 +29,6 @@ COPY curieproxy/config /bootstrap-config/config
 COPY curieproxy/envoy.yaml.* /etc/envoy/
 
 RUN mkdir /config && chmod a+rwxt /config
-RUN sha256sum /usr/local/lib/lua/5.1/*.so
 
 ENTRYPOINT ["/start_curiefense.sh"]
 

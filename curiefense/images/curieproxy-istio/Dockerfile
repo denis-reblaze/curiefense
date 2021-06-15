@@ -25,6 +25,7 @@ COPY curieproxy/lua/shared-objects/*.so /usr/local/lib/lua/5.1/
 COPY curieproxy/config /bootstrap-config/config
 
 RUN mkdir /config && chmod a+rwxt /config
+RUN sha256sum /usr/local/lib/lua/5.1/*.so
 
 ENTRYPOINT ["/usr/bin/dumb-init", "/start_curiefense_pilot.sh"]
 
