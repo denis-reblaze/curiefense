@@ -6,7 +6,6 @@ pub mod raw;
 pub mod utils;
 pub mod waf;
 
-use anyhow::anyhow;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::HashMap;
@@ -74,8 +73,11 @@ pub struct Config {
     pub flows: HashMap<SequenceKey, Vec<FlowElement>>,
 }
 
-fn from_map<V: Clone>(mp: &HashMap<String, V>, k: &str) -> anyhow::Result<V> {
-    mp.get(k).cloned().ok_or_else(|| anyhow!("id not found: {}", k))
+fn from_map<V: Clone>(mp: &HashMap<String, V>, k: &str) -> Result<V, String> {
+    mp.get(k).cloned().ok_or_else(|| {
+        let all_keys: String = mp.keys().map(|s| s.as_str()).collect::<Vec<&str>>().join(",");
+        format!("id not found: {}, all ids are: {}", k, all_keys)
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -109,7 +111,7 @@ impl Config {
             for lid in rawmap.limit_ids {
                 match from_map(&limits, &lid) {
                     Ok(lm) => olimits.push(lm),
-                    Err(rr) => logs.error(rr),
+                    Err(rr) => logs.error(format!("When resolving limits in rawmap {}, {}", rawmap.name, rr)),
                 }
             }
             // limits 0 are tried first, than in decreasing order of the limit field
