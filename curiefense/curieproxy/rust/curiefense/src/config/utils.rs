@@ -12,6 +12,8 @@ pub enum RequestSelector {
     Args(String),
     Cookie(String),
     Header(String),
+    Company,
+    Authority,
 }
 
 #[derive(Debug, Clone)]
@@ -38,6 +40,8 @@ pub fn decode_attribute(s: &str) -> Option<RequestSelector> {
         "country" => Some(RequestSelector::Country),
         "method" => Some(RequestSelector::Method),
         "asn" => Some(RequestSelector::Asn),
+        "company" => Some(RequestSelector::Company),
+        "authority" => Some(RequestSelector::Authority),
         _ => None,
     }
 }
