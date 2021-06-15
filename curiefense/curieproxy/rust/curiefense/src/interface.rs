@@ -153,9 +153,28 @@ impl Action {
                 action.ban = true;
             }
             RawActionType::RequestHeader => action.atype = ActionType::AlterHeaders,
+            RawActionType::Response => {
+                action.atype = ActionType::Block;
+                action.content = rawaction
+                    .params
+                    .content
+                    .clone()
+                    .unwrap_or_else(|| "default content".into());
+            }
+            RawActionType::Redirect => {
+                action.atype = ActionType::Block;
+                action.status = 302;
+                // TODO: add location header
+            }
             _ => return Err(anyhow::anyhow!("Unsupported action type {:?}", rawaction.type_)),
         };
         action.block_mode = action.atype.is_blocking();
+        if let Some(sstatus) = &rawaction.params.status {
+            match sstatus.parse::<u32>() {
+                Ok(s) => action.status = s,
+                Err(rr) => return Err(anyhow::anyhow!("Unparseable status: {} -> {}", sstatus, rr)),
+            }
+        }
         Ok(action)
     }
 }
