@@ -1,4 +1,6 @@
-RSOURCES := $(wildcard curiefense/src/**/*.rs curiefense-lua/src/**/*.rs)
+RSOURCES := $(wildcard curiefense/src/**.rs curiefense-lua/src/**.rs)
+
+PHONY: all
 
 all: ../lua/shared-objects/curiefense.hs5.so ../lua/shared-objects/curiefense.so
 
