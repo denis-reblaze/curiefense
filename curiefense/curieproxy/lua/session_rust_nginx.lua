@@ -150,6 +150,40 @@ function log(handle)
         bodybytes=body_len
     }
 
+    -- nginx variables:
+    -- downstream is the client
+    -- upstream is the proxied service
+
+    -- !!! most of these variables are unset in the default configuration !!!
+    -- connection_time: connection time in seconds with a milliseconds resolution (1.19.10)
+    -- request_time: request processing time in seconds with a milliseconds resolution (1.3.9, 1.2.6); time elapsed since the first bytes were read from the client
+    -- session_time: session duration in seconds with a milliseconds resolution
+    -- upstream_header_time: keeps time spent on receiving the response header from the upstream server
+    -- upstream_queue_time: keeps time the request spent in the upstream queue
+    -- upstream_response_time: keeps time spent on receiving the response from the upstream server
+    -- upstream_session_time: session duration in seconds with millisecond resolution
+    -- upstream_first_byte_time: time to receive the first byte of data
+    -- upstream_connect_time: keeps time spent on establishing a connection with the upstream server
+
+    req.rx_timers = {
+        -- Interval between the first downstream byte received and the last downstream byte received (i.e. time it takes to receive a request).
+        lastbyte=nil,
+        -- Interval between the first downstream byte received and the first upstream byte received (i.e. time it takes to start receiving a response).
+        firstupstreambyte=nil,
+        -- Interval between the first downstream byte received and the last upstream byte received (i.e. time it takes to receive a complete response).
+        lastupstreambyte=nil,
+    }
+    req.tx_timers = {
+        -- Interval between the first downstream byte received and the first upstream byte sent.
+        firstupstreambyte=handle.var.upstream_first_byte_time,
+        -- Interval between the first downstream byte received and the last upstream byte sent.
+        lastupstreambyte=handle.var.request_time,
+        -- Interval between the first downstream byte received and the first downstream byte sent.
+        firstdownstreambyte=nil, -- TODO
+        -- Interval between the first downstream byte received and the last downstream byte sent.
+        lastdownstreambyte=nil
+    }
+
     -- building the formatted timestamp (should it be added by logstash?)
     local tm = handle.utctime() -- format "yyyy-mm-dd hh:mm:ss"
     local fracpart = tostring(handle.now()%1):sub(2,10)
