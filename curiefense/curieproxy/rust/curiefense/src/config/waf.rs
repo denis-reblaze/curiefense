@@ -183,7 +183,7 @@ impl WafProfile {
                 Ok((k, v)) => {
                     out.insert(k, v);
                 }
-                Err(rr) => logs.error(format!("waf id {}: {}", id, rr)),
+                Err(rr) => logs.error(format!("waf id {}: {:?}", id, rr)),
             }
         }
         out
