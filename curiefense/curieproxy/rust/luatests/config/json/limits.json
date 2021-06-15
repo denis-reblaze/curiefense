@@ -122,5 +122,70 @@
         "pairwith": {
             "self": "self"
         }
+    },
+    {
+        "id": "includecompany",
+        "name": "Rate Limit Example with company",
+        "description": "3 requests in 3s",
+        "ttl": "3",
+        "limit": "3",
+        "action": {
+            "type": "response",
+            "content": "body"
+        },
+        "include": {
+            "headers": {},
+            "cookies": {},
+            "args": {},
+            "attrs": {
+                "company": "CLOUDFARE",
+                "authority": "foo"
+            }
+        },
+        "exclude": {
+            "headers": {},
+            "cookies": {},
+            "args": {},
+            "attrs": {}
+        },
+        "key": [
+            {
+                "attrs": "ip"
+            }
+        ],
+        "pairwith": {
+            "self": "self"
+        }
+    },
+    {
+        "id": "redirector",
+        "name": "Rate Limit redirection",
+        "description": "3 requests in 3s",
+        "ttl": "3",
+        "limit": "3",
+        "action": {
+            "type": "redirect",
+            "location": "/1234"
+        },
+        "include": {
+            "headers": {},
+            "cookies": {},
+            "args": {},
+            "attrs": {}
+        },
+        "exclude": {
+            "headers": {},
+            "cookies": {},
+            "args": {},
+            "attrs": {}
+        },
+        "key": [
+            {
+                "attrs": "ip"
+            }
+        ],
+        "pairwith": {
+            "self": "self"
+        }
     }
 ]
