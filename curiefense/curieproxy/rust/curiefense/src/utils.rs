@@ -249,7 +249,7 @@ impl InspectionResult {
 
 pub fn find_geoip(ipstr: String) -> GeoIp {
     let ip = ipstr.parse().ok();
-    let country = ip.and_then(get_country);
+    let country = ip.and_then(|i| get_country(i).ok());
     fn get_country_x(c: &maxminddb::geoip2::Country) -> Option<String> {
         Some(c.country.as_ref()?.names.as_ref()?.get("en")?.to_lowercase())
     }
@@ -257,8 +257,8 @@ pub fn find_geoip(ipstr: String) -> GeoIp {
     GeoIp {
         ipstr,
         ip,
-        city: ip.and_then(get_city),
-        asn: ip.and_then(get_asn),
+        city: ip.and_then(|i| get_city(i).ok()),
+        asn: ip.and_then(|i| get_asn(i).ok()),
         country,
         country_name,
     }

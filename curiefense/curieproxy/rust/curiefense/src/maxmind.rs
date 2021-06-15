@@ -4,44 +4,55 @@ use maxminddb::{
     Reader,
 };
 use std::net::IpAddr;
+#[cfg(not(test))]
+use std::ops::Deref;
 
 lazy_static! {
     // as they are lazy, these loads will not be triggered in test mode
-    static ref ASN: Reader<Vec<u8>> =
-        Reader::open_readfile("/config/current/config/maxmind/GeoLite2-ASN.mmdb").unwrap();
-    static ref COUNTRY: Reader<Vec<u8>> =
-        Reader::open_readfile("/config/current/config/maxmind/GeoLite2-Country.mmdb").unwrap();
-    static ref CITY: Reader<Vec<u8>> =
-        Reader::open_readfile("/config/current/config/maxmind/GeoLite2-City.mmdb").unwrap();
+    static ref ASN: Result<Reader<Vec<u8>>, maxminddb::MaxMindDBError> =
+        Reader::open_readfile("/config/current/config/maxmind/GeoLite2-ASN.mmdb");
+    static ref COUNTRY: Result<Reader<Vec<u8>>, maxminddb::MaxMindDBError> =
+        Reader::open_readfile("/config/current/config/maxmind/GeoLite2-Country.mmdb");
+    static ref CITY: Result<Reader<Vec<u8>>, maxminddb::MaxMindDBError> =
+        Reader::open_readfile("/config/current/config/maxmind/GeoLite2-City.mmdb");
 }
 
 /// Retrieves the english name of the country associated with this IP
 #[cfg(not(test))]
-pub fn get_country(addr: IpAddr) -> Option<Country> {
-    COUNTRY.lookup(addr).ok()
+pub fn get_country(addr: IpAddr) -> Result<Country, String> {
+    match COUNTRY.deref() {
+        Err(rr) => Err(format!("could not read country db: {}", rr)),
+        Ok(db) => db.lookup(addr).map_err(|rr| format!("{}", rr)),
+    }
 }
 
 #[cfg(not(test))]
-pub fn get_asn(addr: IpAddr) -> Option<Asn> {
-    ASN.lookup(addr).ok()
+pub fn get_asn(addr: IpAddr) -> Result<Asn, String> {
+    match ASN.deref() {
+        Err(rr) => Err(format!("could not read ASN db: {}", rr)),
+        Ok(db) => db.lookup(addr).map_err(|rr| format!("{}", rr)),
+    }
 }
 
 #[cfg(not(test))]
-pub fn get_city(addr: IpAddr) -> Option<City> {
-    CITY.lookup(addr).ok()
+pub fn get_city(addr: IpAddr) -> Result<City, String> {
+    match CITY.deref() {
+        Err(rr) => Err(format!("could not read city db: {}", rr)),
+        Ok(db) => db.lookup(addr).map_err(|rr| format!("{}", rr)),
+    }
 }
 
 #[cfg(test)]
-pub fn get_country(_addr: IpAddr) -> Option<Country> {
-    None
+pub fn get_country(_addr: IpAddr) -> Result<Country, String> {
+    Err("TEST".into())
 }
 
 #[cfg(test)]
-pub fn get_asn(_addr: IpAddr) -> Option<Asn> {
-    None
+pub fn get_asn(_addr: IpAddr) -> Result<Asn, String> {
+    Err("TEST".into())
 }
 
 #[cfg(test)]
-pub fn get_city(_addr: IpAddr) -> Option<City> {
-    None
+pub fn get_city(_addr: IpAddr) -> Result<City, String> {
+    Err("TEST".into())
 }
