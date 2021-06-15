@@ -436,7 +436,7 @@ def gen_rl_rules(authority):
     add_rl_rule(
         "action-response",
         action="response",
-        param_ext={"status": 123, "content": "Response body"},
+        param_ext={"status": "123", "content": "Response body"},
     )
     add_rl_rule(
         "action-redirect",
@@ -469,7 +469,7 @@ def gen_rl_rules(authority):
         "action-ban-response",
         action="ban",
         subaction="response",
-        param_ext={"status": 123, "ttl": "10", "content": "Content"},
+        param_ext={"status": "123", "ttl": "10", "content": "Content"},
         subaction_params={"content": "Response body", "status": "123"},
     )
     add_rl_rule(
@@ -499,7 +499,7 @@ def gen_rl_rules(authority):
         "action-header",
         action="request_header",
         action_ext={"headers": "Header-Name"},
-        param_ext={"headers": "foo: bar"},
+        param_ext={"headers": {"foo": "bar"}},
     )
 
     rl_urlmap = [
