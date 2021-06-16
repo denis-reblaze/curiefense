@@ -218,12 +218,17 @@ fn inspect_generic_request_map<GH: Grasshopper>(
     }
     logs.debug("limit checks done");
 
-    match check_acl(&tags, &urlmap.acl_profile) {
+    logs.debug(format!("acl profile: {:?}", urlmap.acl_profile));
+
+    // store the check_acl result here
+    let blockcode: Option<(i32, Vec<String>)> = match check_acl(&tags, &urlmap.acl_profile) {
         AclResult::Bypass(dec) => {
             if dec.allowed {
+                logs.debug("ACL bypass detected");
                 return (Decision::Pass, tags);
             } else {
-                return (acl_block(urlmap.acl_active, 0, &dec.tags), tags);
+                logs.debug("ACL force block detected");
+                Some((0, dec.tags))
             }
         }
         // human blocked, always block, even if it is a bot
@@ -233,7 +238,10 @@ fn inspect_generic_request_map<GH: Grasshopper>(
                 allowed: false,
                 tags: dtags,
             }),
-        }) => return (acl_block(urlmap.acl_active, 5, &dtags), tags),
+        }) => {
+            logs.debug("ACL human block detected");
+            Some((5, dtags))
+        }
         // robot blocked, should be challenged
         AclResult::Match(BotHuman {
             bot: Some(AclDecision {
@@ -245,20 +253,30 @@ fn inspect_generic_request_map<GH: Grasshopper>(
             // if grasshopper is available, run these tests
             if let Some(gh) = mgh {
                 if !challenge_verified(&gh, &reqinfo) {
-                    return (
-                        match reqinfo.headers.get("user-agent") {
-                            None => acl_block(urlmap.acl_active, 3, &dtags),
-                            Some(ua) => challenge_phase01(&gh, ua, dtags),
-                        },
-                        tags,
-                    );
+                    logs.debug("ACL challenge detected");
+                    match reqinfo.headers.get("user-agent") {
+                        None => Some((3, dtags)),
+                        Some(ua) => return (challenge_phase01(&gh, ua, dtags), tags),
+                    }
+                } else {
+                    None
                 }
+            } else {
+                None
             }
         }
-        _ => (),
-    }
-    logs.debug("ACL checks done");
+        _ => None,
+    };
+    logs.debug(format!("ACL checks done {:?}", blockcode));
 
+    // if the acl is active, and we had a block result, immediately block
+    if urlmap.acl_active {
+        if let Some((cde, tgs)) = blockcode {
+            return (acl_block(true, cde, &tgs), tags);
+        }
+    }
+
+    // otherwise, run waf_check
     let waf_result = match HSDB.read() {
         Ok(rd) => waf_check(&reqinfo, &urlmap.waf_profile, rd),
         Err(rr) => {
@@ -270,7 +288,14 @@ fn inspect_generic_request_map<GH: Grasshopper>(
 
     (
         match waf_result {
-            Ok(()) => Decision::Pass,
+            Ok(()) => {
+                // if waf was ok, but we had an acl decision, return the monitored acl decision for logged purposes
+                if let Some((cde, tgs)) = blockcode {
+                    acl_block(false, cde, &tgs)
+                } else {
+                    Decision::Pass
+                }
+            }
             Err(wb) => {
                 let mut action = wb.to_action();
                 action.block_mode = urlmap.waf_active;
