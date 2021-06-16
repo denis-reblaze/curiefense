@@ -93,7 +93,6 @@ impl Config {
         let mut entries: Vec<Matching<UrlMap>> = Vec::new();
 
         for rawmap in rawmaps {
-            logs.debug(format!("resolving {} - CFGLOAD", rawmap.name));
             let acl_profile: AclProfile = match acls.get(&rawmap.acl_profile) {
                 Some(p) => p.clone(),
                 None => {
@@ -127,6 +126,9 @@ impl Config {
                 name: rawmap.name,
             };
             if rawmap.match_ == "__default__" {
+                if default.is_some() {
+                    logs.warning("Multiple __default__ maps");
+                }
                 default = Some(urlmap);
             } else {
                 match Regex::new(&rawmap.match_) {
