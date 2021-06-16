@@ -85,6 +85,15 @@
                 ]
             },
             {
+                "match": "^/rr/",
+                "name": "waf restrict tests",
+                "acl_profile": "__default__",
+                "waf_profile": "rr",
+                "acl_active": false,
+                "waf_active": true,
+                "limit_ids": []
+            },
+            {
                 "name": "waf-short-headers",
                 "match": "^/waf-short-headers/",
                 "acl_profile": "__default__",

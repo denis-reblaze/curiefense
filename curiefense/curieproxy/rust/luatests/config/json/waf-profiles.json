@@ -162,5 +162,118 @@
             "names": [],
             "regex": []
         }
+    },
+    {
+        "id": "rr",
+        "name": "rr",
+        "ignore_alphanum": true,
+        "max_header_length": 50,
+        "max_cookie_length": 1024,
+        "max_arg_length": 1024,
+        "max_headers_count": 42,
+        "max_cookies_count": 42,
+        "max_args_count": 512,
+        "args": {
+            "names": [
+                {
+                    "key": "name-norestrict",
+                    "reg": "[v]+[a]{1}l?u*e",
+                    "restrict": false,
+                    "exclusions": {
+                        "100140": 1
+                    }
+                },
+                {
+                    "key": "name-restrict",
+                    "reg": "[v]+[a]{1}l?u*e",
+                    "restrict": true,
+                    "exclusions": {}
+                }
+            ],
+            "regex": [
+                {
+                    "key": "reg[e]x{1}-norestrict",
+                    "reg": "[v]+[a]{1}l?u*e",
+                    "restrict": false,
+                    "exclusions": {
+                        "100140": 1
+                    }
+                },
+                {
+                    "key": "reg[e]x{1}-restrict",
+                    "reg": "[v]+[a]{1}l?u*e",
+                    "restrict": true,
+                    "exclusions": {}
+                }
+            ]
+        },
+        "headers": {
+            "names": [
+                {
+                    "key": "name-norestrict",
+                    "reg": "[v]+[a]{1}l?u*e",
+                    "restrict": false,
+                    "exclusions": {
+                        "100140": 1
+                    }
+                },
+                {
+                    "key": "name-restrict",
+                    "reg": "[v]+[a]{1}l?u*e",
+                    "restrict": true,
+                    "exclusions": {}
+                }
+            ],
+            "regex": [
+                {
+                    "key": "reg[e]x{1}-norestrict",
+                    "reg": "[v]+[a]{1}l?u*e",
+                    "restrict": false,
+                    "exclusions": {
+                        "100140": 1
+                    }
+                },
+                {
+                    "key": "reg[e]x{1}-restrict",
+                    "reg": "[v]+[a]{1}l?u*e",
+                    "restrict": true,
+                    "exclusions": {}
+                }
+            ]
+        },
+        "cookies": {
+            "names": [
+                {
+                    "key": "name-norestrict",
+                    "reg": "[v]+[a]{1}l?u*e",
+                    "restrict": false,
+                    "exclusions": {
+                        "100140": 1
+                    }
+                },
+                {
+                    "key": "name-restrict",
+                    "reg": "[v]+[a]{1}l?u*e",
+                    "restrict": true,
+                    "exclusions": {}
+                }
+            ],
+            "regex": [
+                {
+                    "key": "reg[e]x{1}-norestrict",
+                    "reg": "[v]+[a]{1}l?u*e",
+                    "restrict": false,
+                    "exclusions": {
+                        "100140": 1
+                    }
+                },
+                {
+                    "key": "reg[e]x{1}-restrict",
+                    "reg": "[v]+[a]{1}l?u*e",
+                    "restrict": true,
+                    "exclusions": {}
+                }
+            ]
+        }
     }
 ]

@@ -287,5 +287,27 @@
       ":authority": "localhost:30081",
       "short-header": "01234567890123456789012345678901234567890123456789A"
     }
+  },
+  {
+    "name": "restrict 1",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/rr/blocklisted-value-regex-restrict-restrict",
+      ":authority": "localhost:30081",
+      "short-header": "01234567890123456789012345678901234567890123456789A",
+      "regex-restrict": "invalid"
+    }
+  },
+  {
+    "name": "restrict 2",
+    "headers": {
+      "x-forwarded-for": "13.129.64.253",
+      ":method": "GET",
+      ":path": "/rr/blocklisted-value-regex-restrict-restrict",
+      ":authority": "localhost:30081",
+      "short-header": "01234567890123456789012345678901234567890123456789A",
+      "regex-norestrict": "invalid"
+    }
   }
 ]
