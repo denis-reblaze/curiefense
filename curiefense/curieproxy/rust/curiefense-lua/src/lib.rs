@@ -216,7 +216,7 @@ fn inspect_generic_request_map<GH: Grasshopper>(
         // limit hit!
         return (limit_check, tags);
     }
-    logs.debug("limit checks done");
+    logs.debug(format!("limit checks done ({} limits)", urlmap.limits.len()));
 
     logs.debug(format!("acl profile: {:?}", urlmap.acl_profile));
 

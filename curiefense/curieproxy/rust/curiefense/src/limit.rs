@@ -72,10 +72,11 @@ pub fn limit_check(
 ) -> Decision {
     // early return to avoid redis connection
     if limits.is_empty() {
+        logs.debug("no limits to check");
         return Decision::Pass;
     }
 
-    // we connect once for each request
+    // we connect once for all limit tests
     let mut redis = match redis_conn() {
         Ok(c) => c,
         Err(rr) => {
@@ -90,6 +91,7 @@ pub fn limit_check(
             .iter()
             .any(|selcond| check_selector_cond(reqinfo, tags, selcond))
         {
+            logs.debug(format!("limit {} excluded", limit.name));
             continue;
         }
         if !limit
@@ -97,6 +99,7 @@ pub fn limit_check(
             .iter()
             .all(|selcond| check_selector_cond(reqinfo, tags, selcond))
         {
+            logs.debug(format!("limit {} not included", limit.name));
             continue;
         }
 
