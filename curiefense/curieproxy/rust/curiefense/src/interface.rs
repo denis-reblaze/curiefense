@@ -51,7 +51,7 @@ pub struct Tags(HashSet<String>);
 
 fn tagify(tag: &str) -> String {
     fn filter_char(c: char) -> char {
-        if c.is_ascii_alphanumeric() {
+        if c.is_ascii_alphanumeric() || c == ':' {
             c
         } else {
             '-'
