@@ -33,6 +33,9 @@ ACLDeny      = 5
 WAFPass  = 1
 WAFBlock = 0
 
+local function ends_with(str, ending)
+  return ending == "" or str:sub(-#ending) == ending
+end
 function read_file(path)
     local fh = io.open(path, "r")
     if fh ~= nil then
@@ -55,8 +58,10 @@ local _, err = curiefense.init_config()
 if err then
     local failure = false
     for _, r in ipairs(err) do
-        print(sfmt("curiefense.init_config failed %s", r))
-        failure = true
+        if not ends_with(r, "Loading new configuration") then
+          print(sfmt("curiefense.init_config failed: '%s'", r))
+          failure = true
+        end
     end
     if failure then
       error("Configuration loading failed")
@@ -421,9 +426,6 @@ function test_flow(request_path)
       socket.sleep(raw_request_map.delay)
     end
   end
-end
-local function ends_with(str, ending)
-  return ending == "" or str:sub(-#ending) == ending
 end
 
 for file in lfs.dir[[luatests/requests]] do

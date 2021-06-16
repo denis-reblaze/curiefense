@@ -240,6 +240,7 @@ impl Config {
             return None;
         }
 
+        logs.debug("Loading new configuration");
         let mut bjson = PathBuf::from(basepath);
         bjson.push("json");
 
