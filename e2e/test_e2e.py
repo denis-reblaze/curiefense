@@ -491,7 +491,7 @@ def gen_rl_rules(authority):
         param_ext={"ttl": "10"},
         subaction_ext={"headers": "Header-Name"},
         subaction_params={
-            "headers": "foo: bar",
+            "headers": {"foo": "bar"},
             "action": {"type": "default", "params": {}},
         },
     )
