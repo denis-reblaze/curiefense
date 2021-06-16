@@ -140,7 +140,7 @@ impl Config {
                 };
             }
         }
-
+        entries.sort_by_key(|x: &Matching<UrlMap>| usize::MAX - x.matcher.as_str().len());
         (entries, default)
     }
 
