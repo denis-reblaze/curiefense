@@ -259,7 +259,6 @@ pub struct RawWafEntryMatch {
     pub key: String,
     pub reg: Option<String>,
     pub restrict: bool,
-    pub mask: bool,
     pub exclusions: Option<HashMap<String, u64>>,
 }
 
