@@ -93,6 +93,7 @@ impl Config {
         let mut entries: Vec<Matching<UrlMap>> = Vec::new();
 
         for rawmap in rawmaps {
+            logs.debug(format!("resolving {} - CFGLOAD", rawmap.name));
             let acl_profile: AclProfile = match acls.get(&rawmap.acl_profile) {
                 Some(p) => p.clone(),
                 None => {
@@ -240,7 +241,7 @@ impl Config {
             return None;
         }
 
-        logs.debug("Loading new configuration");
+        logs.debug("Loading new configuration - CFGLOAD");
         let mut bjson = PathBuf::from(basepath);
         bjson.push("json");
 

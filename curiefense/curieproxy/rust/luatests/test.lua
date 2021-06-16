@@ -58,7 +58,7 @@ local _, err = curiefense.init_config()
 if err then
     local failure = false
     for _, r in ipairs(err) do
-        if not ends_with(r, "Loading new configuration") then
+        if not ends_with(r, "CFGLOAD") then
           print(sfmt("curiefense.init_config failed: '%s'", r))
           failure = true
         end
