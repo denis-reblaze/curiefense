@@ -10,6 +10,7 @@ cd "${0%/*}" || exit 1
 
 REPO=${REPO:-curiefense}
 BUILD_OPT=${BUILD_OPT:-}
+BUILD_RUST=${BUILD_RUST:-yes}
 
 declare -A status
 
@@ -29,6 +30,40 @@ else
         redis uiserver fluentd)
 fi
 
+if [ "$BUILD_RUST" = "yes" ]
+then
+    echo "-------"
+    echo "Building : Rust"
+    echo "with tag : $DOCKER_TAG"
+    echo "-------"
+
+    for distro in bionic focal
+    do
+            image=curiefense-rustbuild-${distro}
+            IMG=${REPO}/${image}
+            echo "=================== $IMG:$DOCKER_TAG ====================="
+            if tar -C curiefense-rustbuild -ch --exclude='.*/target' --exclude='.*/ctarget' . \
+                    | docker build --build-arg UBUNTU_VERSION=${distro} -t "$IMG:$DOCKER_TAG" ${BUILD_OPT} -; then
+                STB="ok"
+                if [ -n "$PUSH" ]; then
+                    if docker push "$IMG:$DOCKER_TAG"; then
+                        STP="ok"
+                    else
+                        STP="KO"
+                        GLOBALSTATUS=1
+                    fi
+                else
+                    STP="SKIP"
+                fi
+            else
+                STB="KO"
+                STP="SKIP"
+                GLOBALSTATUS=1
+            fi
+            status[$image]="build=$STB  push=$STP"
+    done
+fi
+
 echo "-------"
 echo "Building images: " "${IMAGES[@]}"
 echo "with tag       : $DOCKER_TAG"
@@ -40,7 +75,8 @@ do
         IMG=${REPO}/$image
         echo "=================== $IMG:$DOCKER_TAG ====================="
         # shellcheck disable=SC2086
-        if tar -C "$image" -ch --exclude='./curieproxy/rust' . | docker build -t "$IMG:$DOCKER_TAG" ${BUILD_OPT} -; then
+        if tar -C "$image" -ch --exclude='.*/target' --exclude='.*/ctarget' . | \
+                docker build --build-arg RUSTBIN_TAG=${DOCKER_TAG} -t "$IMG:$DOCKER_TAG" ${BUILD_OPT} -; then
             STB="ok"
             if [ -n "$PUSH" ]; then
                 if docker push "$IMG:$DOCKER_TAG"; then
