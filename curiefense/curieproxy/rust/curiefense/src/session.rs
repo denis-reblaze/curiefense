@@ -230,11 +230,12 @@ pub fn session_limit_check(session_id: &str) -> anyhow::Result<Decision> {
 
     // copy limits, without keeping a read lock
     let limits = with_urlmap(uuid, |urlmap| Ok(urlmap.limits.clone()))?;
+    let mut logs = Logs::default();
 
     with_request_info(uuid, |rinfo| {
         with_urlmap(uuid, |urlmap| {
             with_tags_mut(uuid, |mut tags| {
-                Ok(limit_check(&urlmap.name, &rinfo, &limits, &mut tags))
+                Ok(limit_check(&mut logs, &urlmap.name, &rinfo, &limits, &mut tags))
             })
         })
     })

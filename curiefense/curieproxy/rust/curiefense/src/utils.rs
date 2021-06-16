@@ -320,7 +320,13 @@ fn selector<'a>(reqinfo: &'a RequestInfo, sel: &RequestSelector) -> Option<Selec
         RequestSelector::Query => Some(&reqinfo.rinfo.qinfo.query).map(Selected::Str),
         RequestSelector::Method => Some(&reqinfo.rinfo.meta.method).map(Selected::Str),
         RequestSelector::Country => reqinfo.rinfo.geoip.country_name.as_ref().map(Selected::Str),
-        RequestSelector::Authority => reqinfo.rinfo.meta.authority.as_ref().map(Selected::Str),
+        RequestSelector::Authority => reqinfo
+            .rinfo
+            .meta
+            .authority
+            .as_ref()
+            .or_else(|| reqinfo.headers.get("host"))
+            .map(Selected::Str),
         RequestSelector::Company => reqinfo
             .rinfo
             .geoip

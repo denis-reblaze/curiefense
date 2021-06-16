@@ -1,3 +1,4 @@
+use crate::logs::Logs;
 use redis::RedisResult;
 
 use crate::config::limit::Limit;
@@ -62,7 +63,13 @@ fn redis_check_limit(
     Ok(current > limit as i64)
 }
 
-pub fn limit_check(url_map_name: &str, reqinfo: &RequestInfo, limits: &[Limit], tags: &mut Tags) -> Decision {
+pub fn limit_check(
+    logs: &mut Logs,
+    url_map_name: &str,
+    reqinfo: &RequestInfo,
+    limits: &[Limit],
+    tags: &mut Tags,
+) -> Decision {
     // early return to avoid redis connection
     if limits.is_empty() {
         return Decision::Pass;
@@ -72,7 +79,7 @@ pub fn limit_check(url_map_name: &str, reqinfo: &RequestInfo, limits: &[Limit], 
     let mut redis = match redis_conn() {
         Ok(c) => c,
         Err(rr) => {
-            println!("Could not connect to the redis server {}", rr);
+            logs.error(format!("Could not connect to the redis server {}", rr));
             return Decision::Pass;
         }
     };
@@ -97,22 +104,31 @@ pub fn limit_check(url_map_name: &str, reqinfo: &RequestInfo, limits: &[Limit], 
         tags.insert(&limit.name);
 
         let key = match build_key(url_map_name, reqinfo, limit) {
-            None => return Decision::Pass,
+            None => {
+                logs.error(format!(
+                    "could not build key {:?} {:?} {:?}",
+                    url_map_name, reqinfo, limit
+                ));
+                return Decision::Pass;
+            }
             Some(k) => k,
         };
+        logs.debug(format!("limit={:?} key={}", limit, key));
 
         if limit.limit == 0 {
+            logs.debug("limit=0");
             return limit_react(&mut redis, limit, key);
         }
 
         if is_banned(&mut redis, &key) {
+            logs.debug("is banned!");
             return limit_react(&mut redis, limit, key);
         }
 
         let pairvalue = limit.pairwith.as_ref().and_then(|sel| select_string(reqinfo, sel));
 
         match redis_check_limit(&mut redis, &key, limit.limit, limit.ttl, pairvalue) {
-            Err(rr) => println!("*** Redis problem: {}", rr),
+            Err(rr) => logs.error(rr),
             Ok(true) => return limit_react(&mut redis, limit, key),
             Ok(false) => (),
         }
