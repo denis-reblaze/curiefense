@@ -52,19 +52,13 @@ fn check_entry(rinfo: &RequestInfo, sub: &ProfilingEntry) -> bool {
             .geoip
             .country_name
             .as_ref()
-            .map(|ccty| check_single(cty, ccty.as_ref()))
+            .map(|ccty| check_single(cty, ccty.to_lowercase().as_ref()))
             .unwrap_or(false),
         ProfilingEntryE::Method(mtd) => check_single(mtd, &rinfo.rinfo.meta.method),
         ProfilingEntryE::Header(hdr) => check_pair(hdr, &rinfo.headers),
         ProfilingEntryE::Args(arg) => check_pair(arg, &rinfo.rinfo.qinfo.args),
         ProfilingEntryE::Cookies(arg) => check_pair(arg, &rinfo.cookies),
-        ProfilingEntryE::Asn(asn) => rinfo
-            .rinfo
-            .geoip
-            .asn
-            .as_ref()
-            .map(|casn| casn.autonomous_system_number == Some(*asn))
-            .unwrap_or(false),
+        ProfilingEntryE::Asn(asn) => rinfo.rinfo.geoip.asn.map(|casn| casn == *asn).unwrap_or(false),
     };
     c ^ sub.negated
 }
@@ -83,7 +77,7 @@ pub fn tag_request(cfg: &Config, rinfo: &RequestInfo) -> Tags {
     }
     tags.insert_qualified("ip", &rinfo.rinfo.geoip.ipstr);
     tags.insert_qualified("geo", rinfo.rinfo.geoip.country_name.as_deref().unwrap_or("nil"));
-    match rinfo.rinfo.geoip.asn.as_ref().and_then(|g| g.autonomous_system_number) {
+    match rinfo.rinfo.geoip.asn {
         None => {
             tags.insert_qualified("asn", "nil");
         }

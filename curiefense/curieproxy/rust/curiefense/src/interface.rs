@@ -161,12 +161,17 @@ impl Action {
                     .clone()
                     .unwrap_or_else(|| "default content".into());
             }
+            // FIXME FIXME FIXME
             RawActionType::Redirect => {
                 action.atype = ActionType::Block;
-                action.status = 302;
-                // TODO: add location header
+                action.status = 500;
+                action.content = "unsupported action redirect".into();
             }
-            _ => return Err(anyhow::anyhow!("Unsupported action type {:?}", rawaction.type_)),
+            RawActionType::Challenge => {
+                action.atype = ActionType::Block;
+                action.status = 500;
+                action.content = "unsupported action challenge".into();
+            }
         };
         action.block_mode = action.atype.is_blocking();
         if let Some(sstatus) = &rawaction.params.status {

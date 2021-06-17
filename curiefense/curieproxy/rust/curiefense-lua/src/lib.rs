@@ -218,8 +218,6 @@ fn inspect_generic_request_map<GH: Grasshopper>(
     }
     logs.debug(format!("limit checks done ({} limits)", urlmap.limits.len()));
 
-    logs.debug(format!("acl profile: {:?}", urlmap.acl_profile));
-
     // store the check_acl result here
     let blockcode: Option<(i32, Vec<String>)> = match check_acl(&tags, &urlmap.acl_profile) {
         AclResult::Bypass(dec) => {

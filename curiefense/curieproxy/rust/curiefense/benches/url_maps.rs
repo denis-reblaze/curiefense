@@ -83,10 +83,15 @@ fn gen_rinfo() -> RequestInfo {
             geoip: GeoIp {
                 ipstr: "1.2.3.4".into(),
                 ip: None,
-                country: None,
-                city: None,
-                asn: None,
+                location: None,
+                in_eu: None,
+                city_name: None,
+                country_iso: None,
                 country_name: None,
+                continent_name: None,
+                continent_code: None,
+                asn: None,
+                company: None,
             },
             qinfo: QueryInfo {
                 qpath: "/non/matching/path".into(),

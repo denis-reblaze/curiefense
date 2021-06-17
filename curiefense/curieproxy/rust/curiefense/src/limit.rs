@@ -107,13 +107,7 @@ pub fn limit_check(
         tags.insert(&limit.name);
 
         let key = match build_key(url_map_name, reqinfo, limit) {
-            None => {
-                logs.error(format!(
-                    "could not build key {:?} {:?} {:?}",
-                    url_map_name, reqinfo, limit
-                ));
-                return Decision::Pass;
-            }
+            None => return Decision::Pass,
             Some(k) => k,
         };
         logs.debug(format!("limit={:?} key={}", limit, key));

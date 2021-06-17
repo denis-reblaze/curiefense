@@ -97,10 +97,15 @@ pub struct QueryInfo {
 pub struct GeoIp {
     pub ipstr: String,
     pub ip: Option<IpAddr>,
-    pub country: Option<maxminddb::geoip2::Country>,
-    pub city: Option<maxminddb::geoip2::City>,
-    pub asn: Option<maxminddb::geoip2::Asn>,
+    pub location: Option<(f64, f64)>, // (lat, lon)
+    pub in_eu: Option<bool>,
+    pub city_name: Option<String>,
+    pub country_iso: Option<String>,
     pub country_name: Option<String>,
+    pub continent_name: Option<String>,
+    pub continent_code: Option<String>,
+    pub asn: Option<u32>,
+    pub company: Option<String>,
 }
 
 impl GeoIp {
@@ -110,54 +115,41 @@ impl GeoIp {
             out.insert(*k, json!({}));
         }
 
-        if let Some(city) = &self.city {
-            if let Some(location) = &city.location {
-                out.insert(
-                    "location",
-                    json!({
-                        "lat": location.latitude,
-                        "lon": location.longitude
-                    }),
-                );
-            }
-            if let Some(lcity) = &city.city {
-                match lcity.names.as_ref().and_then(|names| names.get("en")) {
-                    Some(name) => {
-                        out.insert("city", json!({ "name": name }));
-                    }
-                    None => {
-                        out.insert("city", json!({ "name": "-" }));
-                    }
-                }
-            }
+        if let Some(loc) = self.location {
+            out.insert(
+                "location",
+                json!({
+                    "lat": loc.0,
+                    "lon": loc.1
+                }),
+            );
         }
+        out.insert(
+            "city",
+            json!({ "name": match &self.city_name {
+            None => "-",
+            Some(n) => n
+        } }),
+        );
 
-        if let Some(country) = self.country.as_ref() {
-            if let Some(lcountry) = &country.country {
-                out.insert(
-                    "country",
-                    json!({
-                        "eu": lcountry.is_in_european_union,
-                        "name": lcountry.names.as_ref().and_then(|names| names.get("en")),
-                        "iso": lcountry.iso_code
-                    }),
-                );
-            }
-            if let Some(continent) = &country.continent {
-                out.insert(
-                    "continent",
-                    json!({
-                        "name": continent.names.as_ref().and_then(|names| names.get("en")),
-                        "code": continent.code
-                    }),
-                );
-            }
-        }
+        out.insert(
+            "country",
+            json!({
+                "eu": self.in_eu,
+                "name": self.country_name,
+                "iso": self.country_iso
+            }),
+        );
+        out.insert(
+            "continent",
+            json!({
+                "name": self.continent_name,
+                "code": self.continent_code
+            }),
+        );
 
-        if let Some(asn) = &self.asn {
-            out.insert("asn", json!(asn.autonomous_system_number));
-            out.insert("company", json!(asn.autonomous_system_organization));
-        }
+        out.insert("asn", json!(self.asn));
+        out.insert("company", json!(self.company));
 
         out
     }
@@ -249,18 +241,53 @@ impl InspectionResult {
 
 pub fn find_geoip(ipstr: String) -> GeoIp {
     let ip = ipstr.parse().ok();
-    let country = ip.and_then(|i| get_country(i).ok());
-    fn get_country_x(c: &maxminddb::geoip2::Country) -> Option<String> {
-        Some(c.country.as_ref()?.names.as_ref()?.get("en")?.to_lowercase())
+    fn cty_info(c: &maxminddb::geoip2::model::Country) -> (Option<bool>, Option<String>, Option<String>) {
+        (
+            c.is_in_european_union,
+            c.iso_code.clone(),
+            c.names.as_ref().and_then(|mp| mp.get("en")).map(|s| s.to_lowercase()),
+        )
     }
-    let country_name = country.as_ref().and_then(get_country_x);
+    fn cont_info(c: &maxminddb::geoip2::model::Continent) -> (Option<String>, Option<String>) {
+        (
+            c.names.as_ref().and_then(|mp| mp.get("en")).map(|s| s.to_lowercase()),
+            c.code.clone(),
+        )
+    }
+    let (mcountry_info, mcontinent_info) = match ip.and_then(|i| get_country(i).ok()) {
+        None => (None, None),
+        Some(cty) => (
+            cty.country.as_ref().map(cty_info),
+            cty.continent.as_ref().map(cont_info),
+        ),
+    };
+    let (city_name, location) = match ip.and_then(|i| get_city(i).ok()) {
+        None => (None, None),
+        Some(cty) => (
+            None,
+            cty.location
+                .as_ref() // no applicative functors :(
+                .and_then(|l| l.latitude.and_then(|lat| l.longitude.map(|lon| (lat, lon)))),
+        ),
+    };
+    let (asn, company) = match ip.and_then(|i| get_asn(i).ok()) {
+        None => (None, None),
+        Some(iasn) => (iasn.autonomous_system_number, iasn.autonomous_system_organization),
+    };
+    let (in_eu, country_iso, country_name) = mcountry_info.unwrap_or((None, None, None));
+    let (continent_name, continent_code) = mcontinent_info.unwrap_or((None, None));
     GeoIp {
         ipstr,
         ip,
-        city: ip.and_then(|i| get_city(i).ok()),
-        asn: ip.and_then(|i| get_asn(i).ok()),
-        country,
+        location,
+        in_eu,
+        city_name,
+        country_iso,
         country_name,
+        continent_name,
+        continent_code,
+        asn,
+        company,
     }
 }
 
@@ -330,16 +357,13 @@ fn selector<'a>(reqinfo: &'a RequestInfo, sel: &RequestSelector) -> Option<Selec
         RequestSelector::Company => reqinfo
             .rinfo
             .geoip
-            .asn
+            .company
             .as_ref()
-            .and_then(|a| a.autonomous_system_organization.as_ref())
             .map(Selected::Str),
         RequestSelector::Asn => reqinfo
             .rinfo
             .geoip
             .asn
-            .as_ref()
-            .and_then(|a| a.autonomous_system_number)
             .map(Selected::U32),
     }
 }
