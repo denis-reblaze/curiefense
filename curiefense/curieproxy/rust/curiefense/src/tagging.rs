@@ -50,7 +50,7 @@ fn check_entry(rinfo: &RequestInfo, sub: &ProfilingEntry) -> bool {
         ProfilingEntryE::Country(cty) => rinfo
             .rinfo
             .geoip
-            .country_name
+            .country_iso
             .as_ref()
             .map(|ccty| check_single(cty, ccty.to_lowercase().as_ref()))
             .unwrap_or(false),
