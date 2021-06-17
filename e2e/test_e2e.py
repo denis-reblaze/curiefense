@@ -1069,7 +1069,7 @@ TEST_TAGRULES = {
                     ["uri", "/e2e-tagrules-uri", "annotation"],
                     ["ip", IP6_1, "annotation"],
                     ["ip", IP4_US, "annotation"],
-                    ["country", "JP", "annotation"],
+                    ["country", "jp", "annotation"],  # TODO: discuss is this should work using caps
                     ["asn", "13335", "annotation"],
                 ],
             },
