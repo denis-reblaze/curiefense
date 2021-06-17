@@ -346,7 +346,7 @@ fn selector<'a>(reqinfo: &'a RequestInfo, sel: &RequestSelector) -> Option<Selec
         RequestSelector::Path => Some(&reqinfo.rinfo.qinfo.qpath).map(Selected::Str),
         RequestSelector::Query => Some(&reqinfo.rinfo.qinfo.query).map(Selected::Str),
         RequestSelector::Method => Some(&reqinfo.rinfo.meta.method).map(Selected::Str),
-        RequestSelector::Country => reqinfo.rinfo.geoip.country_name.as_ref().map(Selected::Str),
+        RequestSelector::Country => reqinfo.rinfo.geoip.country_iso.as_ref().map(Selected::Str),
         RequestSelector::Authority => reqinfo
             .rinfo
             .meta

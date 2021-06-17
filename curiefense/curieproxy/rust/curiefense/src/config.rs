@@ -192,11 +192,6 @@ impl Config {
 
         let flows = flow_resolve(logs, rawflows);
 
-        if let Some(xdef) = &default {
-            for x in &xdef.entries {
-                println!("{:?}", x);
-            }
-        }
         Config {
             urlmaps,
             profiling,

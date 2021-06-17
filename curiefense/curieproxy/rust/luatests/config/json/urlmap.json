@@ -103,6 +103,17 @@
                 "limit_ids": []
             },
             {
+                "name": "scope-country-include",
+                "match": "/scope-country-include/",
+                "acl_profile": "__default__",
+                "acl_active": true,
+                "waf_profile": "__default__",
+                "waf_active": true,
+                "limit_ids": [
+                    "e2e1000000007"
+                ]
+            },
+            {
                 "match": "/",
                 "name": "default",
                 "acl_profile": "__default__",

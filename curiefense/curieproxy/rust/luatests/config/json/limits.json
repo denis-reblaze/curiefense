@@ -187,5 +187,43 @@
         "pairwith": {
             "self": "self"
         }
+    },
+    {
+        "id": "e2e1000000007",
+        "name": "Rate Limit Rule 3/10 scope-country-include",
+        "description": "3 requests per 10 seconds",
+        "ttl": "10",
+        "limit": "3",
+        "action": {
+            "type": "default",
+            "params": {
+                "action": {
+                    "type": "default",
+                    "params": {}
+                }
+            }
+        },
+        "include": {
+            "cookies": {},
+            "headers": {},
+            "args": {},
+            "attrs": {
+                "country": "us"
+            }
+        },
+        "exclude": {
+            "cookies": {},
+            "headers": {},
+            "args": {},
+            "attrs": {}
+        },
+        "key": [
+            {
+                "attrs": "ip"
+            }
+        ],
+        "pairwith": {
+            "self": "self"
+        }
     }
 ]
