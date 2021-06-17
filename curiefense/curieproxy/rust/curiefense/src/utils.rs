@@ -127,9 +127,9 @@ impl GeoIp {
         out.insert(
             "city",
             json!({ "name": match &self.city_name {
-            None => "-",
-            Some(n) => n
-        } }),
+                None => "-",
+                Some(n) => n
+            } }),
         );
 
         out.insert(
@@ -244,7 +244,7 @@ pub fn find_geoip(ipstr: String) -> GeoIp {
     fn cty_info(c: &maxminddb::geoip2::model::Country) -> (Option<bool>, Option<String>, Option<String>) {
         (
             c.is_in_european_union,
-            c.iso_code.clone(),
+            c.iso_code.as_ref().map(|s| s.to_lowercase()),
             c.names.as_ref().and_then(|mp| mp.get("en")).map(|s| s.to_lowercase()),
         )
     }
@@ -354,17 +354,8 @@ fn selector<'a>(reqinfo: &'a RequestInfo, sel: &RequestSelector) -> Option<Selec
             .as_ref()
             .or_else(|| reqinfo.headers.get("host"))
             .map(Selected::Str),
-        RequestSelector::Company => reqinfo
-            .rinfo
-            .geoip
-            .company
-            .as_ref()
-            .map(Selected::Str),
-        RequestSelector::Asn => reqinfo
-            .rinfo
-            .geoip
-            .asn
-            .map(Selected::U32),
+        RequestSelector::Company => reqinfo.rinfo.geoip.company.as_ref().map(Selected::Str),
+        RequestSelector::Asn => reqinfo.rinfo.geoip.asn.map(Selected::U32),
     }
 }
 
