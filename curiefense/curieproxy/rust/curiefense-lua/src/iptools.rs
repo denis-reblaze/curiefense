@@ -339,12 +339,20 @@ pub fn iptonum(_: &Lua, ip: String) -> LuaResult<Option<String>> {
 
 //////////////// DECODE URL ////////////////
 
-pub fn decodeurl(_: &Lua, url: String) -> LuaResult<String> {
-    Ok(curiefense::utils::url::urldecode_str(&url))
+pub fn decodeurl(lua: &Lua, args: LuaMultiValue) -> LuaResult<String> {
+    let res: LuaResult<String> = FromLuaMulti::from_lua_multi(args, lua);
+    match res {
+        Ok(url_str) => Ok(curiefense::utils::url::urldecode_str(&url_str)),
+        _ => Ok("".into()),
+    }
 }
 
-pub fn encodeurl(_: &Lua, url: String) -> LuaResult<String> {
-    Ok(urlencoding::encode(&url))
+pub fn encodeurl(lua: &Lua, args: LuaMultiValue) -> LuaResult<String> {
+    let res: LuaResult<String> = FromLuaMulti::from_lua_multi(args, lua);
+    match res {
+        Ok(url_str) => Ok(urlencoding::encode(&url_str)),
+        _ => Ok("".into()),
+    }
 }
 
 /////////////////////////////////////////
