@@ -173,12 +173,12 @@ declare module CuriefenseClient {
   type WAFRule = {
     id: string
     name: string
-    category: string
-    certainity: number
-    msg: string
+    category?: string
+    certainity?: number
+    msg?: string
     operand: string
-    severity: number
-    subcategory: string
+    severity?: number
+    subcategory?: string
   }
 
   // Document types - END

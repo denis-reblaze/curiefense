@@ -88,8 +88,7 @@
                   </div>
                 </div>
 
-                <p class="control"
-                   v-if="selectedDocType !== 'wafrules'">
+                <p class="control">
                   <button class="button is-small fork-document-button"
                           :class="{'is-loading': isForkLoading}"
                           @click="forkDoc()"
@@ -101,8 +100,7 @@
                   </button>
                 </p>
 
-                <p class="control"
-                   v-if="selectedDocType !== 'wafrules'">
+                <p class="control">
                   <button class="button is-small new-document-button"
                           :class="{'is-loading': isNewLoading}"
                           @click="addNewDoc()"
@@ -113,8 +111,7 @@
                   </button>
                 </p>
 
-                <p class="control"
-                   v-if="selectedDocType !== 'wafrules'">
+                <p class="control">
                   <button class="button is-small save-document-button"
                           :class="{'is-loading': isSaveLoading}"
                           @click="saveChanges()"
@@ -126,8 +123,7 @@
                   </button>
                 </p>
 
-                <p class="control"
-                   v-if="selectedDocType !== 'wafrules'">
+                <p class="control">
                   <button class="button is-small has-text-danger delete-document-button"
                           :class="{'is-loading': isDeleteLoading}"
                           @click="deleteDoc"
