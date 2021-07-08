@@ -530,10 +530,11 @@ export default (Vue as VueConstructor<Vue & {
     wafacllimitProfileNames() {
       const branch = this.selectedBranch
 
-      RequestsUtils.sendRequest('GET',
-          `configs/${branch}/d/wafpolicies/`,
-          null,
-          {headers: {'x-fields': 'id, name'}}).then((response: AxiosResponse<WAFPolicy[]>) => {
+      RequestsUtils.sendRequest({
+        methodName: 'GET',
+        url: `configs/${branch}/d/wafpolicies/`,
+        config: {headers: {'x-fields': 'id, name'}},
+      }).then((response: AxiosResponse<WAFPolicy[]>) => {
         this.wafProfileNames = _.sortBy(_.map(response.data, (entity) => {
           return [entity.id, entity.name]
         }), (e) => {
@@ -541,10 +542,11 @@ export default (Vue as VueConstructor<Vue & {
         })
       })
 
-      RequestsUtils.sendRequest('GET',
-          `configs/${branch}/d/aclpolicies/`,
-          null,
-          {headers: {'x-fields': 'id, name'}}).then((response: AxiosResponse<ACLPolicy[]>) => {
+      RequestsUtils.sendRequest({
+        methodName: 'GET',
+        url: `configs/${branch}/d/aclpolicies/`,
+        config: {headers: {'x-fields': 'id, name'}},
+      }).then((response: AxiosResponse<ACLPolicy[]>) => {
         this.aclProfileNames = _.sortBy(_.map(response.data, (entity) => {
           return [entity.id, entity.name]
         }), (e) => {
@@ -552,19 +554,21 @@ export default (Vue as VueConstructor<Vue & {
         })
       })
 
-      RequestsUtils.sendRequest('GET',
-          `configs/${branch}/d/ratelimits/`).then((response: AxiosResponse<RateLimit[]>) => {
+      RequestsUtils.sendRequest({
+        methodName: 'GET',
+        url: `configs/${branch}/d/ratelimits/`,
+      }).then((response: AxiosResponse<RateLimit[]>) => {
         this.limitRuleNames = response.data
       })
     },
 
     urlMapsDomainMatches() {
       const branch = this.selectedBranch
-
-      RequestsUtils.sendRequest('GET',
-          `configs/${branch}/d/urlmaps/`,
-          null,
-          {headers: {'x-fields': 'match'}}).then((response: AxiosResponse<URLMap[]>) => {
+      RequestsUtils.sendRequest({
+        methodName: 'GET',
+        url: `configs/${branch}/d/urlmaps/`,
+        config: {headers: {'x-fields': 'match'}},
+      }).then((response: AxiosResponse<URLMap[]>) => {
         this.domainNames = _.map(response.data, 'match')
       })
     },

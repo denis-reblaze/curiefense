@@ -278,7 +278,7 @@ export default Vue.extend({
         })
       }
       const url = this.localDoc.source
-      RequestsUtils.sendRequest('GET', `tools/fetch?url=${url}`).then((response: AxiosResponse) => {
+      RequestsUtils.sendRequest({methodName: 'GET', url: `tools/fetch?url=${url}`}).then((response: AxiosResponse) => {
         const data = response.data
         let entries: TagRuleSectionEntry[]
         entries = this.tryMatch(data, lineMatchingIP, 'ip')

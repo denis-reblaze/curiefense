@@ -118,7 +118,7 @@ export default Vue.extend({
   },
   methods: {
     async loadLinksFromDB() {
-      const systemDBData = (await RequestsUtils.sendRequest('GET', `db/system/`)).data
+      const systemDBData = (await RequestsUtils.sendRequest( {methodName: 'GET', url: `db/system/`} ))?.data
       const swaggerURL = systemDBData?.links?.swagger_url ? systemDBData.links.swagger_url : this.defaultSwaggerURL
       const kibanaURL = systemDBData?.links?.kibana_url ? systemDBData.links.kibana_url : this.defaultKibanaURL
       const grafanaURL = systemDBData?.links?.grafana_url ? systemDBData.links.grafana_url : this.defaultGrafanaURL
