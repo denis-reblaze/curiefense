@@ -49,6 +49,7 @@
                             @remove="removeKey(index)"
                             @change="updateKeyOption"
                             :removable="localDoc.key.length > 1"
+                            :index="index"
                             :option="generateOption(option)"
                             :key="getOptionTextKey(option, index)"/>
               <a title="Add new option rule"

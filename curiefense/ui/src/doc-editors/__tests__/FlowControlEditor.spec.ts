@@ -122,7 +122,6 @@ describe('FlowControlEditor.vue', () => {
   })
 
   describe('count by key', () => {
-
     test('should add key when button is clicked', async () => {
       const addKeyButton = wrapper.find('.add-key-button')
       addKeyButton.trigger('click')
