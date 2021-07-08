@@ -211,6 +211,7 @@
         <hr/>
         <git-history :gitLog="gitLog"
                      :apiPath="gitAPIPath"
+                     :loading="loadingGitlog"
                      @restore-version="restoreGitVersion"></git-history>
       </div>
 
@@ -254,7 +255,7 @@ import Utils from '@/assets/Utils.ts'
 import GitHistory from '@/components/GitHistory.vue'
 import JSONEditor from 'jsoneditor'
 import Vue from 'vue'
-import {Commit} from '@/types'
+import {Commit, GenericObject} from '@/types'
 import {AxiosResponse} from 'axios'
 
 export default Vue.extend({
@@ -290,10 +291,11 @@ export default Vue.extend({
       keyNameInput: '',
       defaultKeyName: 'publishinfo',
 
-      selectedDatabaseData: {} as {[key: string]: string},
+      selectedDatabaseData: {} as GenericObject,
       document: null,
 
       gitLog: [] as Commit[],
+      loadingGitlog: false,
 
       apiRoot: RequestsUtils.confAPIRoot,
       apiVersion: RequestsUtils.confAPIVersion,
@@ -363,7 +365,7 @@ export default Vue.extend({
       this.selectedDatabase = database
       this.databaseNameInput = this.selectedDatabase
       const response = await RequestsUtils.sendRequest({methodName: 'GET', url: `db/${this.selectedDatabase}/`})
-      this.selectedDatabaseData = response ? response.data || {} : {}
+      this.selectedDatabaseData = response?.data || {}
       this.initDatabaseKeys()
       this.setLoadingDocStatus(false)
     },
@@ -545,9 +547,11 @@ export default Vue.extend({
     },
 
     async loadGitLog() {
+      this.loadingGitlog = true
       const url = `db/${this.selectedDatabase}/k/${this.selectedKey}/v/`
       const response = await RequestsUtils.sendRequest({methodName: 'GET', url})
       this.gitLog = response?.data
+      this.loadingGitlog = false
     },
 
     async restoreGitVersion(gitVersion: Commit) {

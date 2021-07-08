@@ -160,6 +160,7 @@
         <git-history v-if="selectedDocID"
                      :gitLog="gitLog"
                      :apiPath="gitAPIPath"
+                     :loading="loadingGitlog"
                      @restore-version="restoreGitVersion"></git-history>
       </div>
 
@@ -265,6 +266,7 @@ export default Vue.extend({
       isDocumentInvalid: false,
 
       gitLog: [],
+      loadingGitlog: false,
       commits: 0,
       branches: 0,
 
@@ -452,6 +454,7 @@ export default Vue.extend({
     },
 
     loadGitLog(interaction?: boolean) {
+      this.loadingGitlog = true
       const config = this.selectedBranch
       const document = this.selectedDocType
       const entry = this.selectedDocID
@@ -462,6 +465,7 @@ export default Vue.extend({
           if (interaction) {
             this.loadConfigs(true)
           }
+          this.loadingGitlog = false
         })
       }
     },
@@ -491,10 +495,12 @@ export default Vue.extend({
       this.setLoadingDocStatus(true)
       this.loadGitLog()
       const docName = (this.selectedDoc as BasicDocument)?.name
-      Utils.toast(
-          `Switched to document ${docName ? `"${docName}" ` : ''}with ID "${this.selectedDocID}".`,
-          'is-info',
-      )
+      if ( docName ) {
+        Utils.toast(
+            `Switched to document ${docName} with ID "${this.selectedDocID}".`,
+            'is-info',
+        )
+      }
       this.goToRoute()
       this.setLoadingDocStatus(false)
     },
