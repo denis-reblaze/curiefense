@@ -234,7 +234,7 @@
                                     </a>
                                   </td>
                                 </tr>
-                                <tr v-if="mapEntry.limit_ids && existingRateLimitIDs(mapEntry).length === 0 ">
+                                <tr v-if="mapEntry.limit_ids && !existingRateLimitIDs(mapEntry).length">
                                   <td colspan="5">
                                     <p class="is-size-7 has-text-grey has-text-centered">
                                       To attach an existing rule, click
@@ -450,9 +450,12 @@ export default (Vue as VueConstructor<Vue & {
     },
 
     addRateLimitToEntry(mapEntry: URLMapEntryMatch, id: string) {
-      mapEntry.limit_ids.push(id)
-      this.limitNewEntryModeMapEntryId = null
-      this.emitDocUpdate()
+      if ( id ) {
+        mapEntry.limit_ids.push(id)
+        this.limitNewEntryModeMapEntryId = null
+        this.limitMapEntryId = null
+        this.emitDocUpdate()
+      }
     },
 
     removeRateLimitFromEntry(mapEntry: URLMapEntryMatch, index: number) {
@@ -593,12 +596,15 @@ export default (Vue as VueConstructor<Vue & {
 
 .borderless > td {
   border-bottom-width: 0;
-  cursor: pointer;
   padding-top: 8px;
 }
 
 .expanded > td {
   padding-bottom: 20px;
+}
+
+.new-rate-limit-row > td {
+  vertical-align: middle;
 }
 
 tr:last-child > td {
