@@ -1,71 +1,85 @@
 <template>
-  <section>
+  <section class="version-history">
     <div class="card">
-      <div class="card-content">
-        <div class="content">
-          <p class="title is-6 is-expanded version-history-title">
-            Version History
-            <button class="button is-outlined is-text is-small is-loading" v-if="!gitLog || gitLog.length === 0">
-              Loading
-            </button>
-          </p>
-          <table class="table" v-if="gitLog && gitLog.length > 0">
-            <thead>
-            <tr>
-              <th class="is-size-7">Date</th>
-              <th class="is-size-7">Version</th>
-              <th class="is-size-7">Parents</th>
-              <th class="is-size-7">Message</th>
-              <th class="is-size-7">Author</th>
-              <th class="is-size-7">Email</th>
-              <th class="is-size-7"></th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr v-for="(commit, index) in commits" :key="commit.version"
-                @mouseleave="mouseLeave()"
-                @mouseover="mouseOver(index)">
-              <td class="is-size-7 is-vcentered py-3"
-                  :title="fullFormatDate(commit.date)">
-                {{ formatDate(commit.date) }}
-              </td>
-              <td class="is-size-7 is-vcentered py-3" :title="commit.version">
-                {{ commit.version.substr(0, 7) }}
-              </td>
-              <td class="is-size-7 is-vcentered py-3">
-                <p v-for="parent in commit.parents" :key="parent" :title="parent">
-                  {{ parent.substr(0, 7) }}
-                </p>
-              </td>
-              <td class="is-size-7 is-vcentered py-3">{{ commit.message }}</td>
-              <td class="is-size-7 is-vcentered py-3">{{ commit.author }}</td>
-              <td class="is-size-7 is-vcentered py-3">{{ commit.email }}</td>
-              <td class="is-size-7 is-vcentered restore-cell">
-                <p class="control has-text-centered" v-if="commitOverIndex === index">
-                  <button class="button is-small restore-button"
-                          @click="restoreVersion(commit)"
-                          tabindex="1"
-                          title="Restore version">
-                    <span class="icon is-small">
-                      <i class="fas fa-history"></i>
-                    </span>
-                  </button>
-                </p>
-              </td>
-            </tr>
-            <tr v-if="!expanded && gitLog.length > init_max_rows">
-              <td colspan="6">
-                <a class="has-text-grey" @click="expanded = true">View More</a>
-              </td>
-            </tr>
-            <tr v-if="expanded && gitLog.length > init_max_rows">
-              <td colspan="6">
-                <a class="has-text-grey" @click="expanded = false">View Less</a>
-              </td>
-            </tr>
-            </tbody>
-          </table>
-          <span class="is-family-monospace has-text-grey-lighter">{{ apiPath }}</span>
+      <header class="card-header">
+        <p class="card-header-title collapsible-header">
+          <a
+            href="#collapsible-card"
+            data-action="collapse"
+            @click="toggleCollapsed"
+          >
+            <i :class="`arrow ${collapsed ? 'down' : 'up'}`"></i>
+            {{ collapsed ? 'Show' : 'Hide' }} Version History
+          </a>
+        </p>
+      </header>
+      <span class="is-family-monospace has-text-grey-lighter">{{ apiPath }}</span>
+      <div id="collapsible-card" class="is-collapsible">
+        <div class="card-content">
+          <div class="content">
+            <p class="title is-6 is-expanded version-history-title">
+              Version History
+              <button class="button is-outlined is-text is-small is-loading" v-if="!gitLog || gitLog.length === 0">
+                Loading
+              </button>
+            </p>
+            <table class="table" v-if="gitLog && gitLog.length > 0">
+              <thead>
+              <tr>
+                <th class="is-size-7">Date</th>
+                <th class="is-size-7">Version</th>
+                <th class="is-size-7">Parents</th>
+                <th class="is-size-7">Message</th>
+                <th class="is-size-7">Author</th>
+                <th class="is-size-7">Email</th>
+                <th class="is-size-7"></th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="(commit, index) in commits" :key="commit.version"
+                  @mouseleave="mouseLeave()"
+                  @mouseover="mouseOver(index)">
+                <td class="is-size-7 is-vcentered py-3"
+                    :title="fullFormatDate(commit.date)">
+                  {{ formatDate(commit.date) }}
+                </td>
+                <td class="is-size-7 is-vcentered py-3" :title="commit.version">
+                  {{ commit.version.substr(0, 7) }}
+                </td>
+                <td class="is-size-7 is-vcentered py-3">
+                  <p v-for="parent in commit.parents" :key="parent" :title="parent">
+                    {{ parent.substr(0, 7) }}
+                  </p>
+                </td>
+                <td class="is-size-7 is-vcentered py-3">{{ commit.message }}</td>
+                <td class="is-size-7 is-vcentered py-3">{{ commit.author }}</td>
+                <td class="is-size-7 is-vcentered py-3">{{ commit.email }}</td>
+                <td class="is-size-7 is-vcentered restore-cell">
+                  <p class="control has-text-centered" v-if="commitOverIndex === index">
+                    <button class="button is-small restore-button"
+                            @click="restoreVersion(commit)"
+                            tabindex="1"
+                            title="Restore version">
+                      <span class="icon is-small">
+                        <i class="fas fa-history"></i>
+                      </span>
+                    </button>
+                  </p>
+                </td>
+              </tr>
+              <tr v-if="!expanded && gitLog.length > init_max_rows">
+                <td colspan="6">
+                  <a class="has-text-grey" @click="expanded = true">View More</a>
+                </td>
+              </tr>
+              <tr v-if="expanded && gitLog.length > init_max_rows">
+                <td colspan="6">
+                  <a class="has-text-grey" @click="expanded = false">View Less</a>
+                </td>
+              </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -76,6 +90,7 @@
 import Vue, {PropType} from 'vue'
 import {Commit} from '@/types'
 import DateTimeUtils from '@/assets/DateTimeUtils'
+import BulmaCollapsible from '@creativebulma/bulma-collapsible'
 
 export default Vue.extend({
   name: 'GitHistory',
@@ -89,6 +104,7 @@ export default Vue.extend({
 
   data() {
     return {
+      collapsed: true,
       expanded: false,
       init_max_rows: 5,
       commitOverIndex: null,
@@ -125,10 +141,21 @@ export default Vue.extend({
     fullFormatDate(date: string) {
       return DateTimeUtils.isoToNowFullCuriefenseFormat(date)
     },
+
+    toggleCollapsed() {
+      this.collapsed = !this.collapsed
+    },
   },
 
   mounted() {
-
+    BulmaCollapsible.attach('.is-collapsible')
+    // type TBulmaCollapsibleHTML = HTMLElement & {bulmaCollapsible: Function, onTriggerClick: Function}
+    // const bulmaCollapsibleElement = document.getElementById('collapsible-card') as TBulmaCollapsibleHTML
+    // if (bulmaCollapsibleElement) {
+    //   new BulmaCollapsible(bulmaCollapsibleElement)
+    //   bulmaCollapsibleElement.bulmaCollapsible('collapsed')
+    //   bulmaCollapsibleElement.onTriggerClick((e)=>alert(JSON.stringify(e)))
+    // }
   },
 
   created() {
@@ -136,6 +163,29 @@ export default Vue.extend({
 })
 </script>
 <style scoped lang="scss">
+@import '~@creativebulma/bulma-collapsible';
+
+.version-history > .card {
+  margin-bottom: 0;
+}
+
+.collapsible-header .arrow {
+  border: solid #111;
+  border-width: 0 2px 2px 0;
+  display: inline-block;
+  margin-right: 10px;
+  padding: 4px;
+
+  &.up {
+    margin-bottom: -2px;
+    transform: rotate(-135deg);
+  }
+
+  &.down {
+    margin-bottom: 2px;
+    transform: rotate(45deg);
+  }
+}
 
 .version-history-title {
   line-height: 30px;
@@ -143,6 +193,19 @@ export default Vue.extend({
 
 .restore-cell {
   width: 50px;
+}
+
+.content .card-header-title.collapsible-header {
+  margin-bottom: 0;
+
+  a {
+    color: #000;
+    font-family: 'Red Hat Display', sans-serif;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    width: 100%;
+  }
 }
 
 </style>
