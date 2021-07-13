@@ -29,11 +29,11 @@ describe('EntriesRelationList.vue', () => {
       entries: [
         [
           'headers',
-          ['user-agent', 'curl']
+          ['user-agent', 'curl'],
         ],
         [
           'headers',
-          ['content-type', 'application/json']
+          ['content-type', 'application/json'],
         ],
       ],
     }
@@ -635,7 +635,7 @@ describe('EntriesRelationList.vue', () => {
           [
             'headers',
             ['user-agent', 'curl'],
-          ]
+          ],
         ],
       }
       const rule = {
