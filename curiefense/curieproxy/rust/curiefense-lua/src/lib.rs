@@ -290,7 +290,10 @@ mod tests {
                     assert!(logs.logs[2].message.to_string().contains("rbz-cloud-platforms"));
                 }
                 10 => {
-                    assert!(logs.logs[0].message.to_string().contains("../../config: No such file or directory"))
+                    assert!(logs.logs[0]
+                        .message
+                        .to_string()
+                        .contains("../../config: No such file or directory"))
                 }
                 n => {
                     for r in logs.logs.iter() {

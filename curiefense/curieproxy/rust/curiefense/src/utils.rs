@@ -197,24 +197,37 @@ pub struct RequestInfo {
 
 impl RequestInfo {
     pub fn into_json(self, tags: Tags) -> serde_json::Value {
-        // TODO: geo
         let ipnum: Option<String> = self.rinfo.geoip.ip.as_ref().map(|i| match i {
             IpAddr::V4(a) => u32::from_be_bytes(a.octets()).to_string(),
             IpAddr::V6(a) => u128::from_be_bytes(a.octets()).to_string(),
         });
+        let geo = self.rinfo.geoip.to_json();
+        let mut attrs: HashMap<String, Option<String>> = [
+            ("uri", self.rinfo.qinfo.uri),
+            ("path", Some(self.rinfo.qinfo.qpath)),
+            ("query", Some(self.rinfo.qinfo.query)),
+            ("ip", Some(self.rinfo.geoip.ipstr)),
+            ("ipnum", ipnum),
+            ("authority", Some(self.rinfo.host)),
+            ("method", Some(self.rinfo.meta.method)),
+        ]
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.clone()))
+        .collect();
+        attrs.extend(
+            self.rinfo
+                .meta
+                .extra
+                .into_iter()
+                .map(|(k, v)| (k.clone(), Some(v.clone()))),
+        );
         serde_json::json!({
             "headers": self.headers,
             "cookies": self.cookies,
             "args": self.rinfo.qinfo.args,
-            "attrs": {
-                "uri": self.rinfo.qinfo.uri,
-                "path": self.rinfo.qinfo.qpath,
-                "query": self.rinfo.qinfo.query,
-                "ip": self.rinfo.geoip.ipstr,
-                "ipnum": ipnum
-            },
+            "attrs": attrs,
             "tags": tags,
-            "geo": self.rinfo.geoip.to_json()
+            "geo": geo
         })
     }
 }
@@ -347,13 +360,7 @@ fn selector<'a>(reqinfo: &'a RequestInfo, sel: &RequestSelector) -> Option<Selec
         RequestSelector::Query => Some(&reqinfo.rinfo.qinfo.query).map(Selected::Str),
         RequestSelector::Method => Some(&reqinfo.rinfo.meta.method).map(Selected::Str),
         RequestSelector::Country => reqinfo.rinfo.geoip.country_iso.as_ref().map(Selected::Str),
-        RequestSelector::Authority => reqinfo
-            .rinfo
-            .meta
-            .authority
-            .as_ref()
-            .or_else(|| reqinfo.headers.get("host"))
-            .map(Selected::Str),
+        RequestSelector::Authority => Some(Selected::Str(&reqinfo.rinfo.host)),
         RequestSelector::Company => reqinfo.rinfo.geoip.company.as_ref().map(Selected::Str),
         RequestSelector::Asn => reqinfo.rinfo.geoip.asn.map(Selected::U32),
     }

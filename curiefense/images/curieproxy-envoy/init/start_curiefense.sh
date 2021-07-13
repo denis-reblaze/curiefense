@@ -13,7 +13,7 @@ fi
 TADDR="${TARGET_ADDRESS:-echo}"
 TPORT="${TARGET_PORT:-8080}"
 XFF="${XFF_TRUSTED_HOPS:-1}"
-ENVOY_LOG_LEVEL="{ENVOY_LOG_LEVEL:-error}"
+ENVOY_LOG_LEVEL="${ENVOY_LOG_LEVEL:-error}"
 
 sed -e "s/XFF_TRUSTED/$XFF/" /etc/envoy/envoy.yaml.head > /etc/envoy/envoy.yaml
 if [ -f /run/secrets/curieproxysslcrt ]; then

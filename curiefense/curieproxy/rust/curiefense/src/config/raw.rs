@@ -192,6 +192,7 @@ pub struct RawActionParams {
     pub reason: Option<String>,
     pub content: Option<String>,
     pub location: Option<String>,
+    pub ttl: Option<String>,
 }
 
 impl std::default::Default for RawActionParams {
@@ -204,6 +205,7 @@ impl std::default::Default for RawActionParams {
             reason: None,
             content: None,
             location: None,
+            ttl: None,
         }
     }
 }
