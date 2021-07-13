@@ -124,7 +124,7 @@ pub struct Action {
 pub enum SimpleActionT {
     Default,
     Monitor,
-    Ban(Box<SimpleAction>),
+    Ban(Box<SimpleAction>, u64), // ttl
     RequestHeader(HashMap<String, String>),
     Response(String),
     Redirect(String),
@@ -187,17 +187,25 @@ impl SimpleAction {
         let atype = match rawaction.type_ {
             RawActionType::Default => SimpleActionT::Default,
             RawActionType::Monitor => SimpleActionT::Monitor,
-            RawActionType::Ban => SimpleActionT::Ban(Box::new(
+            RawActionType::Ban => SimpleActionT::Ban(
+                Box::new(
+                    rawaction
+                        .params
+                        .action
+                        .as_ref()
+                        .map(|x| SimpleAction::resolve(x).ok())
+                        .flatten()
+                        .unwrap_or_else(|| {
+                            SimpleAction::from_reason(rawaction.params.reason.clone().unwrap_or_else(|| "?".into()))
+                        }),
+                ),
                 rawaction
                     .params
-                    .action
+                    .ttl
                     .as_ref()
-                    .map(|x| SimpleAction::resolve(x).ok())
-                    .flatten()
-                    .unwrap_or_else(|| {
-                        SimpleAction::from_reason(rawaction.params.reason.clone().unwrap_or_else(|| "?".into()))
-                    }),
-            )),
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .unwrap_or(3600),
+            ),
             RawActionType::RequestHeader => SimpleActionT::RequestHeader(HashMap::new()),
             RawActionType::Response => SimpleActionT::Response(
                 rawaction
@@ -236,7 +244,7 @@ impl SimpleAction {
         match &self.atype {
             SimpleActionT::Default => {}
             SimpleActionT::Monitor => action.atype = ActionType::Monitor,
-            SimpleActionT::Ban(sub) => {
+            SimpleActionT::Ban(sub, _) => {
                 action = sub.to_action(is_human).unwrap_or_default();
                 action.ban = true;
             }
