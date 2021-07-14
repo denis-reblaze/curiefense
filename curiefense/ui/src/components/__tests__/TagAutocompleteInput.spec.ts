@@ -440,6 +440,15 @@ describe('TagAutocompleteInput.vue', () => {
       expect(wrapper.emitted('tag-changed')[0]).toEqual([emitValue])
     })
 
+    test('should emit lowercased value as tag-changed', async () => {
+      const emitValue = 'SOME-VALUE'
+      const autocompleteInput = wrapper.findComponent(AutocompleteInput)
+      autocompleteInput.vm.$emit('value-changed', emitValue)
+      await Vue.nextTick()
+      expect(wrapper.emitted('tag-changed')).toBeTruthy()
+      expect(wrapper.emitted('tag-changed')[0]).toEqual(['some-value'])
+    })
+
     test('should bubble value-submitted event as tag-submitted', async () => {
       const emitValue = 'some-value'
       const autocompleteInput = wrapper.findComponent(AutocompleteInput)

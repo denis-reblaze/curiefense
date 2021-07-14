@@ -85,6 +85,7 @@ export default (Vue as VueConstructor<Vue & {
       type: String,
       default: 'Value',
     },
+    filterFunction: Function,
   },
 
   watch: {
@@ -110,8 +111,9 @@ export default (Vue as VueConstructor<Vue & {
   },
 
   data() {
+    const {filterFunction, initialValue} = this
     return {
-      autocompleteValue: this.initialValue,
+      autocompleteValue: filterFunction ? filterFunction( initialValue ) : initialValue,
       open: false,
       focusedSuggestionIndex: -1,
       inputBlurredTimeout: null,
@@ -166,7 +168,10 @@ export default (Vue as VueConstructor<Vue & {
     },
 
     valueSubmitted() {
-      this.$emit('value-submitted', this.autocompleteValue)
+      if ( this.filterFunction ) {
+        this.autocompleteValue = this.filterFunction( this.autocompleteValue )
+      }
+      this.$emit( 'value-submitted', this.autocompleteValue )
     },
 
     closeDropdown(): void {

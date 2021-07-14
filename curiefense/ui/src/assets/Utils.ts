@@ -117,6 +117,8 @@ const buildToastUndoElement = (message: string | HTMLElement, undoFunction: () =
   return element
 }
 
+const filterTag = (tag: string) => tag.replace(/[^\w: ]|_/g, '-')
+
 export default {
   name: 'Utils',
   validateInput,
@@ -124,4 +126,5 @@ export default {
   generateUniqueEntityName,
   downloadFile,
   toast,
+  filterTag,
 }

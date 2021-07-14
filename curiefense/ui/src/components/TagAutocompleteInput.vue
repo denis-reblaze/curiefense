@@ -2,7 +2,8 @@
 
   <autocomplete-input
       :suggestions="tagsSuggestions"
-      :initial-value="initialTag"
+      :initial-value="tag"
+      :filterFunction="filterTag"
       :clear-input-after-selection="clearInputAfterSelection"
       :auto-focus="autoFocus"
       :selection-type="selectionType"
@@ -25,6 +26,7 @@ import AutocompleteInput, {AutocompleteInputEvents, AutocompleteSuggestion} from
 import Vue from 'vue'
 import {AxiosResponse} from 'axios'
 import {TagsDatabaseDocument} from '@/types'
+import Utils from '@/assets/Utils'
 
 export default Vue.extend({
   name: 'TagAutocompleteInput',
@@ -78,9 +80,9 @@ export default Vue.extend({
         tags: defaultKeyData,
       },
       minimumTagLength: 3,
-
       apiRoot: RequestsUtils.confAPIRoot,
       apiVersion: RequestsUtils.confAPIVersion,
+      filterTag: Utils.filterTag,
     }
   },
 
@@ -171,7 +173,7 @@ export default Vue.extend({
     },
 
     tagChanged(newTag: string) {
-      this.tag = newTag
+      this.tag = newTag.toLowerCase()
       this.$emit('tag-changed', this.tag)
     },
 
