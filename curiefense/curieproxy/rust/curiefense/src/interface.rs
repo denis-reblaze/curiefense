@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 #[derive(Debug, Clone)]
 pub enum SimpleDecision {
     Pass,
-    Action(SimpleAction, Option<serde_json::Value>),
+    Action(SimpleAction, serde_json::Value),
 }
 
 #[derive(Debug, Clone)]
@@ -57,10 +57,19 @@ impl Decision {
         serde_json::to_string(&j).unwrap_or_else(|_| "{}".to_string())
     }
 
+    /// is the action blocking (not passed to the underlying server)
     pub fn is_blocking(&self) -> bool {
         match self {
             Decision::Pass => false,
             Decision::Action(a) => a.atype.is_blocking(),
+        }
+    }
+
+    /// is the action final (no further processing)
+    pub fn is_final(&self) -> bool {
+        match self {
+            Decision::Pass => false,
+            Decision::Action(a) => a.atype.is_final(),
         }
     }
 }
@@ -162,8 +171,14 @@ pub enum ActionType {
 }
 
 impl ActionType {
+    /// is the action blocking (not passed to the underlying server)
     pub fn is_blocking(&self) -> bool {
         matches!(self, ActionType::Block)
+    }
+
+    /// is the action final (no further processing)
+    pub fn is_final(&self) -> bool {
+        !matches!(self, ActionType::Monitor)
     }
 }
 
@@ -214,7 +229,27 @@ impl SimpleAction {
                     .and_then(|s| s.parse::<u64>().ok())
                     .unwrap_or(3600),
             ),
-            RawActionType::RequestHeader => SimpleActionT::RequestHeader(HashMap::new()),
+            RawActionType::RequestHeader => {
+                let header_line = rawaction
+                    .params
+                    .headers
+                    .clone()
+                    .ok_or_else(|| anyhow::anyhow!("no header for request headers rule {:?}", rawaction))?;
+                let mut splitted = header_line.splitn(2, ": ");
+                let header_name = splitted
+                    .next()
+                    .ok_or_else(|| anyhow::anyhow!("Malformed header line {}", header_line))?;
+                let header_value = splitted
+                    .next()
+                    .ok_or_else(|| anyhow::anyhow!("Malformed header line {}", header_line))?;
+
+                SimpleActionT::RequestHeader(
+                    [(header_name, header_value)]
+                        .iter()
+                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .collect(),
+                )
+            }
             RawActionType::Response => SimpleActionT::Response(
                 rawaction
                     .params
@@ -272,6 +307,7 @@ impl SimpleAction {
             }
             SimpleActionT::Redirect(to) => {
                 let mut headers = HashMap::new();
+                action.content = "You are being redirected".into();
                 headers.insert("Location".into(), to.clone());
                 action.atype = ActionType::Block;
                 action.headers = Some(headers);
@@ -287,7 +323,7 @@ impl SimpleAction {
         is_human: bool,
         mgh: &Option<GH>,
         headers: &RequestField,
-        reason: Option<serde_json::Value>,
+        reason: serde_json::Value,
     ) -> Decision {
         let mut action = match self.to_action(is_human) {
             None => match (mgh, headers.get("user-agent")) {
@@ -296,20 +332,16 @@ impl SimpleAction {
             },
             Some(a) => a,
         };
-        if let Some(r) = reason {
-            action.reason = r;
-        }
+        action.reason = reason;
         Decision::Action(action)
     }
 
-    pub fn to_decision_no_challenge(&self, reason: Option<serde_json::Value>) -> Decision {
+    pub fn to_decision_no_challenge(&self, reason: serde_json::Value) -> Decision {
         let mut action = match self.to_action(true) {
             None => Action::default(),
             Some(a) => a,
         };
-        if let Some(r) = reason {
-            action.reason = r;
-        }
+        action.reason = reason;
         Decision::Action(action)
     }
 }
