@@ -26,7 +26,6 @@ import AutocompleteInput, {AutocompleteInputEvents, AutocompleteSuggestion} from
 import Vue from 'vue'
 import {AxiosResponse} from 'axios'
 import {TagsDatabaseDocument} from '@/types'
-import Utils from '@/assets/Utils'
 
 export default Vue.extend({
   name: 'TagAutocompleteInput',
@@ -82,7 +81,9 @@ export default Vue.extend({
       minimumTagLength: 3,
       apiRoot: RequestsUtils.confAPIRoot,
       apiVersion: RequestsUtils.confAPIVersion,
-      filterTag: Utils.filterTag,
+      filterTag(tag: string) {
+        return tag.replace( /[^\w: ]|_/g, '-' ).toLowerCase()
+      },
     }
   },
 
@@ -173,7 +174,7 @@ export default Vue.extend({
     },
 
     tagChanged(newTag: string) {
-      this.tag = newTag.toLowerCase()
+      this.tag = newTag
       this.$emit('tag-changed', this.tag)
     },
 

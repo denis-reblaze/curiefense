@@ -89,9 +89,10 @@ export default (Vue as VueConstructor<Vue & {
   },
 
   watch: {
-    initialValue: function(newVal) {
-      if (this.autocompleteValue !== newVal) {
-        this.autocompleteValue = newVal
+    initialValue( newVal ) {
+      const newValFiltered = this.filterFunction ? this.filterFunction( newVal ) : newVal
+      if ( this.autocompleteValue !== newVal ) {
+        this.autocompleteValue = newValFiltered
         this.closeDropdown()
       }
     },
