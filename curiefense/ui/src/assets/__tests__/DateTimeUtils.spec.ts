@@ -2,20 +2,17 @@ import {beforeEach, describe, expect, test} from '@jest/globals'
 import DateTimeUtils from '@/assets/DateTimeUtils'
 
 describe('DateTimeUtils.ts', () => {
-
   let date: Date
   beforeEach(() => {
     date = new Date()
   })
 
   const buildTests = (type: 'Date' | 'string') => {
-
-    let callFunc: Function = (date: Date) => DateTimeUtils.isoToNowCuriefenseFormat(
-      type === 'Date' ? date : date.toISOString()
+    const callFunc: Function = (date: Date) => DateTimeUtils.isoToNowCuriefenseFormat(
+      type === 'Date' ? date : date.toISOString(),
     )
 
     describe(`${type} type input`, () => {
-
       const parseDate = () => {
         const year = date.getFullYear()
         const day = date.getDate()
