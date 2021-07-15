@@ -24,10 +24,12 @@ def make_request(st: Set[str]) -> Tuple[Any, str]:
                 "ip:23-129-64-253",
                 "aclname:from-tags",
                 "aclid:fromtags",
-                "wafid:default-waf",
+                "wafname:default-waf",
+                "wafid:--default--",
                 "urlmap:default-entry",
                 "asn:396507",
                 "urlmap-entry:direct-association",
+                "bot",
                 "sante",
             ],
             "action": "pass",
@@ -38,19 +40,20 @@ def make_request(st: Set[str]) -> Tuple[Any, str]:
     if "forcedeny" in st:
         r["response"]["action"] = "custom_response"
         r["response"]["block_mode"] = True
-        r["response"]["status"] = 503
+        r["response"]["status"] = 403
     elif "bypass" in st:
         pass
     elif "deny" in st and "allow" not in st:
         r["response"]["action"] = "custom_response"
         r["response"]["block_mode"] = True
-        r["response"]["status"] = 503
+        r["response"]["status"] = 403
     elif "allowbot" in st:
         pass
     elif "denybot" in st:
         r["response"]["action"] = "custom_response"
         r["response"]["block_mode"] = True
         r["response"]["status"] = 247
+        r["response"]["tags"].append("challenge-phase01")
     return (r, name)
 
 

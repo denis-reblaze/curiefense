@@ -125,7 +125,7 @@ impl Config {
                 limits: olimits,
                 name: rawmap.name,
             };
-            if rawmap.match_ == "__default__" {
+            if rawmap.match_ == "__default__" || (rawmap.match_ == "/" && urlmap.name == "default") {
                 if default.is_some() {
                     logs.warning("Multiple __default__ maps");
                 }
@@ -165,6 +165,12 @@ impl Config {
         // build the entries while looking for the default entry
         for rawmap in rawmaps {
             let (entries, default_entry) = Config::resolve_url_maps(logs, rawmap.map, &limits, &acls, &wafprofiles);
+            if default_entry.is_none() {
+                logs.warning(format!(
+                    "HostMap entry '{}', id '{}' does not have a default entry",
+                    rawmap.name, rawmap.id
+                ));
+            }
             let mapname = rawmap.name.clone();
             let hostmap = HostMap {
                 id: rawmap.id,
@@ -174,7 +180,10 @@ impl Config {
             };
             if rawmap.match_ == "__default__" {
                 if default.is_some() {
-                    println!("overwriting default entry!");
+                    logs.error(format!(
+                        "HostMap entry '{}', id '{}' has several default entries",
+                        hostmap.name, hostmap.id
+                    ));
                 }
                 default = Some(hostmap);
             } else {

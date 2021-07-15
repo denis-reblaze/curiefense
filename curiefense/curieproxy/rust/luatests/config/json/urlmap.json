@@ -114,6 +114,17 @@
                 ]
             },
             {
+                "name": "ban-test",
+                "match": "/limits/ban-test",
+                "acl_profile": "__default__",
+                "acl_active": true,
+                "waf_profile": "__default__",
+                "waf_active": true,
+                "limit_ids": [
+                    "f971e92459e2"
+                ]
+            },
+            {
                 "match": "/",
                 "name": "default",
                 "acl_profile": "__default__",
