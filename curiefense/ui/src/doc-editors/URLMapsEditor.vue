@@ -419,16 +419,22 @@ export default (Vue as VueConstructor<Vue & {
       const newDomainMatch = this.localDoc.match?.trim()
       const isDomainMatchEmpty = newDomainMatch === ''
       const isDomainMatchDuplicate = this.domainNames.includes(
-          newDomainMatch) ? this.initialDocDomainMatch !== newDomainMatch : false
-      return !isDomainMatchEmpty && !isDomainMatchDuplicate
+        newDomainMatch,
+      ) ? this.initialDocDomainMatch !== newDomainMatch : false
+      // eslint-disable-next-line
+      const isValueAcceptable = !newDomainMatch.length || !!newDomainMatch.match( /^(((?:[-;:&=+$,\w]+@)?[A-Za-z0-9.-]+|(?:www.|[-;:&=+$,\w]+@)[A-Za-z0-9.-]+)?((?:\/[+~%/.\w-_]*)?\??(?:[-/+=&;%@.\w_]*)#?(?:[\w]*))?)?$/g )
+      return !isDomainMatchEmpty && !isDomainMatchDuplicate && isValueAcceptable
     },
 
     isSelectedMapEntryMatchValid(index: number): boolean {
       const newMapEntryMatch = this.localDoc.map[index] ? this.localDoc.map[index].match.trim() : ''
       const isMapEntryMatchEmpty = newMapEntryMatch === ''
       const isMapEntryMatchDuplicate = this.entriesMatchNames.includes(
-          newMapEntryMatch) ? this.initialMapEntryMatch !== newMapEntryMatch : false
-      return !isMapEntryMatchEmpty && !isMapEntryMatchDuplicate
+        newMapEntryMatch,
+      ) ? this.initialMapEntryMatch !== newMapEntryMatch : false
+      // eslint-disable-next-line
+      const isValueAcceptable = !newMapEntryMatch.length || !!newMapEntryMatch.match( /^(((\/?)(?:[-;:&=+$,\w]+@)?[A-Za-z0-9.-]+|(?:www.|[-;:&=+$,\w]+@)[A-Za-z0-9.-]+)?((?:\/[+~%/.\w-_]*)?\??(?:[-/+=&;%@.\w_]*)#?(?:[\w]*))?)?$/g )
+      return !isMapEntryMatchEmpty && !isMapEntryMatchDuplicate && isValueAcceptable
     },
 
     aclProfileName(id: string): [string, string] {
