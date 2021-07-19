@@ -348,6 +348,12 @@ import {ACLPolicy, RateLimit, URLMap, URLMapEntryMatch, WAFPolicy} from '@/types
 import {AxiosResponse} from 'axios'
 import Utils from '@/assets/Utils'
 
+const checkUrl = ( url: string ) => {
+  // eslint-disable-next-line
+  const URL_REGEX = /^[A-Za-z0-9]+(((?:[-;:&=+$,\w]+@)?[A-Za-z0-9.-]+|(?:www.|[-;:&=+$,\w]+@)[A-Za-z0-9.-]+)?((?:\/[+~%/.\w-_]*)?\??(?:[-/+=&;%@.\w_]*)#?(?:[\w]*))?)?$/g
+  return (new RegExp( URL_REGEX )).test( url )
+}
+
 export default (Vue as VueConstructor<Vue & {
   $refs: {
     profileName: HTMLInputElement[]
@@ -362,7 +368,6 @@ export default (Vue as VueConstructor<Vue & {
     docs: Array,
     apiPath: String,
   },
-
 
   data() {
     return {
@@ -421,8 +426,7 @@ export default (Vue as VueConstructor<Vue & {
       const isDomainMatchDuplicate = this.domainNames.includes(
         newDomainMatch,
       ) ? this.initialDocDomainMatch !== newDomainMatch : false
-      // eslint-disable-next-line
-      const isValueAcceptable = !newDomainMatch.length || !!newDomainMatch.match( /^(((?:[-;:&=+$,\w]+@)?[A-Za-z0-9.-]+|(?:www.|[-;:&=+$,\w]+@)[A-Za-z0-9.-]+)?((?:\/[+~%/.\w-_]*)?\??(?:[-/+=&;%@.\w_]*)#?(?:[\w]*))?)?$/g )
+      const isValueAcceptable = !newDomainMatch.length || checkUrl( newDomainMatch )
       return !isDomainMatchEmpty && !isDomainMatchDuplicate && isValueAcceptable
     },
 
@@ -432,9 +436,13 @@ export default (Vue as VueConstructor<Vue & {
       const isMapEntryMatchDuplicate = this.entriesMatchNames.includes(
         newMapEntryMatch,
       ) ? this.initialMapEntryMatch !== newMapEntryMatch : false
-      // eslint-disable-next-line
-      const isValueAcceptable = !newMapEntryMatch.length || !!newMapEntryMatch.match( /^(((\/?)(?:[-;:&=+$,\w]+@)?[A-Za-z0-9.-]+|(?:www.|[-;:&=+$,\w]+@)[A-Za-z0-9.-]+)?((?:\/[+~%/.\w-_]*)?\??(?:[-/+=&;%@.\w_]*)#?(?:[\w]*))?)?$/g )
-      return !isMapEntryMatchEmpty && !isMapEntryMatchDuplicate && isValueAcceptable
+      let result = newMapEntryMatch.startsWith( '/' )
+      if ( result ) {
+        const unslashedValue = newMapEntryMatch.substring(1)
+        const isValueAcceptable = !unslashedValue.length || checkUrl( unslashedValue )
+        result = !isMapEntryMatchEmpty && !isMapEntryMatchDuplicate && isValueAcceptable
+      }
+      return result
     },
 
     aclProfileName(id: string): [string, string] {
