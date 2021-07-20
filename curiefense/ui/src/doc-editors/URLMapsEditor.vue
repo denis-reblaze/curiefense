@@ -348,12 +348,6 @@ import {ACLPolicy, RateLimit, URLMap, URLMapEntryMatch, WAFPolicy} from '@/types
 import {AxiosResponse} from 'axios'
 import Utils from '@/assets/Utils'
 
-const checkUrl = ( url: string ) => {
-  // eslint-disable-next-line
-  const URL_REGEX = /^[A-Za-z0-9]+(((?:[-;:&=+$,\w]+@)?[A-Za-z0-9.-]+|(?:www.|[-;:&=+$,\w]+@)[A-Za-z0-9.-]+)?((?:\/[+~%/.\w-_]*)?\??(?:[-/+=&;%@.\w_]*)#?(?:[\w]*))?)?$/g
-  return (new RegExp( URL_REGEX )).test( url )
-}
-
 export default (Vue as VueConstructor<Vue & {
   $refs: {
     profileName: HTMLInputElement[]
@@ -420,29 +414,34 @@ export default (Vue as VueConstructor<Vue & {
       }
     },
 
+    isURLValid( url: string ) {
+      const URL_REGEX = /^[A-Za-z0-9]+[A-Za-z0-9%-._~:\/?#[\]@!$&'()*+,;=]*$/g
+      return URL_REGEX.test( url )
+    },
+
     isSelectedDomainMatchValid(): boolean {
       const newDomainMatch = this.localDoc.match?.trim()
       const isDomainMatchEmpty = newDomainMatch === ''
       const isDomainMatchDuplicate = this.domainNames.includes(
         newDomainMatch,
       ) ? this.initialDocDomainMatch !== newDomainMatch : false
-      const isValueAcceptable = !newDomainMatch.length || checkUrl( newDomainMatch )
-      return !isDomainMatchEmpty && !isDomainMatchDuplicate && isValueAcceptable
+      const domainMatchContainsInvalidCharacters = !newDomainMatch.length || this.isURLValid( newDomainMatch )
+      return !isDomainMatchEmpty && !isDomainMatchDuplicate && domainMatchContainsInvalidCharacters
     },
 
     isSelectedMapEntryMatchValid(index: number): boolean {
       const newMapEntryMatch = this.localDoc.map[index] ? this.localDoc.map[index].match.trim() : ''
-      let result = newMapEntryMatch.startsWith( '/' )
-      if ( result ) {
+      let isValid = newMapEntryMatch.startsWith( '/' )
+      if ( isValid ) {
         const unslashedValue = newMapEntryMatch.substring(1)
-        const isValueAcceptable = !unslashedValue.length || checkUrl( unslashedValue )
+        const mapEntryMatchContainsInvalidCharacters = !unslashedValue.length || this.isURLValid( unslashedValue )
         const isMapEntryMatchEmpty = newMapEntryMatch === ''
         const isMapEntryMatchDuplicate = this.entriesMatchNames.includes(
           newMapEntryMatch,
         ) ? this.initialMapEntryMatch !== newMapEntryMatch : false
-        result = !isMapEntryMatchEmpty && !isMapEntryMatchDuplicate && isValueAcceptable
+        isValid = !isMapEntryMatchEmpty && !isMapEntryMatchDuplicate && mapEntryMatchContainsInvalidCharacters
       }
-      return result
+      return isValid
     },
 
     aclProfileName(id: string): string[] {
