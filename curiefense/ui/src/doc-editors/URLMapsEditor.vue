@@ -415,7 +415,7 @@ export default (Vue as VueConstructor<Vue & {
     },
 
     isURLValid( url: string ) {
-      const URL_REGEX = /^[A-Za-z0-9]+[A-Za-z0-9%-._~:\/?#[\]@!$&'()*+,;=]*$/g
+      const URL_REGEX = /^[A-Za-z0-9]+[A-Za-z0-9%-._~:/?#[\]@!$&'()*+,;=]*$/g
       return URL_REGEX.test( url )
     },
 
