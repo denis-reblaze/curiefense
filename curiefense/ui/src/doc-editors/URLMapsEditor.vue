@@ -432,26 +432,24 @@ export default (Vue as VueConstructor<Vue & {
 
     isSelectedMapEntryMatchValid(index: number): boolean {
       const newMapEntryMatch = this.localDoc.map[index] ? this.localDoc.map[index].match.trim() : ''
-      const isMapEntryMatchEmpty = newMapEntryMatch === ''
-      const isMapEntryMatchDuplicate = this.entriesMatchNames.includes(
-        newMapEntryMatch,
-      ) ? this.initialMapEntryMatch !== newMapEntryMatch : false
       let result = newMapEntryMatch.startsWith( '/' )
       if ( result ) {
         const unslashedValue = newMapEntryMatch.substring(1)
         const isValueAcceptable = !unslashedValue.length || checkUrl( unslashedValue )
+        const isMapEntryMatchEmpty = newMapEntryMatch === ''
+        const isMapEntryMatchDuplicate = this.entriesMatchNames.includes(
+          newMapEntryMatch,
+        ) ? this.initialMapEntryMatch !== newMapEntryMatch : false
         result = !isMapEntryMatchEmpty && !isMapEntryMatchDuplicate && isValueAcceptable
       }
       return result
     },
 
-    aclProfileName(id: string): [string, string] {
-      return _.find(this.aclProfileNames, (profile) => {
-        return profile[0] === id
-      })
+    aclProfileName(id: string): string[] {
+      return _.find(this.aclProfileNames, (profile) => profile[0] === id)
     },
 
-    wafProfileName(id: string): [string, string] {
+    wafProfileName(id: string): string[] {
       return _.find(this.wafProfileNames, (profile) => {
         return profile[0] === id
       })
