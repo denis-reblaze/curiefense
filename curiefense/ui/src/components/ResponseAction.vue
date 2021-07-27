@@ -107,9 +107,8 @@
         </div>
       </template>
     </div>
-    <div
-      v-if="localAction && ['request_header', 'response'].includes( localAction.type )"
-      class="columns">
+    <div v-if="localAction && ['request_header', 'response'].includes( localAction.type )"
+         class="columns">
       <div
         class="column"
         :class="{
