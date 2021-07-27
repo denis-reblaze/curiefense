@@ -18,8 +18,7 @@
       12
       12
       -->
-      <div
-        v-if="labelDisplayedInline"
+      <div v-if="labelDisplayedInline"
         class="column is-2">
         <label class="label is-small has-text-left form-label">{{ label }}</label>
       </div>
@@ -43,16 +42,14 @@
       <div v-if="labelDisplayedInline && isSingleInputColumn"
            class="column is-2 pt-0">
       </div>
-      <div
-          v-if="localAction && ['response', 'redirect', 'ban'].includes( localAction.type )"
+      <div v-if="localAction && ['response', 'redirect', 'ban'].includes( localAction.type )"
           class="column"
           :class="{'is-5': labelDisplayedInline && !isSingleInputColumn,
                     'is-6': !labelDisplayedInline && !isSingleInputColumn,
                     'is-10 pt-0': labelDisplayedInline && isSingleInputColumn,
                     'is-12 pt-0': !labelDisplayedInline && isSingleInputColumn}">
         <div class="control is-fullwidth">
-          <input
-              v-if="['response', 'redirect'].includes( localAction.type )"
+          <input v-if="['response', 'redirect'].includes( localAction.type )"
               class="input is-small action-status"
               type="text"
               v-model="localAction.params.status"
@@ -60,8 +57,7 @@
               title="Status code"
               placeholder="Status code" />
           <span v-else class="suffix seconds-suffix">
-            <input
-              class="input is-small action-duration"
+            <input class="input is-small action-duration"
               type="text"
               v-model="localAction.params.ttl"
               @input="fieldChange( 'ttl' )"
@@ -95,8 +91,7 @@
           </div>
           <div v-if="localAction.type === 'redirect'"
                class="control is-fullwidth">
-            <input
-              class="input is-small action-location"
+            <input class="input is-small action-location"
               type="text"
               v-model="localAction.params.location"
               @input="fieldChange( 'location' )"
@@ -109,35 +104,30 @@
     </div>
     <div v-if="localAction && ['request_header', 'response'].includes( localAction.type )"
          class="columns">
-      <div
-        class="column"
+      <div class="column"
         :class="{
           'is-6': !labelDisplayedInline || isSingleInputColumn,
           'is-5 is-offset-2': labelDisplayedInline && !isSingleInputColumn,
         }">
-        <input
-          v-model="tempHeader.name"
+        <input v-model="tempHeader.name"
           class="input is-small action-headers"
           type="text"
           placeholder="Header Name"
           @input="fieldChange( 'headers-name' )" />
       </div>
-      <div
-        class="column"
+      <div class="column"
         :class="{
           'is-6': !labelDisplayedInline || isSingleInputColumn,
           'is-5': labelDisplayedInline && !isSingleInputColumn,
         }">
-        <input
-          v-model="tempHeader.value"
+        <input v-model="tempHeader.value"
           class="input is-small action-headers-value"
           type="text"
           placeholder="Header Value"
           @input="fieldChange( 'headers-value' )" />
       </div>
     </div>
-    <div
-      class="content"
+    <div class="content"
       v-if="localAction && localAction.type === 'ban' && localAction.params.action">
       <response-action
         :action.sync="localAction.params.action"
