@@ -4,6 +4,7 @@ import * as bulmaToast from 'bulma-toast'
 import {Options} from 'bulma-toast'
 import axios from 'axios'
 import {JSDOM} from 'jsdom'
+import {GenericObject} from '@/types'
 
 describe('Utils.ts', () => {
   describe('generateUniqueEntityName function', () => {
@@ -239,6 +240,63 @@ describe('Utils.ts', () => {
         done()
       })
     })
+  })
+
+  describe('uploadFile function', () => {
+    let file: File
+    let callback: Function
+    let dataValidator: (data: GenericObject) => boolean
+    let dataSender: Function
+    let fileData: string
+    beforeEach(() => {
+      fileData = '{foo: \'bar\'}'
+      file = new File([fileData], 'test-file.json', {lastModified: 0, type: 'application/json'});
+      // file = {
+      //   name: 'mock.json',
+      //   size: 1000,
+      //   type: 'application/json',
+      //   lastModified: 0,
+      //   webkitRelativePath: '',
+      //   arrayBuffer: Promise,
+      //   slice: Function
+      // }
+    })
+
+    test('should not throw errors if given valid input', (done) => {
+      try {
+        Utils.uploadFile({file, callback, dataValidator, dataSender})
+        done()
+      } catch (err) {
+        expect(err).not.toBeDefined()
+        done()
+      }
+    })
+
+    // test('should not log errors if given valid input', (done) => {
+    //   const originalLog = console.log
+    //   const consoleOutput: string[] = []
+    //   console.log = (output: string) => consoleOutput.push(output)
+    //   Utils.downloadFile(fileName, fileType, data)
+    //   // allow all requests to finish
+    //   setImmediate(() => {
+    //     expect(consoleOutput).toEqual([])
+    //     console.log = originalLog
+    //     done()
+    //   })
+    // })
+
+    // test('should log message when receiving unknown file type', (done) => {
+    //   const originalLog = console.log
+    //   const consoleOutput: string[] = []
+    //   console.log = (output: string) => consoleOutput.push(output)
+    //   Utils.downloadFile(fileName, 'weird string', data)
+    //   // allow all requests to finish
+    //   setImmediate(() => {
+    //     expect(consoleOutput).toContain(`Unable to download file, unknown file type`)
+    //     console.log = originalLog
+    //     done()
+    //   })
+    // })
   })
 
   describe('toast function', () => {

@@ -1,5 +1,6 @@
 import * as bulmaToast from 'bulma-toast'
 import {ToastType} from 'bulma-toast'
+import {GenericObject} from '@/types'
 
 const invalidityClasses = ` has-text-danger has-background-danger-light`
 
@@ -73,6 +74,45 @@ const downloadFile = (fileName: string, fileType: string, data: any) => {
   link.click()
 }
 
+type UploadFileParams = {
+  file: File,
+  callback: Function,
+  dataValidator: (data: GenericObject) => boolean,
+  dataSender: Function,
+}
+
+const uploadFile = ({file, callback, dataValidator, dataSender}: UploadFileParams) => {
+  const reader = new FileReader()
+  const fileName = file.name
+  const fileType = fileName.split( '.' )[1]
+  const failureMessage = `Failed while attempting to upload ${fileName}:<br />`
+  const onFail = () => {
+    toast(`${failureMessage}Invalid file`, 'is-danger')
+    callback()
+  }
+  reader.onload = (e) => {
+    const {result} = e.target
+    if ( result ) {
+      let uploadData
+      if (fileType.toLowerCase() === 'json') {
+        try {
+          uploadData = JSON.parse( result as string )
+        } catch {
+          onFail()
+        }
+      }
+      if ( uploadData?.length && dataValidator(uploadData[0])) {
+        dataSender(uploadData, fileName, `${failureMessage}Internal server error`)
+      } else {
+        onFail()
+      }
+    }
+  }
+  reader.onerror = onFail
+  reader.onabort = onFail
+  reader.readAsText( file )
+}
+
 // Default values for toast messages
 bulmaToast.setDefaults({
   position: 'bottom-left',
@@ -133,4 +173,5 @@ export default {
   downloadFile,
   toast,
   removeExtraWhitespaces,
+  uploadFile,
 }

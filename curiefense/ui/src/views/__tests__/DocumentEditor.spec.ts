@@ -1525,6 +1525,16 @@ describe('DocumentEditor.vue', () => {
       await Vue.nextTick()
       expect(downloadFileSpy).toHaveBeenCalledWith(wantedFileName, wantedFileType, wantedFileData)
     })
+
+    // test('should attempt to upload document when upload button is clicked', async () => {
+    //   const wantedFileName = 'aclpolicies'
+    //   const wantedFileType = 'json'
+    //   const wantedFileData = aclDocs
+    //   const downloadDocButton = wrapper.find('.download-doc-button')
+    //   downloadDocButton.trigger('click')
+    //   await Vue.nextTick()
+    //   expect(downloadFileSpy).toHaveBeenCalledWith(wantedFileName, wantedFileType, wantedFileData)
+    // })
   })
 
   describe('no data', () => {
