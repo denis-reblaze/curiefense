@@ -405,14 +405,14 @@ export default Vue.extend({
 
     async loadConfigs(counterOnly?: boolean) {
       // store configs
-      let configs
-      try {
-        const response = await RequestsUtils.sendRequest({methodName: 'GET', url: 'configs/'})
-        configs = response.data
-      } catch (err) {
-        console.log('Error while attempting to get configs')
-        console.log(err)
-      }
+      const response = await RequestsUtils.sendRequest({
+        methodName: 'GET',
+        url: 'configs/',
+        onFail() {
+          console.log('Error while attempting to get configs')
+        },
+      })
+      const configs = response.data
       if (!counterOnly) {
         console.log('loaded configs: ', configs)
         this.configs = configs
@@ -548,7 +548,7 @@ export default Vue.extend({
         Utils.uploadFile({
           file: files.item(0),
           callback,
-          dataSender: async (fileData: [], fileName: string, failureMessage: string) => {
+          dataSender: async (fileData: GenericObject[], fileName: string, failureMessage: string) => {
             const {data} = await RequestsUtils.sendRequest({
               data: fileData,
               url: `configs/${this.selectedBranch}/d/${this.selectedDocType}/`,

@@ -246,7 +246,7 @@ describe('Utils.ts', () => {
     let file: File
     let callback: Function
     let dataValidator: (data: GenericObject) => boolean
-    let dataSender: Function
+    let dataSender: (uploadData: GenericObject, fileName: string, failureMessage: string) => void
     let fileData: string
     beforeEach(() => {
       fileData = '{foo: \'bar\'}'

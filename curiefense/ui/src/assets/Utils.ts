@@ -78,7 +78,7 @@ type UploadFileParams = {
   file: File,
   callback: Function,
   dataValidator: (data: GenericObject) => boolean,
-  dataSender: Function,
+  dataSender: (uploadData: GenericObject[], fileName: string, failureMessage: string) => void,
 }
 
 const uploadFile = ({file, callback, dataValidator, dataSender}: UploadFileParams) => {
@@ -109,7 +109,6 @@ const uploadFile = ({file, callback, dataValidator, dataSender}: UploadFileParam
     }
   }
   reader.onerror = onFail
-  reader.onabort = onFail
   reader.readAsText( file )
 }
 
