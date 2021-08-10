@@ -244,27 +244,23 @@ describe('Utils.ts', () => {
 
   describe('uploadFile function', () => {
     let file: File
-    let callback: Function
     let dataValidator: (data: GenericObject) => boolean
-    let dataSender: (uploadData: GenericObject, fileName: string, failureMessage: string) => void
+    let dataSender: (uploadData: GenericObject) => Promise<void>
     let fileData: string
+    const pauseFor = (milliseconds: number) => new Promise(resolve => setTimeout(resolve, milliseconds))
     beforeEach(() => {
-      fileData = '{foo: \'bar\'}'
-      file = new File([fileData], 'test-file.json', {lastModified: 0, type: 'application/json'});
-      // file = {
-      //   name: 'mock.json',
-      //   size: 1000,
-      //   type: 'application/json',
-      //   lastModified: 0,
-      //   webkitRelativePath: '',
-      //   arrayBuffer: Promise,
-      //   slice: Function
-      // }
+      fileData = '[{"foo": "bar"}]'
+      file = new File([fileData], 'test-file.json', {lastModified: 0, type: 'application/json'})
+      dataValidator = jest.fn(() => true)
+      dataSender = jest.fn(() => Promise.resolve())
+    })
+    afterEach(() => {
+      jest.clearAllMocks()
     })
 
     test('should not throw errors if given valid input', (done) => {
       try {
-        Utils.uploadFile({file, callback, dataValidator, dataSender})
+        Utils.uploadFile(file, dataSender, dataValidator)
         done()
       } catch (err) {
         expect(err).not.toBeDefined()
@@ -272,31 +268,33 @@ describe('Utils.ts', () => {
       }
     })
 
-    // test('should not log errors if given valid input', (done) => {
-    //   const originalLog = console.log
-    //   const consoleOutput: string[] = []
-    //   console.log = (output: string) => consoleOutput.push(output)
-    //   Utils.downloadFile(fileName, fileType, data)
-    //   // allow all requests to finish
-    //   setImmediate(() => {
-    //     expect(consoleOutput).toEqual([])
-    //     console.log = originalLog
-    //     done()
-    //   })
-    // })
+    test('should send valid file to server', async () => {
+      Utils.uploadFile(file, dataSender, dataValidator)
+      await pauseFor(100)
+      expect(dataSender).toHaveBeenCalledTimes(1)
+    })
 
-    // test('should log message when receiving unknown file type', (done) => {
-    //   const originalLog = console.log
-    //   const consoleOutput: string[] = []
-    //   console.log = (output: string) => consoleOutput.push(output)
-    //   Utils.downloadFile(fileName, 'weird string', data)
-    //   // allow all requests to finish
-    //   setImmediate(() => {
-    //     expect(consoleOutput).toContain(`Unable to download file, unknown file type`)
-    //     console.log = originalLog
-    //     done()
-    //   })
-    // })
+    describe('should not send invalid file to server and should show a toast message', () => {
+      test('invalid by validator', async () => {
+        dataValidator = jest.fn(() => false)
+        Utils.uploadFile(file, dataSender, dataValidator)
+        await pauseFor(100)
+        expect(dataSender).toHaveBeenCalledTimes(0)
+      })
+      test('invalid file type', async () => {
+        file = new File([fileData], 'test.pdf', {lastModified: 0, type: 'application/pdf'})
+        Utils.uploadFile(file, dataSender, dataValidator)
+        await pauseFor(100)
+        expect(dataSender).toHaveBeenCalledTimes(0)
+      })
+      test('invalid json', async () => {
+        fileData = '[{"foo": /bar"}]'
+        file = new File([fileData], 'test-invalid.json', {lastModified: 0, type: 'application/json'})
+        Utils.uploadFile(file, dataSender, dataValidator)
+        await pauseFor(100)
+        expect(dataSender).toHaveBeenCalledTimes(0)
+      })
+    })
   })
 
   describe('toast function', () => {

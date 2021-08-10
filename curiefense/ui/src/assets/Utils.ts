@@ -1,5 +1,6 @@
 import * as bulmaToast from 'bulma-toast'
 import {ToastType} from 'bulma-toast'
+import {AxiosResponse} from 'axios'
 import {GenericObject} from '@/types'
 
 const invalidityClasses = ` has-text-danger has-background-danger-light`
@@ -59,10 +60,7 @@ const downloadFile = (fileName: string, fileType: string, data: any) => {
     return
   }
   // Create downloadable content based on file type
-  let content: BlobPart = ''
-  if (fileType === 'json') {
-    content = JSON.stringify(data)
-  }
+  const content: BlobPart = JSON.stringify(data)
   // Create anchor element with download data
   const blob = new Blob([content], {
     type: `application/${fileType}`,
@@ -74,42 +72,28 @@ const downloadFile = (fileName: string, fileType: string, data: any) => {
   link.click()
 }
 
-type UploadFileParams = {
-  file: File,
-  callback: Function,
-  dataValidator: (data: GenericObject) => boolean,
-  dataSender: (uploadData: GenericObject[], fileName: string, failureMessage: string) => void,
-}
-
-const uploadFile = ({file, callback, dataValidator, dataSender}: UploadFileParams) => {
-  const reader = new FileReader()
-  const fileName = file.name
-  const fileType = fileName.split( '.' )[1]
-  const failureMessage = `Failed while attempting to upload ${fileName}:<br />`
-  const onFail = () => {
-    toast(`${failureMessage}Invalid file`, 'is-danger')
-    callback()
-  }
-  reader.onload = (e) => {
-    const {result} = e.target
-    if ( result ) {
+type UploadFileFunction = Promise<{response: Partial<AxiosResponse>, uploadData: GenericObject[]}>
+const uploadFile = (file: File, dataSender: Function, dataValidator: Function): UploadFileFunction => {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    const fileType = file.name.split('.')[1]?.toLowerCase()
+    reader.onload = async (e) => {
       let uploadData
-      if (fileType.toLowerCase() === 'json') {
+      if (fileType === 'json') {
         try {
-          uploadData = JSON.parse( result as string )
-        } catch {
-          onFail()
+          uploadData = JSON.parse(e.target.result as string)
+        } catch (err) {
+          console.log(err)
         }
       }
-      if ( uploadData?.length && dataValidator(uploadData[0])) {
-        dataSender(uploadData, fileName, `${failureMessage}Internal server error`)
-      } else {
-        onFail()
+      let response: Partial<AxiosResponse> = {data: {}}
+      if (uploadData?.length && dataValidator(uploadData[0])) {
+        response = await dataSender(uploadData)
       }
+      resolve({response, uploadData})
     }
-  }
-  reader.onerror = onFail
-  reader.readAsText( file )
+    reader.readAsText(file)
+  })
 }
 
 // Default values for toast messages

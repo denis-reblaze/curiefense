@@ -537,39 +537,33 @@ export default Vue.extend({
       }
     },
 
-    uploadDoc( event: Event ) {
-      const {files} = event.target as HTMLInputElement
-      if ( files.length ) {
-        this.isUploading = true
-        const callback = () => {
-          (event.target as HTMLInputElement).value = ''
-          this.isUploading = false
-        }
-        Utils.uploadFile({
-          file: files.item(0),
-          callback,
-          dataSender: async (fileData: GenericObject[], fileName: string, failureMessage: string) => {
-            const {data} = await RequestsUtils.sendRequest({
-              data: fileData,
-              url: `configs/${this.selectedBranch}/d/${this.selectedDocType}/`,
-              methodName: 'PUT',
-              successMessage: `Successfully uploaded ${fileName}`,
-              failureMessage,
-            })
-            if ( data?.ok ) {
-              this.docs = _.unionBy(fileData, this.docs, 'id')
-              this.updateDocIdNames()
-              this.selectedDocID = this.docIdNames[0][0]
-            } else if ( data?.errors?.length ) {
-              console.log(data.errors.join('\n'))
-            }
-            callback()
-          },
-          dataValidator: (uploadDataExample: GenericObject) => {
-            return _.isEqual( Object.keys( uploadDataExample ), Object.keys( this.newDoc() ))
-          },
+    async uploadDoc( {target}: Event ) {
+      this.isUploading = true
+      const {files} = target as HTMLInputElement
+      if ( files?.length ) {
+        const file = files.item(0)
+        const failureMessage = `Failed while attempting to upload ${file.name}:<br />`
+        const dataSender = (fileData: GenericObject[]) => RequestsUtils.sendRequest({
+          data: fileData,
+          url: `configs/${this.selectedBranch}/d/${this.selectedDocType}/`,
+          methodName: 'PUT',
+          successMessage: `Successfully uploaded ${file.name}`,
+          failureMessage: `${failureMessage}Internal server error`,
         })
+        const dataValidator = (uploadDataExample: GenericObject) => {
+          return _.isEqual( Object.keys( uploadDataExample ), Object.keys( this.newDoc() ))
+        }
+        const {response, uploadData} = await Utils.uploadFile(file, dataSender, dataValidator)
+        if ( response.data?.ok ) {
+          this.docs = _.unionBy(uploadData, this.docs, 'id')
+          this.updateDocIdNames()
+          this.selectedDocID = this.docIdNames[0][0]
+        } else if ( response.data ) {
+          Utils.toast(`${failureMessage}Invalid file`, 'is-danger')
+        }
       }
+      (target as HTMLInputElement).value = ''
+      this.isUploading = false
     },
 
     async forkDoc() {
