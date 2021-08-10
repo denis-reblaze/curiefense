@@ -247,7 +247,7 @@ describe('Utils.ts', () => {
     let dataValidator: (data: GenericObject) => boolean
     let dataSender: (uploadData: GenericObject) => Promise<void>
     let fileData: string
-    const pauseFor = (milliseconds: number) => new Promise(resolve => setTimeout(resolve, milliseconds))
+    const pauseFor = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds))
     beforeEach(() => {
       fileData = '[{"foo": "bar"}]'
       file = new File([fileData], 'test-file.json', {lastModified: 0, type: 'application/json'})

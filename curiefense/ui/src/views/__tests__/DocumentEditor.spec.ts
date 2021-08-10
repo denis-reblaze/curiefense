@@ -7,7 +7,7 @@ import {shallowMount, Wrapper} from '@vue/test-utils'
 import Vue from 'vue'
 import axios from 'axios'
 import _ from 'lodash'
-import { ACLPolicy, Branch, Commit, FlowControl, RateLimit, TagRule, GenericObject, URLMap, WAFPolicy } from '@/types'
+import {ACLPolicy, Branch, Commit, FlowControl, RateLimit, TagRule, GenericObject, URLMap, WAFPolicy} from '@/types'
 
 jest.mock('axios')
 
@@ -1542,7 +1542,7 @@ describe('DocumentEditor.vue', () => {
               },
               length: 1,
             },
-          }
+          },
         }
       })
       afterEach(() => {
