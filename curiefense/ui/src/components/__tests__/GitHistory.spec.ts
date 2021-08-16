@@ -90,8 +90,8 @@ describe('GitHistory.vue', () => {
   describe('log table rendering', () => {
     test('should only render five rows in addition to header ' +
       'if the log has more than 5 rows of data', () => {
-        expect(wrapper.findAll('tr').length).toEqual(6)
-      })
+      expect(wrapper.findAll('tr').length).toEqual(6)
+    })
 
     test('should render all rows if table expanded in addition to header', async () => {
       const loadMore = wrapper.find('.load-more a')
@@ -101,9 +101,9 @@ describe('GitHistory.vue', () => {
 
     test('should render footer with expand message ' +
       'if table is not expanded and more than five items are present', () => {
-        const loadMore = wrapper.find('.load-more a')
-        expect(loadMore.text()).toEqual('Load More')
-      })
+      const loadMore = wrapper.find('.load-more a')
+      expect(loadMore.text()).toEqual('Load More')
+    })
 
     test('should not render footer with expand message if table is already expanded', async () => {
       await wrapper.find('.load-more a').trigger('click')
@@ -179,14 +179,14 @@ describe('GitHistory.vue', () => {
     test('should load git changes on accordion opening', async () => {
       const firstDataRow = wrapper.findAll('tr').at(1)
       const viewDetailsBtn = firstDataRow.find('.view-details')
-      const { version, parents } = gitLog[0]
+      const {version, parents} = gitLog[0]
       await viewDetailsBtn.trigger('click')
       expect(wrapper.emitted('show-changes')).toBeTruthy()
       expect(wrapper.emitted('show-changes')[0]).toEqual([version, parents])
       expect((wrapper.vm as any).viewCommit).toEqual(version)
     })
     test('should close commit details', async () => {
-      await wrapper.setData({ viewCommit: gitLog[0].version })
+      await wrapper.setData({viewCommit: gitLog[0].version})
       const firstDataRow = wrapper.findAll('tr').at(1)
       const viewDetailsBtn = firstDataRow.find('.view-details')
       await viewDetailsBtn.trigger('click')
@@ -194,8 +194,8 @@ describe('GitHistory.vue', () => {
       expect((wrapper.vm as any).viewCommitChanges).toBeFalsy()
     })
     test('should open and close commit changes', async () => {
-      const { version } = gitLog[0]
-      await wrapper.setData({ viewCommit: version })
+      const {version} = gitLog[0]
+      await wrapper.setData({viewCommit: version})
       const firstDataRow = wrapper.find('.commit-details-header')
       const viewChangesBtn = firstDataRow.find('a')
       await viewChangesBtn.trigger('click')
