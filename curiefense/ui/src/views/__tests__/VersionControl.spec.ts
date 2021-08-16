@@ -322,7 +322,7 @@ describe('VersionControl.vue', () => {
     const putSpy = jest.spyOn(axios, 'put')
     putSpy.mockImplementation(() => Promise.resolve())
     const gitHistory = wrapper.findComponent(GitHistory)
-    gitHistory.vm.$emit('restore-version', wantedVersion)
+    gitHistory.vm.$emit('restore-version', wantedVersion.version)
     await Vue.nextTick()
     expect(putSpy).toHaveBeenCalledWith(`/conf/api/v1/configs/master/v/${wantedVersion.version}/revert/`)
   })

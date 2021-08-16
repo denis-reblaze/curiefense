@@ -145,12 +145,11 @@
       <div class="content">
         <hr/>
         <git-history
-          :not-collapsible="true"
+          :is-collapsible="false"
           :git-log="gitLog"
           :api-path="gitAPIPath"
           :loading="isLoadingGitlog || isDownloadLoading"
-          @restore-version="restoreGitVersion"
-        />
+          @restore-version="restoreGitVersion" />
       </div>
     </div>
   </div>
@@ -301,10 +300,9 @@ export default Vue.extend({
       })
     },
 
-    async restoreGitVersion(gitVersion: Commit) {
+    async restoreGitVersion(versionId: Commit['version']) {
       this.resetGitLog()
       const branch = this.selectedBranch
-      const versionId = gitVersion.version
       const urlTrail = `configs/${branch}/v/${versionId}/`
 
       await RequestsUtils.sendRequest({

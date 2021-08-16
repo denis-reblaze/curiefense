@@ -162,7 +162,7 @@ describe('DBEditor.vue', () => {
     const putSpy = jest.spyOn(axios, 'put')
     putSpy.mockImplementation(() => Promise.resolve())
     const gitHistory = wrapper.findComponent(GitHistory);
-    gitHistory.vm.$emit('restore-version', wantedVersion)
+    gitHistory.vm.$emit('restore-version', wantedVersion.version)
     await Vue.nextTick()
     expect(putSpy).toHaveBeenCalledWith(`/conf/api/v1/db/system/v/${wantedVersion.version}/revert/`)
   })
@@ -175,7 +175,7 @@ describe('DBEditor.vue', () => {
     (wrapper.vm as any).selectedKey = wantedKey
     jest.spyOn(axios, 'put').mockImplementation(() => Promise.resolve())
     const gitHistory = wrapper.findComponent(GitHistory);
-    gitHistory.vm.$emit('restore-version', restoredVersion)
+    gitHistory.vm.$emit('restore-version', restoredVersion.version)
     // allow all requests to finish
     setImmediate(() => {
       expect((wrapper.vm as any).selectedKey).toEqual(wantedKey)
@@ -191,7 +191,7 @@ describe('DBEditor.vue', () => {
     (wrapper.vm as any).selectedKey = 'somekey'
     jest.spyOn(axios, 'put').mockImplementation(() => Promise.resolve())
     const gitHistory = wrapper.findComponent(GitHistory);
-    gitHistory.vm.$emit('restore-version', restoredVersion)
+    gitHistory.vm.$emit('restore-version', restoredVersion.version)
     // allow all requests to finish
     setImmediate(() => {
       expect((wrapper.vm as any).selectedKey).toEqual(wantedKey)

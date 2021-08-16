@@ -156,12 +156,16 @@
             @form-invalid="isDocumentInvalid = $event"
             ref="currentComponent">
         </component>
-        <hr/>
-        <git-history v-if="selectedDocID"
-                     :gitLog="gitLog"
-                     :apiPath="gitAPIPath"
-                     :loading="loadingGitlog"
-                     @restore-version="restoreGitVersion"></git-history>
+        <git-history
+          v-if="selectedDocID"
+          :git-log="gitLog"
+          :differences="gitDifferences"
+          :api-path="gitAPIPath"
+          :loading="isLoadingGitlog"
+          :loading-diffs="loadingDifferences"
+          @restore-version="restoreGitVersion"
+          @show-changes="loadGitDifferences">
+        </git-history>
       </div>
 
       <div class="content no-data-wrapper"
@@ -216,8 +220,16 @@ import FlowControlEditor from '@/doc-editors/FlowControlEditor.vue'
 import GitHistory from '@/components/GitHistory.vue'
 import {mdiSourceBranch, mdiSourceCommit} from '@mdi/js'
 import Vue from 'vue'
-import {BasicDocument, Commit, Document, DocumentType, URLMap} from '@/types'
+import {BasicDocument, Commit, Document, DocumentType, URLMap, GenericObject} from '@/types'
 import axios, {AxiosResponse} from 'axios'
+import {detailedDiff} from 'deep-object-diff'
+
+type GitChanges = {
+  [key: string]: {
+    current: string,
+    parent: string,
+  }
+}
 
 export default Vue.extend({
 
@@ -266,7 +278,15 @@ export default Vue.extend({
       isDocumentInvalid: false,
 
       gitLog: [],
-      loadingGitlog: false,
+      gitDifferences: {} as {
+        [key: string]: {
+          updated: GitChanges,
+          added: GenericObject,
+          deleted: GenericObject,
+        },
+      },
+      isLoadingGitlog: false,
+      loadingDifferences: '',
       commits: 0,
       branches: 0,
 
@@ -442,8 +462,8 @@ export default Vue.extend({
       })
       this.updateDocIdNames()
       if (this.docIdNames && this.docIdNames.length && this.docIdNames[0].length) {
-        if (!skipDocSelection || !_.find(this.docIdNames, (idName: [Document['id'], Document['name']]) => {
-          return idName[0] === this.selectedDocID
+        if (!skipDocSelection || !_.find(this.docIdNames, ([docId]: [Document['id']]) => {
+          return docId === this.selectedDocID
         })) {
           this.selectedDocID = this.docIdNames[0][0]
         }
@@ -453,21 +473,52 @@ export default Vue.extend({
       this.loadGitLog()
     },
 
-    loadGitLog(interaction?: boolean) {
-      this.loadingGitlog = true
+    async loadGitLog(interaction?: boolean) {
+      this.isLoadingGitlog = true
       const config = this.selectedBranch
       const document = this.selectedDocType
       const entry = this.selectedDocID
       const url = `configs/${config}/d/${document}/e/${entry}/v/`
       if (config && document && entry) {
-        RequestsUtils.sendRequest({methodName: 'GET', url}).then((response: AxiosResponse<Commit[]>) => {
-          this.gitLog = response?.data
-          if (interaction) {
-            this.loadConfigs(true)
-          }
-          this.loadingGitlog = false
-        })
+        this.gitLog = (await RequestsUtils.sendRequest({methodName: 'GET', url}))?.data
+        if (interaction) {
+          await this.loadConfigs(true)
+        }
       }
+      this.isLoadingGitlog = false
+    },
+
+    async loadGitDifferences(versionId: Commit['version'], [parentId]: Commit['parents']) {
+      this.loadingDifferences = versionId
+      if (!this.gitDifferences[versionId]) {
+        const loadGitVersion = async (versionId: Commit['version']) => {
+          const {selectedBranch, selectedDocType, selectedDocID} = this
+          const {data} = await RequestsUtils.sendRequest({
+            methodName: 'GET',
+            url: `configs/${selectedBranch}/d/${selectedDocType}/e/${selectedDocID}/v/${versionId}/`,
+          })
+          return data
+        }
+        const [currentVersion, parentVersion] = await Promise.all([
+          loadGitVersion(versionId),
+          loadGitVersion(parentId),
+        ])
+        const {updated, added, deleted} = detailedDiff(parentVersion, currentVersion) as GenericObject
+        if (!_.isEmpty({...updated, ...added, ...deleted})) {
+          this.gitDifferences[versionId] = {
+            added,
+            deleted,
+            updated: Object.keys(updated).reduce((obj: GitChanges, key: string) => ({
+              ...obj,
+              [key]: {
+                current: currentVersion[key as keyof Document],
+                parent: parentVersion[key as keyof Document],
+              },
+            }), {}),
+          }
+        }
+      }
+      this.loadingDifferences = ''
     },
 
     async switchBranch() {
@@ -610,7 +661,10 @@ export default Vue.extend({
     },
 
     async loadReferencedDocsIDs() {
-      const response = await RequestsUtils.sendRequest({methodName: 'GET', url: `configs/${this.selectedBranch}/d/urlmaps/`})
+      const response = await RequestsUtils.sendRequest({
+        methodName: 'GET',
+        url: `configs/${this.selectedBranch}/d/urlmaps/`,
+      })
       const docs = response?.data
       const referencedACL: string[] = []
       const referencedWAF: string[] = []

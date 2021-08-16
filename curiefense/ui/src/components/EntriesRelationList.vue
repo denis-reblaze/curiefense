@@ -482,7 +482,9 @@ export default Vue.extend({
       this.rule.sections.forEach(
         ({entries}, sectionIndex: number ) => entries.map(
           ({0: category, 1: value}) => {
-            const isDuplicate = entries.filter(({0: eCat, 1: eVal}) => eCat === category && _.isEqual(eVal, value))?.length > 1
+            const isDuplicate = entries.filter(
+              ({0: eCat, 1: eVal}) => eCat === category && _.isEqual(eVal, value),
+            )?.length > 1
             if ( isDuplicate && !this.isEntryDuplicate( sectionIndex, [category, value])) {
               this.duplicatedEntries.push( [sectionIndex, category, value] )
             }
@@ -509,7 +511,9 @@ export default Vue.extend({
 
     isEntryDuplicate( sectionIndex: number, [theCategory, theValue]: TagRuleSectionEntry ) {
       return this.duplicatedEntries.findIndex(
-        ([section, category, value]) => section === sectionIndex && category === theCategory && _.isEqual(value, theValue),
+        ([section, category, value]) => section === sectionIndex &&
+                                        category === theCategory &&
+                                        _.isEqual(value, theValue),
       ) > -1
     },
 

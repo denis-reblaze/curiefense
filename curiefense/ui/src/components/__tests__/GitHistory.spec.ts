@@ -90,8 +90,8 @@ describe('GitHistory.vue', () => {
   describe('log table rendering', () => {
     test('should only render five rows in addition to header ' +
       'if the log has more than 5 rows of data', () => {
-      expect(wrapper.findAll('tr').length).toEqual(6)
-    })
+        expect(wrapper.findAll('tr').length).toEqual(6)
+      })
 
     test('should render all rows if table expanded in addition to header', async () => {
       const loadMore = wrapper.find('.load-more a')
@@ -101,9 +101,9 @@ describe('GitHistory.vue', () => {
 
     test('should render footer with expand message ' +
       'if table is not expanded and more than five items are present', () => {
-      const loadMore = wrapper.find('.load-more a')
-      expect(loadMore.text()).toEqual('Load More')
-    })
+        const loadMore = wrapper.find('.load-more a')
+        expect(loadMore.text()).toEqual('Load More')
+      })
 
     test('should not render footer with expand message if table is already expanded', async () => {
       await wrapper.find('.load-more a').trigger('click')
@@ -118,9 +118,9 @@ describe('GitHistory.vue', () => {
 
     test('should open accordion on click on its header', async () => {
       const collapsingButton = wrapper.find('.collapsible-header a')
-      expect( collapsingButton.text() ).toContain( 'Show Version History' )
-      await collapsingButton.trigger( 'click' )
-      expect( collapsingButton.text() ).toContain( 'Hide Version History' )
+      expect(collapsingButton.text()).toContain('Show Version History')
+      await collapsingButton.trigger('click')
+      expect(collapsingButton.text()).toContain('Hide Version History')
     })
 
     test('should not render footer if less than five items are present', async () => {
@@ -142,24 +142,24 @@ describe('GitHistory.vue', () => {
       const restoreButton = firstDataRow.find('.restore-button')
       await restoreButton.trigger('click')
       expect(wrapper.emitted('restore-version')).toBeTruthy()
-      expect(wrapper.emitted('restore-version')[0]).toEqual([gitLog[0]])
+      expect(wrapper.emitted('restore-version')[0]).toEqual([gitLog[0].version])
     })
   })
 
   describe('git history sorting', () => {
     const AUTHOR_CELL = 4
     test('should sort table data by author in desc order', async () => {
-      const authorColumnHeader = wrapper.findAll( 'th' ).at( AUTHOR_CELL )
-      await authorColumnHeader.trigger( 'click' )
-      expect(wrapper.findAll('tr:first-child td').at( AUTHOR_CELL ).text()).toEqual( gitLog[gitLog.length-1].author )
-      expect(wrapper.findAll( 'th' ).at( AUTHOR_CELL ).classes()).toContain( 'desc' )
+      const authorColumnHeader = wrapper.findAll('th').at(AUTHOR_CELL)
+      await authorColumnHeader.trigger('click')
+      expect(wrapper.findAll('tr:first-child td').at(AUTHOR_CELL).text()).toEqual(gitLog[gitLog.length - 1].author)
+      expect(wrapper.findAll('th').at(AUTHOR_CELL).classes()).toContain('desc')
     })
     test('should change order to asc after second click', async () => {
-      const authorColumnHeader = wrapper.findAll( 'th' ).at( AUTHOR_CELL )
-      await authorColumnHeader.trigger( 'click' )
-      await authorColumnHeader.trigger( 'click' )
-      expect(wrapper.findAll( 'tr:first-child td' ).at( AUTHOR_CELL ).text()).toEqual( gitLog[0].author )
-      expect(wrapper.findAll( 'th' ).at( AUTHOR_CELL ).classes()).toContain( 'asc' )
+      const authorColumnHeader = wrapper.findAll('th').at(AUTHOR_CELL)
+      await authorColumnHeader.trigger('click')
+      await authorColumnHeader.trigger('click')
+      expect(wrapper.findAll('tr:first-child td').at(AUTHOR_CELL).text()).toEqual(gitLog[0].author)
+      expect(wrapper.findAll('th').at(AUTHOR_CELL).classes()).toContain('asc')
     })
     test('should not be sortable if there is the only history entry', async () => {
       const shortGitLog = gitLog.slice(0, 1)
@@ -169,9 +169,50 @@ describe('GitHistory.vue', () => {
           apiPath,
         },
       })
-      const authorColumnHeader = wrapper.findAll( 'th' ).at( AUTHOR_CELL )
-      await authorColumnHeader.trigger( 'click' )
-      expect(wrapper.findAll( '.asc, .desc' ).exists()).toBeFalsy()
+      const authorColumnHeader = wrapper.findAll('th').at(AUTHOR_CELL)
+      await authorColumnHeader.trigger('click')
+      expect(wrapper.findAll('.asc, .desc').exists()).toBeFalsy()
+    })
+  })
+
+  describe('git changes', () => {
+    test('should load git changes on accordion opening', async () => {
+      const firstDataRow = wrapper.findAll('tr').at(1)
+      const viewDetailsBtn = firstDataRow.find('.view-details')
+      const { version, parents } = gitLog[0]
+      await viewDetailsBtn.trigger('click')
+      expect(wrapper.emitted('show-changes')).toBeTruthy()
+      expect(wrapper.emitted('show-changes')[0]).toEqual([version, parents])
+      expect((wrapper.vm as any).viewCommit).toEqual(version)
+    })
+    test('should close commit details', async () => {
+      await wrapper.setData({ viewCommit: gitLog[0].version })
+      const firstDataRow = wrapper.findAll('tr').at(1)
+      const viewDetailsBtn = firstDataRow.find('.view-details')
+      await viewDetailsBtn.trigger('click')
+      expect((wrapper.vm as any).viewCommit).toBeFalsy()
+      expect((wrapper.vm as any).viewCommitChanges).toBeFalsy()
+    })
+    test('should open and close commit changes', async () => {
+      const { version } = gitLog[0]
+      await wrapper.setData({ viewCommit: version })
+      const firstDataRow = wrapper.find('.commit-details-header')
+      const viewChangesBtn = firstDataRow.find('a')
+      await viewChangesBtn.trigger('click')
+      expect((wrapper.vm as any).viewCommitChanges).toEqual(version)
+      await viewChangesBtn.trigger('click')
+      expect((wrapper.vm as any).viewCommitChanges).toBeFalsy()
+    })
+    test('should reset max number of displayed commits when accordion is collapsed', async () => {
+      const maxRowsInit = (wrapper.vm as any).maxRows
+      const loadMoreBtn = wrapper.find('.load-more a')
+      const showHistoryBtn = wrapper.find('.collapsible-header a')
+      await showHistoryBtn.trigger('click')
+      await loadMoreBtn.trigger('click')
+      expect((wrapper.vm as any).maxRows).toEqual(maxRowsInit * 2)
+      await showHistoryBtn.trigger('click')
+      await showHistoryBtn.trigger('click')
+      expect((wrapper.vm as any).maxRows).toEqual(maxRowsInit)
     })
   })
 })

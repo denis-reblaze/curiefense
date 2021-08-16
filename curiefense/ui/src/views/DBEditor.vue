@@ -554,10 +554,9 @@ export default Vue.extend({
       this.loadingGitlog = false
     },
 
-    async restoreGitVersion(gitVersion: Commit) {
+    async restoreGitVersion(versionId: Commit['version']) {
       const database = this.selectedDatabase
       const selectedKey = this.selectedKey
-      const versionId = gitVersion.version
       const urlTrail = `${database}/v/${versionId}/`
       await RequestsUtils.sendRequest({
         methodName: 'PUT',

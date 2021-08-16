@@ -489,7 +489,7 @@ describe('DocumentEditor.vue', () => {
     aclGitOldVersion = [
       {
         'id': '__default__',
-        'name': 'default-acl',
+        'name': 'default-acl-old',
         'allow': [],
         'allow_bot': [
           'google',
@@ -774,6 +774,12 @@ describe('DocumentEditor.vue', () => {
       if (path === '/conf/api/v1/configs/zzz_branch/v/') {
         return Promise.resolve({data: gitData[1].logs})
       }
+      if (path === `/conf/api/v1/configs/${branch}/d/aclpolicies/e/__default__/v/82d8f29096af1db07dbf7e1cff581fdf6e1a7440/`) {
+        return Promise.resolve({data: aclDocs[0]})
+      }
+      if (path === `/conf/api/v1/configs/${branch}/d/aclpolicies/e/__default__/v/7f8a987c8e5e9db7c734ac8841c543d5bc5d9657/`) {
+        return Promise.resolve({data: aclGitOldVersion[0]})
+      }
       return Promise.resolve({data: []})
     })
     mockRoute = {
@@ -818,6 +824,18 @@ describe('DocumentEditor.vue', () => {
     gitHistory.vm.$emit('restore-version', wantedVersion)
     await Vue.nextTick()
     expect(putSpy).toHaveBeenCalledWith(`/conf/api/v1/configs/master/d/aclpolicies/v/${wantedVersion.version}/revert/`)
+  })
+
+  test('should send load git changes for the given version', async (done) => {
+    const wantedVersion = '7f8a987c8e5e9db7c734ac8841c543d5bc5d9657'
+    const parentVersion = '82d8f29096af1db07dbf7e1cff581fdf6e1a7440'
+    const gitHistory = wrapper.findComponent(GitHistory)
+    gitHistory.vm.$emit('show-changes', wantedVersion, [parentVersion])
+    // allow all requests to finish
+    setImmediate(() => {
+      expect((wrapper.vm as any).gitDifferences).toHaveProperty([wantedVersion, 'updated', 'name'])
+      done()
+    })
   })
 
   test('should log message when receiving no configs from the server', (done) => {
