@@ -141,180 +141,191 @@
             </div>
           </div>
           <div class="column is-7">
-            <div class="sequence-wrapper">
-              <div v-for="(sequenceItem, sequenceIndex) in localDoc.sequence"
-                   :key="sequenceIndex"
-                   class="sequence">
-                <div class="sequence-entries">
-                  <table class="table is-narrow is-size-7 sequence-entries-table">
-                    <tbody>
-                    <tr class="sequence-entry-row method-entry-row">
-                      <td class="is-size-7 width-50px sequence-entries-relation"></td>
-                      <td class="width-80px is-vcentered">
-                        Method
-                      </td>
-                      <td colspan="2">
-                        <div class="control is-fullwidth">
-                          <input class="input is-small method-entry-input"
-                                 title="Method"
-                                 v-model="sequenceItem.method"
-                                 @input="emitDocUpdate"/>
-                        </div>
-                      </td>
-                      <td class="width-80px"></td>
-                    </tr>
-                    <tr class="sequence-entry-row host-entry-row">
-                      <td class="is-size-7 width-50px has-text-centered is-vcentered has-text-grey-light
-                                 has-text-weight-medium sequence-entries-relation">
-                        AND
-                      </td>
-                      <td class="width-80px is-vcentered">
-                        Host
-                      </td>
-                      <td colspan="2">
-                        <div class="control is-fullwidth">
-                          <input class="input is-small host-entry-input"
-                                 title="Host"
-                                 v-model="sequenceItem.headers.host"
-                                 @input="emitDocUpdate"/>
-                        </div>
-                      </td>
-                      <td class="width-80px"></td>
-                    </tr>
-                    <tr class="sequence-entry-row uri-entry-row">
-                      <td class="is-size-7 width-50px has-text-centered is-vcentered has-text-grey-light
-                                 has-text-weight-medium sequence-entries-relation">
-                        AND
-                      </td>
-                      <td class="width-80px is-vcentered">
-                        Path
-                      </td>
-                      <td colspan="2">
-                        <div class="control is-fullwidth">
-                          <input class="input is-small uri-entry-input"
-                                 title="Path"
-                                 v-model="sequenceItem.uri"
-                                 @input="emitDocUpdate"/>
-                        </div>
-                      </td>
-                      <td class="width-80px"></td>
-                    </tr>
-                    <tr v-for="(sequenceEntry, sequenceEntryIndex) in sequenceItemEntries(sequenceIndex)"
-                        :key="sequenceEntryIndex"
-                        class="sequence-entry-row">
-                      <td class="is-size-7 width-50px has-text-centered is-vcentered has-text-grey-light
-                                 has-text-weight-medium sequence-entries-relation">
-                        AND
-                      </td>
-                      <td class="width-80px is-vcentered">
-                        {{ listEntryTypes[sequenceEntry[0]].title }}
-                      </td>
-                      <td class="width-100px">
-                        {{ sequenceEntry[1][0] }}
-                      </td>
-                      <td>
-                        {{ sequenceEntry[1][1] }}
-                      </td>
-                      <td class="width-80px">
-                        <a class="is-small has-text-grey remove-entry-button"
-                           title="Remove sequence entry"
-                           tabindex="0"
-                           @click="removeSequenceItemEntry(
-                               sequenceIndex, sequenceEntry[0], sequenceEntry[1][0])"
-                           @keypress.space.prevent
-                           @keypress.space="removeSequenceItemEntry(
-                               sequenceIndex, sequenceEntry[0], sequenceEntry[1][0])"
-                           @keypress.enter="removeSequenceItemEntry(
-                               sequenceIndex, sequenceEntry[0], sequenceEntry[1][0])">
-                          remove
-                        </a>
-                      </td>
-                    </tr>
-                    <tr v-if="newEntrySectionIndex !== sequenceIndex">
-                      <td>
-                        <a class="is-size-7 has-text-grey-lighter add-button add-entry-button"
-                           title="add new row"
-                           tabindex="0"
-                           @click="setNewEntryIndex(sequenceIndex)"
-                           @keypress.space.prevent
-                           @keypress.space="setNewEntryIndex(sequenceIndex)"
-                           @keypress.enter="setNewEntryIndex(sequenceIndex)">
-                          <i class="fas fa-plus"></i></a>
-                        &nbsp;&middot;&nbsp;
-                        <a class="is-size-7 has-text-grey-lighter remove-button remove-section-button"
-                           title="remove entire section"
-                           tabindex="0"
-                           @click="removeSequenceItem(sequenceIndex)"
-                           @keypress.space.prevent
-                           @keypress.space="removeSequenceItem(sequenceIndex)"
-                           @keypress.enter="removeSequenceItem(sequenceIndex)">
-                          <i class="fas fa-trash"></i></a>
-                      </td>
-                      <td colspan="4">
-                      </td>
-                    </tr>
-                    <tr v-if="newEntrySectionIndex === sequenceIndex" class="new-entry-row">
-                      <td class="is-size-7" colspan="2">
-                        <div class="select is-small is-fullwidth">
-                          <select v-model="newEntryType"
-                                  title="New entry type"
-                                  class="select new-entry-type-selection">
-                            <option v-for="(entryType, category) in listEntryTypes" :key="category" :value="category">
-                              {{ entryType.title }}
-                            </option>
-                          </select>
-                        </div>
-                      </td>
-                      <td class="is-size-7 width-100px">
-                        <div class="control has-icons-left is-fullwidth new-entry-name">
-                          <input class="input is-small new-entry-name-input"
-                                 title="Name"
-                                 placeholder="Name"
-                                 v-model="newEntryItem.name"/>
-                          <span class="icon is-small is-left has-text-grey-light"><i class="fa fa-code"></i></span>
-                        </div>
-                      </td>
-                      <td class="is-size-7">
-                        <div class="control has-icons-left is-fullwidth new-entry-value">
-                          <input class="input is-small new-entry-value-input"
-                                 title="Value"
-                                 placeholder="Value"
-                                 v-model="newEntryItem.value"/>
-                          <span class="icon is-small is-left has-text-grey-light"><i class="fa fa-code"></i></span>
-                        </div>
-                      </td>
-                      <td class="is-size-7 width-80px">
-                        <a class="is-size-7 has-text-grey add-button confirm-add-entry-button"
-                           title="add new row"
-                           tabindex="0"
-                           @click="addSequenceItemEntry(sequenceIndex)"
-                           @keypress.space.prevent
-                           @keypress.space="addSequenceItemEntry(sequenceIndex)"
-                           @keypress.enter="addSequenceItemEntry(sequenceIndex)">
-                          <i class="fas fa-check"></i> Add
-                        </a>
-                        <br/>
-                        <a class="is-size-7 has-text-grey remove-button"
-                           title="cancel add new row"
-                           tabindex="0"
-                           @click="setNewEntryIndex(-1)"
-                           @keypress.space.prevent
-                           @keypress.space="setNewEntryIndex(-1)"
-                           @keypress.enter="setNewEntryIndex(-1)">
-                          <i class="fas fa-times"></i> Cancel
-                        </a>
-                      </td>
-                    </tr>
-                    </tbody>
-                  </table>
+            <div class="sequence-wrapper"
+                 v-drag-and-drop:options="options">
+              <template v-for="(sequenceItem, sequenceIndex) in localDoc.sequence">
+                <div :key="sequenceIndex"
+                     :data-index="sequenceIndex"
+                     class="sequence mb-3"
+                     :class="{hover: hoverSequence === sequenceIndex}"
+                     v-if="sequenceItem">
+                  <div class="dragging-icon pl-2 pt-1"
+                       @mouseover="hoverSequence = sequenceIndex"
+                       @mouseleave="hoverSequence = undefined">
+                    <i class="fas fa-arrows-alt" />
+                  </div>
+                  <div class="sequence-entries">
+                    <table class="table is-narrow is-size-7 sequence-entries-table">
+                      <tbody>
+                      <tr class="sequence-entry-row method-entry-row">
+                        <td class="is-size-7 width-50px sequence-entries-relation"></td>
+                        <td class="width-80px is-vcentered">
+                          Method
+                        </td>
+                        <td colspan="2">
+                          <div class="control is-fullwidth">
+                            <input class="input is-small method-entry-input"
+                                  title="Method"
+                                  v-model="sequenceItem.method"
+                                  @input="emitDocUpdate"/>
+                          </div>
+                        </td>
+                        <td class="width-80px"></td>
+                      </tr>
+                      <tr class="sequence-entry-row host-entry-row">
+                        <td class="is-size-7 width-50px has-text-centered is-vcentered has-text-grey-light
+                                  has-text-weight-medium sequence-entries-relation">
+                          AND
+                        </td>
+                        <td class="width-80px is-vcentered">
+                          Host
+                        </td>
+                        <td colspan="2">
+                          <div class="control is-fullwidth">
+                            <input class="input is-small host-entry-input"
+                                  title="Host"
+                                  v-model="sequenceItem.headers.host"
+                                  @input="emitDocUpdate"/>
+                          </div>
+                        </td>
+                        <td class="width-80px"></td>
+                      </tr>
+                      <tr class="sequence-entry-row uri-entry-row">
+                        <td class="is-size-7 width-50px has-text-centered is-vcentered has-text-grey-light
+                                  has-text-weight-medium sequence-entries-relation">
+                          AND
+                        </td>
+                        <td class="width-80px is-vcentered">
+                          Path
+                        </td>
+                        <td colspan="2">
+                          <div class="control is-fullwidth">
+                            <input class="input is-small uri-entry-input"
+                                  title="Path"
+                                  v-model="sequenceItem.uri"
+                                  @input="emitDocUpdate"/>
+                          </div>
+                        </td>
+                        <td class="width-80px"></td>
+                      </tr>
+                      <tr v-for="(sequenceEntry, sequenceEntryIndex) in sequenceItemEntries(sequenceIndex)"
+                          :key="sequenceEntryIndex"
+                          class="sequence-entry-row">
+                        <td class="is-size-7 width-50px has-text-centered is-vcentered has-text-grey-light
+                                  has-text-weight-medium sequence-entries-relation">
+                          AND
+                        </td>
+                        <td class="width-80px is-vcentered">
+                          {{ listEntryTypes[sequenceEntry[0]].title }}
+                        </td>
+                        <td class="width-100px">
+                          {{ sequenceEntry[1][0] }}
+                        </td>
+                        <td>
+                          {{ sequenceEntry[1][1] }}
+                        </td>
+                        <td class="width-80px">
+                          <a class="is-small has-text-grey remove-entry-button"
+                            title="Remove sequence entry"
+                            tabindex="0"
+                            @click="removeSequenceItemEntry(
+                                sequenceIndex, sequenceEntry[0], sequenceEntry[1][0])"
+                            @keypress.space.prevent
+                            @keypress.space="removeSequenceItemEntry(
+                                sequenceIndex, sequenceEntry[0], sequenceEntry[1][0])"
+                            @keypress.enter="removeSequenceItemEntry(
+                                sequenceIndex, sequenceEntry[0], sequenceEntry[1][0])">
+                            remove
+                          </a>
+                        </td>
+                      </tr>
+                      <tr v-if="newEntrySectionIndex !== sequenceIndex">
+                        <td>
+                          <a class="is-size-7 has-text-grey-lighter add-button add-entry-button"
+                            title="add new row"
+                            tabindex="0"
+                            @click="setNewEntryIndex(sequenceIndex)"
+                            @keypress.space.prevent
+                            @keypress.space="setNewEntryIndex(sequenceIndex)"
+                            @keypress.enter="setNewEntryIndex(sequenceIndex)">
+                            <i class="fas fa-plus"></i></a>
+                          &nbsp;&middot;&nbsp;
+                          <a class="is-size-7 has-text-grey-lighter remove-button remove-section-button"
+                            title="remove entire section"
+                            tabindex="0"
+                            @click="removeSequenceItem(sequenceIndex)"
+                            @keypress.space.prevent
+                            @keypress.space="removeSequenceItem(sequenceIndex)"
+                            @keypress.enter="removeSequenceItem(sequenceIndex)">
+                            <i class="fas fa-trash"></i></a>
+                        </td>
+                        <td colspan="4">
+                        </td>
+                      </tr>
+                      <tr v-if="newEntrySectionIndex === sequenceIndex" class="new-entry-row">
+                        <td class="is-size-7" colspan="2">
+                          <div class="select is-small is-fullwidth">
+                            <select v-model="newEntryType"
+                                    title="New entry type"
+                                    class="select new-entry-type-selection">
+                              <option v-for="(entryType, category) in listEntryTypes" :key="category" :value="category">
+                                {{ entryType.title }}
+                              </option>
+                            </select>
+                          </div>
+                        </td>
+                        <td class="is-size-7 width-100px">
+                          <div class="control has-icons-left is-fullwidth new-entry-name">
+                            <input class="input is-small new-entry-name-input"
+                                  title="Name"
+                                  placeholder="Name"
+                                  v-model="newEntryItem.name"/>
+                            <span class="icon is-small is-left has-text-grey-light"><i class="fa fa-code"></i></span>
+                          </div>
+                        </td>
+                        <td class="is-size-7">
+                          <div class="control has-icons-left is-fullwidth new-entry-value">
+                            <input class="input is-small new-entry-value-input"
+                                  title="Value"
+                                  placeholder="Value"
+                                  v-model="newEntryItem.value"/>
+                            <span class="icon is-small is-left has-text-grey-light"><i class="fa fa-code"></i></span>
+                          </div>
+                        </td>
+                        <td class="is-size-7 width-80px">
+                          <a class="is-size-7 has-text-grey add-button confirm-add-entry-button"
+                            title="add new row"
+                            tabindex="0"
+                            @click="addSequenceItemEntry(sequenceIndex)"
+                            @keypress.space.prevent
+                            @keypress.space="addSequenceItemEntry(sequenceIndex)"
+                            @keypress.enter="addSequenceItemEntry(sequenceIndex)">
+                            <i class="fas fa-check"></i> Add
+                          </a>
+                          <br/>
+                          <a class="is-size-7 has-text-grey remove-button"
+                            title="cancel add new row"
+                            tabindex="0"
+                            @click="setNewEntryIndex(-1)"
+                            @keypress.space.prevent
+                            @keypress.space="setNewEntryIndex(-1)"
+                            @keypress.enter="setNewEntryIndex(-1)">
+                            <i class="fas fa-times"></i> Cancel
+                          </a>
+                        </td>
+                      </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
                 <div v-if="localDoc.sequence.length > 1 && sequenceIndex !== localDoc.sequence.length - 1"
-                     class="control is-expanded relation-wrapper">
-              <span class="tag is-small is-relative">
-                THEN
-              </span>
+                     class="control is-expanded relation-wrapper"
+                     :key="`${sequenceIndex}-then`">
+                  <span class="tag is-small is-relative">
+                    THEN
+                  </span>
                 </div>
-              </div>
+              </template>
               <button class="button is-small new-sequence-button"
                       @click="addSequenceItem()">
                 Create new sequence section
@@ -337,6 +348,10 @@ import DatasetsUtils from '@/assets/DatasetsUtils.ts'
 import Vue from 'vue'
 import {ArgsCookiesHeadersType, FlowControl, IncludeExcludeType, LimitOptionType, LimitRuleType} from '@/types'
 import {Dictionary} from 'vue-router/types/router'
+import VueDraggable from 'vue-draggable'
+import {VueDraggableEvent} from 'vue-draggable/types/vue-draggable-options'
+
+Vue.use(VueDraggable)
 
 export default Vue.extend({
   name: 'FlowControl',
@@ -353,6 +368,10 @@ export default Vue.extend({
   },
 
   data() {
+    // const setDragCursor = (value: boolean) => {
+    //   const html = document.getElementsByTagName('html').item(0)
+    //   html.classList.toggle('grabbing', value)
+    // }
     return {
       filters: ['include', 'exclude'] as IncludeExcludeType[],
       addNewTagColName: null,
@@ -378,6 +397,30 @@ export default Vue.extend({
         name: '',
         value: '',
       },
+      options: {
+        dropzoneSelector: '.sequence-wrapper',
+        draggableSelector: '.sequence',
+        handlerSelector: null,
+        reactivityEnabled: true,
+        multipleDropzonesItemsDraggingEnabled: true,
+        showDropzoneAreas: true,
+        onDragend: (event: VueDraggableEvent) => {
+          console.log(event)
+        },
+        onDrop: ({items}: VueDraggableEvent) => {
+          console.log(items[0].getAttribute('data-index'))
+          // const {localDoc, emitDocUpdate} = this as any
+          // const oldIndex = owner.getAttribute('data-index')
+          // const newIndex = droptarget.getAttribute('data-index')
+          // const oldElement = localDoc.sequence[oldIndex]
+          // localDoc.sequence[oldIndex] = localDoc.sequence[newIndex]
+          // localDoc.sequence[newIndex] = oldElement
+          // emitDocUpdate()
+        },
+        // onDragstart: () => setDragCursor(true),
+        // onDragend: () => setDragCursor(false),
+      },
+      hoverSequence: undefined,
     }
   },
 
@@ -398,8 +441,6 @@ export default Vue.extend({
     emitDocUpdate() {
       this.$emit('update:selectedDoc', this.localDoc)
     },
-
-    // Key
 
     getOptionTextKey(option: LimitOptionType, index: number) {
       const [type] = Object.keys(option)
@@ -543,6 +584,48 @@ export default Vue.extend({
 
 .bar {
   margin: 1rem 0 0.5rem;
+}
+
+.grabbing * {
+  cursor: grab !important;
+}
+
+.sequence {
+  $placetomove-color: #f9f9fa;
+  $selected-color: #014ac6;
+
+  display: flex;
+  flex-direction: column;
+
+  &[aria-dropeffect='move'] {
+    background: $placetomove-color;
+    border-color: $selected-color;
+  }
+
+  &[aria-dropeffect='move'] .sequence-entries-table {
+    background: $placetomove-color;
+  }
+
+  &[aria-dropeffect='move']:focus,
+  &[aria-dropeffect='move'].dragover {
+    box-shadow: 0 0 0 1px #fff, 0 0 0 2px $selected-color;
+    outline: none;
+  }
+
+  &.hover {
+    box-shadow: 0 0 0 1px $selected-color, inset 0 0 0 1px #fff;
+  }
+
+  &[aria-grabbed='true'] {
+    background: #000;
+  }
+
+  .dragging-icon {
+    cursor: grab;
+    display: inline-block;
+    opacity: 0.7;
+    width: calc(1rem + 14px);
+  }
 }
 
 .sequence-entries {
