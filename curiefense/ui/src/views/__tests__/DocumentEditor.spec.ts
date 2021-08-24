@@ -26,7 +26,10 @@ describe('DocumentEditor.vue', () => {
   let flowControlDocs: FlowControl[]
   let wafDocs: WAFPolicy[]
   let rateLimitsDocs: RateLimit[]
+  let originalError: () => void
   beforeEach((done) => {
+    originalError = console.error
+    console.error = () => {}
     gitData = [
       {
         'id': 'master',
@@ -800,6 +803,7 @@ describe('DocumentEditor.vue', () => {
   })
   afterEach(() => {
     jest.clearAllMocks()
+    console.error = originalError
   })
 
   test('should have a git history component with correct data', () => {
@@ -1499,16 +1503,15 @@ describe('DocumentEditor.vue', () => {
           $router: mockRouter,
         },
       })
-      await Vue.nextTick()
-      const downloadFileSpy = jest.spyOn(Utils, 'downloadFile').mockImplementation(() => {
+      test('when download is in process', async () => {
+        const downloadFileSpy = jest.spyOn(Utils, 'downloadFile').mockImplementation(() => {})
+        const {vm} = wrapper as any
+        // force update because downloadFile is mocked after it is read to to be used as event handler
+        await vm.$forceUpdate()
+        vm.isDownloadLoading = true
+        await vm.downloadDoc()
+        expect(downloadFileSpy).not.toHaveBeenCalled()
       })
-      // force update because downloadFile is mocked after it is read to to be used as event handler
-      await (wrapper.vm as any).$forceUpdate()
-      await Vue.nextTick()
-      const downloadDocButton = wrapper.find('.download-doc-button')
-      downloadDocButton.trigger('click')
-      await Vue.nextTick()
-      expect(downloadFileSpy).not.toHaveBeenCalled()
     })
 
     test('should attempt to download document when download button is clicked', async () => {
@@ -1586,6 +1589,66 @@ describe('DocumentEditor.vue', () => {
         expect(noDataMessage.text().toLowerCase()).toContain('no data found!')
         expect(noDataMessage.text().toLowerCase()).toContain('missing document type.')
         done()
+      })
+    })
+
+    test('should be unable to fork when there is no doc data', async (done) => {
+      const originalLog = console.log
+      const consoleOutput: string[] = []
+      const mockedLog = (output: string) => consoleOutput.push(output)
+      console.log = mockedLog
+      wrapper = shallowMount(DocumentEditor, {
+        mocks: {
+          $route: mockRoute,
+          $router: mockRouter,
+        },
+      })
+      const {selectedBranch, selectedDocType, forkDoc} = wrapper.vm as any
+      jest.spyOn(axios, 'get').mockImplementationOnce((path) => {
+        if (path === '/conf/api/v1/configs/') {
+          return Promise.resolve({data: gitData})
+        }
+        if (path === `/conf/api/v1/configs/${selectedBranch}/d/${selectedDocType}/`) {
+          return Promise.reject(new Error())
+        }
+        return Promise.resolve({data: {}})
+      })
+      await forkDoc()
+      setImmediate(() => {
+        expect(consoleOutput).toContain('Error while attempting to fork document')
+        console.log = originalLog
+        done()
+      })
+    })
+
+    test('should not show toast when switching to an unnamed document', () => {
+      delete aclDocs[0].name
+      const originalToast = Utils.toast
+      const toastOutput = []
+      const mockedToast = (output: any) => toastOutput.push(output)
+      Utils.toast = mockedToast
+      const docSelection = wrapper.find('.doc-selection')
+      docSelection.trigger('click')
+      const options = docSelection.findAll('option')
+      options.at(1).setSelected()
+      docSelection.trigger('change')
+      expect(toastOutput.length).toEqual(0)
+      Utils.toast = originalToast
+    })
+
+    describe('emulating an empty branch name', () => {
+      beforeEach(() => {
+        mockRoute.params.branch = 'undefined'
+        wrapper = shallowMount(DocumentEditor, {
+          mocks: {
+            $route: mockRoute,
+            $router: mockRouter,
+          },
+        })
+      })
+      test('should set the first branch as selected when its name is undefined in route', () => {
+        const {selectedBranch, branchNames} = wrapper.vm as any
+        expect(selectedBranch).toEqual(branchNames[0])
       })
     })
 
