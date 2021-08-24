@@ -150,7 +150,7 @@ describe('CurieDBEditor.vue', () => {
     wrapper = shallowMount(CurieDBEditor)
     // allow all requests to finish
     setImmediate(() => {
-      expect((wrapper.vm as any).selectedDatabaseData).toEqual({})
+      expect((wrapper.vm as any).selectedNamespaceData).toEqual({})
       done()
     })
   })
@@ -255,6 +255,18 @@ describe('CurieDBEditor.vue', () => {
     expect(downloadFileSpy).not.toHaveBeenCalledWith(wantedFileName, wantedFileType, wantedFileData)
   })
 
+  test('should not attempt to download key when no document selected', async () => {
+    const downloadFileSpy = jest.spyOn(Utils, 'downloadFile').mockImplementation(() => {})
+    // force update because downloadFile is mocked after it is read to be used as event handler
+    await (wrapper.vm as any).$forceUpdate()
+    await Vue.nextTick()
+    wrapper.setData({selectedKeyValue: null})
+    const downloadKeyButton = wrapper.find('.download-key-button')
+    downloadKeyButton.trigger('click')
+    await Vue.nextTick()
+    expect(downloadFileSpy).toHaveBeenCalledTimes(0)
+  })
+
   describe('namespace action buttons', () => {
     test('should be able to fork namespace', async () => {
       const dbData = (wrapper.vm as any).selectedNamespaceData
@@ -329,7 +341,7 @@ describe('CurieDBEditor.vue', () => {
     test('should not be able to add a new key when no database selected', async () => {
       const putSpy = jest.spyOn(axios, 'put')
       putSpy.mockImplementation( Promise.resolve );
-      (wrapper.vm as any).selectedDatabase = null
+      wrapper.setData({selectedNamespace: null})
       const newKeyButton = wrapper.find('.new-key-button')
       await newKeyButton.trigger('click')
       expect(putSpy).toHaveBeenCalledTimes(0)

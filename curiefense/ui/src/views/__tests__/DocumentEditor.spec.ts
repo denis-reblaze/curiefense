@@ -1467,41 +1467,52 @@ describe('DocumentEditor.vue', () => {
       expect(deleteSpy).not.toHaveBeenCalled()
     })
 
-    test('should not attempt to download document when download button is clicked' +
-      ' if the full docs data was not loaded yet', async () => {
-      jest.spyOn(axios, 'get').mockImplementation((path, config) => {
-        if (path === '/conf/api/v2/configs/') {
-          return Promise.resolve({data: gitData})
-        }
-        const branch = (wrapper.vm as any).selectedBranch
-        const docID = (wrapper.vm as any).selectedDocID
-        if (path === `/conf/api/v2/configs/${branch}/d/aclpolicies/`) {
-          if (config && config.headers && config.headers['x-fields'] === 'id, name') {
-            return Promise.resolve({data: _.map(aclDocs, (i) => _.pick(i, 'id', 'name'))})
+    describe('should not attempt to download document', () => {
+      test('should not attempt to download document when download button is clicked' +
+                ' if the full docs data was not loaded yet', async () => {
+        jest.spyOn(axios, 'get').mockImplementation((path, config) => {
+          if (path === '/conf/api/v2/configs/') {
+            return Promise.resolve({data: gitData})
           }
-          setTimeout(() => {
-            return Promise.resolve({data: aclDocs})
-          }, 5000)
-        }
-        if (path === `/conf/api/v2/configs/${branch}/d/aclpolicies/e/__default__/`) {
-          return Promise.resolve({data: aclDocs[0]})
-        }
-        if (path === `/conf/api/v2/configs/${branch}/d/aclpolicies/e/5828321c37e0/`) {
-          return Promise.resolve({data: aclDocs[1]})
-        }
-        if (path === `/conf/api/v2/configs/${branch}/d/aclpolicies/v/7f8a987c8e5e9db7c734ac8841c543d5bc5d9657/`) {
-          return Promise.resolve({data: aclGitOldVersion})
-        }
-        if (path === `/conf/api/v2/configs/${branch}/d/aclpolicies/e/${docID}/v/`) {
-          return Promise.resolve({data: aclDocsLogs[0]})
-        }
-        return Promise.resolve({data: []})
-      })
-      wrapper = shallowMount(DocumentEditor, {
-        mocks: {
-          $route: mockRoute,
-          $router: mockRouter,
-        },
+          const branch = (wrapper.vm as any).selectedBranch
+          const docID = (wrapper.vm as any).selectedDocID
+          if (path === `/conf/api/v2/configs/${branch}/d/aclpolicies/`) {
+            if (config && config.headers && config.headers['x-fields'] === 'id, name') {
+              return Promise.resolve({data: _.map(aclDocs, (i) => _.pick(i, 'id', 'name'))})
+            }
+            setTimeout(() => {
+              return Promise.resolve({data: aclDocs})
+            }, 5000)
+          }
+          if (path === `/conf/api/v2/configs/${branch}/d/aclpolicies/e/__default__/`) {
+            return Promise.resolve({data: aclDocs[0]})
+          }
+          if (path === `/conf/api/v2/configs/${branch}/d/aclpolicies/e/5828321c37e0/`) {
+            return Promise.resolve({data: aclDocs[1]})
+          }
+          if (path === `/conf/api/v2/configs/${branch}/d/aclpolicies/v/7f8a987c8e5e9db7c734ac8841c543d5bc5d9657/`) {
+            return Promise.resolve({data: aclGitOldVersion})
+          }
+          if (path === `/conf/api/v2/configs/${branch}/d/aclpolicies/e/${docID}/v/`) {
+            return Promise.resolve({data: aclDocsLogs[0]})
+          }
+          return Promise.resolve({data: []})
+        })
+        wrapper = shallowMount(DocumentEditor, {
+          mocks: {
+            $route: mockRoute,
+            $router: mockRouter,
+          },
+        })
+        await Vue.nextTick()
+        const downloadFileSpy = jest.spyOn(Utils, 'downloadFile').mockImplementation(() => {})
+        // force update because downloadFile is mocked after it is read to to be used as event handler
+        await (wrapper.vm as any).$forceUpdate()
+        await Vue.nextTick()
+        const downloadDocButton = wrapper.find('.download-doc-button')
+        downloadDocButton.trigger('click')
+        await Vue.nextTick()
+        expect(downloadFileSpy).not.toHaveBeenCalled()
       })
       test('when download is in process', async () => {
         const downloadFileSpy = jest.spyOn(Utils, 'downloadFile').mockImplementation(() => {})

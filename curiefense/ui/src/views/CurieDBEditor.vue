@@ -345,7 +345,7 @@ export default Vue.extend({
       const response = await RequestsUtils.sendRequest({methodName: 'GET', url: 'db/'})
       this.databases = response?.data || []
       console.log('Databases: ', this.databases)
-      this.loadFirstDatabase()
+      this.loadFirstNamespace()
       this.setLoadingDocStatus(false)
     },
 
