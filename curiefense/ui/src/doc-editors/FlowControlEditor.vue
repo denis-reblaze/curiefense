@@ -142,16 +142,17 @@
           </div>
           <div class="column is-7">
             <div class="sequence-wrapper"
-                 v-drag-and-drop:options="options">
+                 ref="sequences">
               <template v-for="(sequenceItem, sequenceIndex) in localDoc.sequence">
                 <div :key="sequenceIndex"
-                     :data-index="sequenceIndex"
                      class="sequence mb-3"
-                     :class="{hover: hoverSequence === sequenceIndex}"
+                     :class="{hover: hoverSequenceIndex === sequenceIndex}"
+                     :data-index="sequenceIndex"
+                     draggable="true"
                      v-if="sequenceItem">
                   <div class="dragging-icon pl-2 pt-1"
-                       @mouseover="hoverSequence = sequenceIndex"
-                       @mouseleave="hoverSequence = undefined">
+                      @mouseover="setHoverSequenceIndex(sequenceIndex)"
+                      @mouseleave="setHoverSequenceIndex()">
                     <i class="fas fa-arrows-alt" />
                   </div>
                   <div class="sequence-entries">
@@ -170,7 +171,7 @@
                                   @input="emitDocUpdate"/>
                           </div>
                         </td>
-                        <td class="width-80px"></td>
+                        <td class="width-80px" />
                       </tr>
                       <tr class="sequence-entry-row host-entry-row">
                         <td class="is-size-7 width-50px has-text-centered is-vcentered has-text-grey-light
@@ -188,7 +189,7 @@
                                   @input="emitDocUpdate"/>
                           </div>
                         </td>
-                        <td class="width-80px"></td>
+                        <td class="width-80px" />
                       </tr>
                       <tr class="sequence-entry-row uri-entry-row">
                         <td class="is-size-7 width-50px has-text-centered is-vcentered has-text-grey-light
@@ -206,7 +207,7 @@
                                   @input="emitDocUpdate"/>
                           </div>
                         </td>
-                        <td class="width-80px"></td>
+                        <td class="width-80px" />
                       </tr>
                       <tr v-for="(sequenceEntry, sequenceEntryIndex) in sequenceItemEntries(sequenceIndex)"
                           :key="sequenceEntryIndex"
@@ -248,7 +249,8 @@
                             @keypress.space.prevent
                             @keypress.space="setNewEntryIndex(sequenceIndex)"
                             @keypress.enter="setNewEntryIndex(sequenceIndex)">
-                            <i class="fas fa-plus"></i></a>
+                            <i class="fas fa-plus" />
+                          </a>
                           &nbsp;&middot;&nbsp;
                           <a class="is-size-7 has-text-grey-lighter remove-button remove-section-button"
                             title="remove entire section"
@@ -257,10 +259,10 @@
                             @keypress.space.prevent
                             @keypress.space="removeSequenceItem(sequenceIndex)"
                             @keypress.enter="removeSequenceItem(sequenceIndex)">
-                            <i class="fas fa-trash"></i></a>
+                            <i class="fas fa-trash" />
+                          </a>
                         </td>
-                        <td colspan="4">
-                        </td>
+                        <td colspan="4" />
                       </tr>
                       <tr v-if="newEntrySectionIndex === sequenceIndex" class="new-entry-row">
                         <td class="is-size-7" colspan="2">
@@ -268,7 +270,9 @@
                             <select v-model="newEntryType"
                                     title="New entry type"
                                     class="select new-entry-type-selection">
-                              <option v-for="(entryType, category) in listEntryTypes" :key="category" :value="category">
+                              <option v-for="(entryType, category) in listEntryTypes"
+                                      :key="category"
+                                      :value="category">
                                 {{ entryType.title }}
                               </option>
                             </select>
@@ -280,7 +284,9 @@
                                   title="Name"
                                   placeholder="Name"
                                   v-model="newEntryItem.name"/>
-                            <span class="icon is-small is-left has-text-grey-light"><i class="fa fa-code"></i></span>
+                            <span class="icon is-small is-left has-text-grey-light">
+                              <i class="fa fa-code" />
+                            </span>
                           </div>
                         </td>
                         <td class="is-size-7">
@@ -289,7 +295,9 @@
                                   title="Value"
                                   placeholder="Value"
                                   v-model="newEntryItem.value"/>
-                            <span class="icon is-small is-left has-text-grey-light"><i class="fa fa-code"></i></span>
+                            <span class="icon is-small is-left has-text-grey-light">
+                              <i class="fa fa-code" />
+                            </span>
                           </div>
                         </td>
                         <td class="is-size-7 width-80px">
@@ -300,7 +308,7 @@
                             @keypress.space.prevent
                             @keypress.space="addSequenceItemEntry(sequenceIndex)"
                             @keypress.enter="addSequenceItemEntry(sequenceIndex)">
-                            <i class="fas fa-check"></i> Add
+                            <i class="fas fa-check" /> Add
                           </a>
                           <br/>
                           <a class="is-size-7 has-text-grey remove-button"
@@ -310,7 +318,7 @@
                             @keypress.space.prevent
                             @keypress.space="setNewEntryIndex(-1)"
                             @keypress.enter="setNewEntryIndex(-1)">
-                            <i class="fas fa-times"></i> Cancel
+                            <i class="fas fa-times" /> Cancel
                           </a>
                         </td>
                       </tr>
@@ -346,12 +354,11 @@ import LimitOption, {OptionObject} from '@/components/LimitOption.vue'
 import TagAutocompleteInput from '@/components/TagAutocompleteInput.vue'
 import DatasetsUtils from '@/assets/DatasetsUtils.ts'
 import Vue from 'vue'
-import {ArgsCookiesHeadersType, FlowControl, IncludeExcludeType, LimitOptionType, LimitRuleType} from '@/types'
+import {
+  ArgsCookiesHeadersType, FlowControl, IncludeExcludeType, LimitOptionType, LimitRuleType, DraggableEvent,
+} from '@/types'
 import {Dictionary} from 'vue-router/types/router'
-import VueDraggable from 'vue-draggable'
-import {VueDraggableEvent} from 'vue-draggable/types/vue-draggable-options'
-
-Vue.use(VueDraggable)
+const {Draggable} = require('@shopify/draggable')
 
 export default Vue.extend({
   name: 'FlowControl',
@@ -368,10 +375,6 @@ export default Vue.extend({
   },
 
   data() {
-    // const setDragCursor = (value: boolean) => {
-    //   const html = document.getElementsByTagName('html').item(0)
-    //   html.classList.toggle('grabbing', value)
-    // }
     return {
       filters: ['include', 'exclude'] as IncludeExcludeType[],
       addNewTagColName: null,
@@ -397,30 +400,8 @@ export default Vue.extend({
         name: '',
         value: '',
       },
-      options: {
-        dropzoneSelector: '.sequence-wrapper',
-        draggableSelector: '.sequence',
-        handlerSelector: null,
-        reactivityEnabled: true,
-        multipleDropzonesItemsDraggingEnabled: true,
-        showDropzoneAreas: true,
-        onDragend: (event: VueDraggableEvent) => {
-          console.log(event)
-        },
-        onDrop: ({items}: VueDraggableEvent) => {
-          console.log(items[0].getAttribute('data-index'))
-          // const {localDoc, emitDocUpdate} = this as any
-          // const oldIndex = owner.getAttribute('data-index')
-          // const newIndex = droptarget.getAttribute('data-index')
-          // const oldElement = localDoc.sequence[oldIndex]
-          // localDoc.sequence[oldIndex] = localDoc.sequence[newIndex]
-          // localDoc.sequence[newIndex] = oldElement
-          // emitDocUpdate()
-        },
-        // onDragstart: () => setDragCursor(true),
-        // onDragend: () => setDragCursor(false),
-      },
-      hoverSequence: undefined,
+      hoverSequenceIndex: undefined,
+      dropTarget: undefined as HTMLElement,
     }
   },
 
@@ -576,56 +557,105 @@ export default Vue.extend({
       this.addNewTagColName = null
       this.emitDocUpdate()
     },
+
+    setHoverSequenceIndex(index?: number) {
+      this.hoverSequenceIndex = index
+    },
+
+    setDropTarget({data}: DraggableEvent) {
+      this.dropTarget = data.over
+    },
+
+    swapSequenceItems({data}: DraggableEvent) {
+      const {sequence} = this.localDoc
+      const oldIndex = parseInt(data.source.getAttribute('data-index'))
+      const newIndex = parseInt(this.dropTarget.getAttribute('data-index'))
+      const oldElement = sequence[oldIndex]
+      sequence.splice(oldIndex, 1)
+      sequence.splice(newIndex, 0, oldElement)
+      this.setHoverSequenceIndex(newIndex)
+      this.emitDocUpdate()
+    },
+  },
+
+  mounted() {
+    new Draggable(this.$refs.sequences, {
+      draggable: '.sequence',
+      classes: {'body:dragging': 'is-dragging'},
+      mirror: {constrainDimensions: true}, // keeps original sizes of draggable element while dragging
+    }).on(
+      'drag:over', this.setDropTarget,
+    ).on(
+      'drag:stop', this.swapSequenceItems,
+    )
   },
 })
 </script>
 
 <style scoped lang="scss">
+$selected-border-color: #014ac6;
 
 .bar {
   margin: 1rem 0 0.5rem;
 }
 
-.grabbing * {
-  cursor: grab !important;
+.sequence.hover,
+.sequence.hover:active {
+  background: #fff;
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.2);
+
+  table {
+    background: #fff;
+  }
 }
 
-.sequence {
+.dragging-icon {
+  cursor: grab;
+  display: inline-block;
+  opacity: 0.7;
+  width: calc(1rem + 14px);
+}
+
+.dragging-icon:active {
+  cursor: grab;
+}
+
+.sequence-wrapper.draggable-container--is-dragging .sequence {
   $placetomove-color: #f9f9fa;
-  $selected-color: #014ac6;
+  $placetodrop-color: #edeef0;
 
-  display: flex;
-  flex-direction: column;
-
-  &[aria-dropeffect='move'] {
-    background: $placetomove-color;
-    border-color: $selected-color;
+  &.draggable-source--is-dragging {
+    border: 1px dashed $selected-border-color;
+    box-shadow: none;
+    opacity: 0.3;
   }
 
-  &[aria-dropeffect='move'] .sequence-entries-table {
+  &.draggable-source--is-dragging .dragging-icon {
+    opacity: 0;
+  }
+
+  &:not(.draggable-source--is-dragging) {
+    background: $placetomove-color;
+    border-color: $selected-border-color;
+  }
+
+  &:not(.draggable-source--is-dragging) .sequence-entries-table {
     background: $placetomove-color;
   }
 
-  &[aria-dropeffect='move']:focus,
-  &[aria-dropeffect='move'].dragover {
-    box-shadow: 0 0 0 1px #fff, 0 0 0 2px $selected-color;
+  &.draggable--over:not(.draggable-source--is-dragging) {
+    background-color: $placetodrop-color;
+    box-shadow: 0 0 0 1px #fff, 0 0 0 2px $selected-border-color;
     outline: none;
   }
 
-  &.hover {
-    box-shadow: 0 0 0 1px $selected-color, inset 0 0 0 1px #fff;
+  &.draggable--over:not(.draggable-source--is-dragging) table {
+    background-color: $placetodrop-color;
   }
+}
 
-  &[aria-grabbed='true'] {
-    background: #000;
-  }
-
-  .dragging-icon {
-    cursor: grab;
-    display: inline-block;
-    opacity: 0.7;
-    width: calc(1rem + 14px);
-  }
+.is-dragging * {
+  cursor: grabbing;
 }
 
 .sequence-entries {

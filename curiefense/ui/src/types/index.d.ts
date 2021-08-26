@@ -204,5 +204,11 @@ declare module CuriefenseClient {
 
   // Git - END
 
+  type DraggableEvent = {
+    data: {
+      source: HTMLElement,
+      over: HTMLElement,
+    }
+  }
 }
 export = CuriefenseClient
