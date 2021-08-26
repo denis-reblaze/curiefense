@@ -567,7 +567,7 @@ describe('FlowControlEditor.vue', () => {
                 return String(targetIndex)
               },
             },
-          }
+          },
         };
         (wrapper.vm as any).setDropTarget(draggableEvent)
       })
