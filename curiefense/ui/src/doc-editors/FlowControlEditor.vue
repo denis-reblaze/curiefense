@@ -593,7 +593,6 @@ export default Vue.extend({
 </script>
 
 <style scoped lang="scss">
-$selected-border-color: #014ac6;
 
 .bar {
   margin: 1rem 0 0.5rem;
@@ -623,6 +622,7 @@ $selected-border-color: #014ac6;
 .sequence-wrapper.draggable-container--is-dragging .sequence {
   $placetomove-color: #f9f9fa;
   $placetodrop-color: #edeef0;
+  $selected-border-color: #014ac6;
 
   &.draggable-source--is-dragging {
     border: 1px dashed $selected-border-color;
