@@ -574,7 +574,7 @@ describe('FlowControlEditor.vue', () => {
               closest: (selector: string) => selector === 'div' ? {
                 classList: {
                   contains: (className: string) => className !== 'dragging-icon',
-                }
+                },
               } : true,
             } as unknown as EventTarget,
           },
