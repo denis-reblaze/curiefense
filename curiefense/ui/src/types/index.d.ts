@@ -208,7 +208,9 @@ declare module CuriefenseClient {
     data: {
       source: HTMLElement,
       over: HTMLElement,
-    }
+    },
+    originalEvent?: Partial<MouseEvent>,
+    cancel?: Function,
   }
 }
 export = CuriefenseClient

@@ -549,6 +549,7 @@ describe('FlowControlEditor.vue', () => {
       let draggableEvent: DraggableEvent
       let sequences: WrapperArray<Vue>
       const [targetIndex, sourceIndex] = [0, 1]
+      const cancelFn = jest.fn()
       beforeEach(() => {
         sequences = wrapper.findAll('.sequence')
         const source = sequences.at(sourceIndex) as unknown as HTMLElement
@@ -568,6 +569,16 @@ describe('FlowControlEditor.vue', () => {
               },
             },
           },
+          originalEvent: {
+            target: {
+              closest: (selector: string) => selector === 'div' ? {
+                classList: {
+                  contains: (className: string) => className !== 'dragging-icon',
+                }
+              } : true,
+            } as unknown as EventTarget,
+          },
+          cancel: cancelFn,
         };
         (wrapper.vm as any).setDropTarget(draggableEvent)
       })
@@ -590,6 +601,22 @@ describe('FlowControlEditor.vue', () => {
         await Vue.nextTick()
         expect(sequence[targetIndex]).toEqual(source)
         expect(sequence[sourceIndex]).toEqual(target)
+      })
+      test('should not drag when attempting to reorder using incorrect html element', async () => {
+        (wrapper.vm as any).onDragStart(draggableEvent)
+        expect(cancelFn).toHaveBeenCalled()
+        await Vue.nextTick()
+        jest.clearAllMocks()
+        draggableEvent.originalEvent = {
+          target: {
+            closest: (selector: string) => selector === 'div' ? {
+              classList: {
+                contains: (className: string) => className === 'dragging-icon',
+              },
+            } : false,
+          } as unknown as EventTarget,
+        }
+        expect(cancelFn).not.toHaveBeenCalled()
       })
     })
   })

@@ -558,6 +558,13 @@ export default Vue.extend({
       this.emitDocUpdate()
     },
 
+    onDragStart(evt: DraggableEvent) {
+      const target = evt.originalEvent.target as HTMLElement
+      if (!target.closest('div').classList.contains('dragging-icon')) {
+        evt.cancel()
+      }
+    },
+
     setHoverSequenceIndex(index?: number) {
       this.hoverSequenceIndex = index
     },
@@ -568,8 +575,8 @@ export default Vue.extend({
 
     swapSequenceItems({data}: DraggableEvent) {
       const {sequence} = this.localDoc
-      const oldIndex = parseInt(data.source.getAttribute('data-index'))
-      const newIndex = parseInt(this.dropTarget.getAttribute('data-index'))
+      const oldIndex = parseInt(data.source?.getAttribute('data-index'))
+      const newIndex = parseInt(this.dropTarget?.getAttribute('data-index'))
       const oldElement = sequence[oldIndex]
       sequence.splice(oldIndex, 1)
       sequence.splice(newIndex, 0, oldElement)
@@ -584,6 +591,8 @@ export default Vue.extend({
       classes: {'body:dragging': 'is-dragging'},
       mirror: {constrainDimensions: true}, // keeps original sizes of draggable element while dragging
     }).on(
+      'drag:start', this.onDragStart,
+    ).on(
       'drag:over', this.setDropTarget,
     ).on(
       'drag:stop', this.swapSequenceItems,
