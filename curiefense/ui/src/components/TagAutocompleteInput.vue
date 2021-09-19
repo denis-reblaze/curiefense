@@ -88,6 +88,17 @@ export default Vue.extend({
     }
   },
 
+  watch: {
+    initialTag: {
+      handler(newVal) {
+        if (newVal !== this.tag) {
+          this.tag = newVal
+        }
+      },
+      immediate: true,
+    },
+  },
+
   computed: {
 
     currentTag(): string {
@@ -104,7 +115,6 @@ export default Vue.extend({
     inputTitle(): string {
       return this.selectionType.toLowerCase() === 'multiple' ? 'Space separated tags' : 'Tag'
     },
-
   },
 
   methods: {

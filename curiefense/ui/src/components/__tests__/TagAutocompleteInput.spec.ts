@@ -345,6 +345,15 @@ describe('TagAutocompleteInput.vue', () => {
     expect(spy).not.toHaveBeenCalledWith('db/system/k/tags/')
   })
 
+  test('watcher should follow initialTag value', async () => {
+    expect((wrapper.vm as any).initialTag).toBeFalsy()
+    expect((wrapper.vm as any).tag).toEqual((wrapper.vm as any).initialTag)
+    const initialTagValue = 'test'
+    wrapper.setProps({initialTag: initialTagValue})
+    await Vue.nextTick()
+    expect((wrapper.vm as any).tag).toEqual(initialTagValue)
+  })
+
   describe('tags group prefix', () => {
     beforeEach(async () => {
       tagsData = {
