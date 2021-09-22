@@ -92,7 +92,9 @@
                       </select>
                     </div>
                   </td>
-                  <td class="is-size-7 width-250px">
+                  <td class="is-size-7"
+                      :class="{'width-250px': newEntryCategory !== 'asn'}"
+                      :colspan="newEntryCategory === 'asn' ? 2 : 1">
                     <div v-if="isCategoryArgsCookiesHeaders(newEntryCategory)"
                          class="control has-icons-left is-fullwidth new-entry-name">
                       <input class="input is-small new-entry-name-input"
@@ -106,7 +108,7 @@
                     <div v-else-if="newEntryCategory === 'asn'"
                          class="control is-fullwidth new-entry-name">
                       <autocomplete-input :suggestions="asns"
-                                          @value-submitted="newEntryItem.firstAttr = $event" />
+                                          @value-submitted="setASN" />
                     </div>
                     <div v-else-if="newEntryCategory === 'country'"
                          class="control is-fullwidth new-entry-name">
@@ -131,7 +133,8 @@
                       </div>
                     </div>
                   </td>
-                  <td class="is-size-7 width-250px">
+                  <td v-if="newEntryCategory !== 'asn'"
+                      class="is-size-7 width-250px">
                     <div class="control has-icons-left is-fullwidth new-entry-value-annotation">
                       <input class="input is-small new-entry-value-annotation-input"
                              :class="{'is-danger': errorSecondAttr( sectionIndex )}"
@@ -417,6 +420,14 @@ export default Vue.extend({
       this.localRule.sections.splice(sectionIndex, 1)
       this.sectionsCurrentPageIndex.splice(sectionIndex, 1)
       this.emitRuleUpdate()
+    },
+
+    setASN(asn: string) {
+      const [asNumber, asCompanyName] = asn.split(/\s+(.*)/)
+      this.newEntryItem = {
+        firstAttr: asNumber.replace('AS', ''),
+        secondAttr: asCompanyName,
+      }
     },
 
     addEntry(section: GlobalFilterSection, sectionIndex: number) {
