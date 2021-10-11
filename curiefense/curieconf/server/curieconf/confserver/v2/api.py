@@ -5,8 +5,6 @@ jsonschema.Draft4Validator = jsonschema.Draft3Validator
 
 from flask import Blueprint, request, current_app, abort, make_response
 from flask_restplus import Resource, Api, fields, marshal, reqparse
-from collections import defaultdict
-import datetime
 from curieconf import utils
 from curieconf.utils import cloud
 import requests
@@ -45,7 +43,7 @@ m_limit = api.model(
         "id": fields.String(required=True),
         "name": fields.String(required=True),
         "description": fields.String(required=True),
-        "ttl": fields.String(required=True),
+        "timeframe": fields.String(required=True),
         "limit": fields.String(required=True),
         "action": fields.Raw(required=True),
         "include": fields.Raw(required=True),
@@ -131,7 +129,7 @@ m_aclprofile = api.model(
         "allow": fields.List(fields.String()),
         "allow_bot": fields.List(fields.String()),
         "deny_bot": fields.List(fields.String()),
-        "bypass": fields.List(fields.String()),
+        "passthrough": fields.List(fields.String()),
         "deny": fields.List(fields.String()),
         "force_deny": fields.List(fields.String()),
     },
@@ -146,7 +144,7 @@ m_globalfilter = api.model(
         "name": fields.String(required=True),
         "source": fields.String(required=True),
         "mdate": fields.String(required=True),
-        "notes": fields.String(required=True),
+        "description": fields.String(required=True),
         "active": fields.Boolean(required=True),
         "action": fields.Raw(required=True),
         "tags": fields.List(fields.String()),
@@ -162,13 +160,13 @@ m_flowcontrol = api.model(
     {
         "id": fields.String(required=True),
         "name": fields.String(required=True),
-        "ttl": fields.Integer(required=True),
+        "timeframe": fields.Integer(required=True),
         "key": fields.List(fields.Raw(required=True)),
         "sequence": fields.List(fields.Raw(required=True)),
         "action": fields.Raw(required=True),
         "include": fields.List(fields.String()),
         "exclude": fields.List(fields.String()),
-        "notes": fields.String(required=True),
+        "description": fields.String(required=True),
         "active": fields.Boolean(required=True),
     },
 )
@@ -194,7 +192,6 @@ m_document_mask = api.model(
         "id": fields.String(required=True),
         "name": fields.String(required=True),
         "description": fields.String(required=True),
-        "notes": fields.String(required=True),
         "map": fields.List(fields.Nested(m_secprofilemap)),
         "include": fields.Wildcard(fields.Raw()),
         "exclude": fields.Wildcard(fields.Raw()),
@@ -202,7 +199,7 @@ m_document_mask = api.model(
         "allow": fields.List(fields.String()),
         "allow_bot": fields.List(fields.String()),
         "deny_bot": fields.List(fields.String()),
-        "bypass": fields.List(fields.String()),
+        "passthrough": fields.List(fields.String()),
         "deny": fields.List(fields.String()),
         "force_deny": fields.List(fields.String()),
         "match": fields.String(),
