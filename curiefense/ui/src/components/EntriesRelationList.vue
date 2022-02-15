@@ -54,7 +54,7 @@
                 </tr>
 
                 <tr v-if="newEntrySectionIndex !== sectionIndex && editable">
-                  <td>
+                  <td colspan="5">
                     <a class="is-size-7 has-text-grey-lighter add-button add-entry-button"
                        title="add new row"
                        tabindex="0"
@@ -74,8 +74,6 @@
                        @keypress.enter="removeSection(sectionIndex)">
                       <i class="fas fa-trash"></i>
                     </a>
-                  </td>
-                  <td colspan="4">
                   </td>
                 </tr>
 
@@ -537,10 +535,10 @@ export default Vue.extend({
     },
 
     validateRegex( id: string, value: string ) {
-      const val = value.trim()
+      const val = value.trim().replaceAll(/\(\?[a-z]{1,3}\)/g, '') // remove unsupported in js mode modifiers
       try {
-        this.clearError( id )
-        new RegExp( val )
+        this.clearError(id)
+        new RegExp(val)
       } catch {
         this.validate( val, /^[\w-]+$/, id )
       }
